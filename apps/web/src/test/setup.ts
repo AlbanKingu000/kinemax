@@ -6,4 +6,9 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+  // Node-environment tests (scripts/) have no DOM.
+  if (typeof window !== 'undefined') {
+    window.localStorage.clear();
+    document.documentElement.lang = '';
+  }
 });

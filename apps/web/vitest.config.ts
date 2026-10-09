@@ -6,8 +6,10 @@ export default mergeConfig(
   defineConfig({
     test: {
       environment: 'jsdom',
-      include: ['src/**/*.test.{ts,tsx}'],
+      include: ['src/**/*.test.{ts,tsx}', 'scripts/**/*.test.ts'],
       setupFiles: ['src/test/setup.ts'],
+      // Process CSS so tokens.css?raw returns the real file (the contrast test reads it).
+      css: { include: [/tokens\.css/] },
       coverage: {
         provider: 'v8',
         include: ['src/**/*.{ts,tsx}'],

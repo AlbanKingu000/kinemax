@@ -1,0 +1,18 @@
+.logo {
+  display: block;
+  height: auto;
+  overflow: visible;
+}
+
+.ring {
+  stroke: var(--color-text);
+  stroke-opacity: 0.35;
+}
+
+.ivory {
+  fill: var(--color-text);
+}
+
+.crimson {
+  fill: var(--color-crimson);
+}

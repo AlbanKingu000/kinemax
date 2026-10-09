@@ -1,0 +1,41 @@
+.field {
+  display: grid;
+  /* Keep rows at their natural height when a neighbouring field in a grid row is taller. */
+  align-content: start;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.label {
+  color: var(--color-text);
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.required {
+  color: var(--color-crimson-text);
+}
+
+.optional {
+  color: var(--color-text-muted);
+  font-weight: var(--weight-regular);
+}
+
+.hint {
+  color: var(--color-text-muted);
+  font-size: var(--text-caption);
+}
+
+.error {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  color: var(--color-error);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+}
+
+.error svg {
+  flex: none;
+  margin-top: 0.1em;
+}

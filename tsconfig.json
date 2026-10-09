@@ -4,6 +4,8 @@
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "types": ["node"],
+    // DOM types for Playwright: page.evaluate callbacks run in the browser.
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "allowImportingTsExtensions": true,
     // scripts/*.ts run directly with Node's built-in type stripping.
     "erasableSyntaxOnly": true,

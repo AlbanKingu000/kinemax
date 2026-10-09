@@ -1,13 +1,12 @@
 import { defineConfig, devices } from '@playwright/test';
 import { loadDotEnv, rootEnvPath } from './apps/api/src/config/load-dotenv.ts';
 import { assertTestDatabaseUrl } from './apps/api/src/db/database-url.ts';
+import { API_PORT, DEV_WEB_PORT, DEV_WEB_URL, WEB_PORT } from './e2e/ports.ts';
 
 // e2e runs the production builds against kinemax_test ONLY; refuse anything else.
 loadDotEnv(rootEnvPath);
 const testDatabaseUrl = assertTestDatabaseUrl(process.env.DATABASE_URL_TEST);
 
-const API_PORT = 3101;
-const WEB_PORT = 4174;
 const isCI = Boolean(process.env.CI);
 
 export default defineConfig({
@@ -45,6 +44,14 @@ export default defineConfig({
     {
       command: `npm run preview -w @kinemax/web -- --port ${String(WEB_PORT)} --strictPort`,
       url: `http://localhost:${String(WEB_PORT)}`,
+      env: { API_PROXY_TARGET: `http://127.0.0.1:${String(API_PORT)}` },
+      reuseExistingServer: false,
+      timeout: 120_000,
+    },
+    {
+      // Vite dev server, only for development-only pages (/styleguide).
+      command: `npm run dev -w @kinemax/web -- --port ${String(DEV_WEB_PORT)} --strictPort`,
+      url: DEV_WEB_URL,
       env: { API_PROXY_TARGET: `http://127.0.0.1:${String(API_PORT)}` },
       reuseExistingServer: false,
       timeout: 120_000,

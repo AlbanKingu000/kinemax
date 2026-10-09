@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { defaultLocale, locales, messages } from './messages';
+import { styleguideMessages } from './styleguide-messages';
 
 function keyPaths(value: object, prefix = ''): string[] {
   return Object.entries(value).flatMap(([key, child]) =>
@@ -9,17 +10,35 @@ function keyPaths(value: object, prefix = ''): string[] {
   );
 }
 
+describe.each([
+  ['messages', messages],
+  ['styleguide messages', styleguideMessages],
+] as const)('%s', (_name, catalog) => {
+  it('has the same keys and no empty strings in every locale', () => {
+    const reference = keyPaths(catalog.sq).sort();
+    for (const locale of locales) {
+      expect(keyPaths(catalog[locale]).sort()).toEqual(reference);
+      expect(JSON.stringify(catalog[locale])).not.toContain('""');
+    }
+  });
+});
+
 describe('messages', () => {
   it('defaults to Albanian', () => {
     expect(defaultLocale).toBe('sq');
   });
 
-  it('has the same keys and no empty strings in every locale', () => {
-    const reference = keyPaths(messages.sq).sort();
-    for (const locale of locales) {
-      expect(keyPaths(messages[locale]).sort()).toEqual(reference);
-      const values = JSON.stringify(messages[locale]);
-      expect(values).not.toContain('""');
-    }
+  it('formats durations per language', () => {
+    expect(messages.sq.movie.duration(112)).toBe('1 orë 52 min');
+    expect(messages.en.movie.duration(112)).toBe('1 h 52 min');
+    expect(messages.sq.movie.duration(45)).toBe('45 min');
+    expect(messages.en.movie.duration(59)).toBe('59 min');
+  });
+
+  it('fills in values', () => {
+    expect(messages.sq.common.remove('VIP')).toBe('Hiq VIP');
+    expect(messages.en.common.remove('VIP')).toBe('Remove VIP');
+    expect(styleguideMessages.sq.logo.sizeLabel(16)).toBe('16 px');
+    expect(styleguideMessages.en.layout.cell(2)).toBe('Column 2');
   });
 });

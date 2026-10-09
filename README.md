@@ -3,9 +3,10 @@
 Kinemax is a personal portfolio project: the website of a **fictional** premium cinema chain with
 locations in several cities. The look will be a luxury dark theme in black and red.
 
-So far there is the project foundation and the full database model with realistic demo data
-(locations, halls with 3D seat layouts, movies, showtimes, prices, menus, users). The web app still
-shows a placeholder home page with the API and database health; the booking flow, accounts, the
+So far there is the project foundation, the full database model with realistic demo data
+(locations, halls with 3D seat layouts, movies, showtimes, prices, menus, users) and the visual
+identity with a design system (see [Design system](#design-system)). The web app still shows a
+placeholder home page with the API and database health; the booking flow, accounts, the
 admin panel and demo payments come in later tasks. The site will be in Albanian (default) and
 English, with prices in EUR. See [docs/data-model.md](docs/data-model.md) for the data model.
 
@@ -129,6 +130,32 @@ missing or wrong.
 | `npm run audit`      | Production audit gate (`npm audit --omit=dev`, fails on high/critical, see below)     |
 | `npm run audit:dev`  | Full `npm audit` including dev tooling; reports only, never fails                     |
 | `npm run verify`     | lint, typecheck, test:cov, build, e2e and audit (production dependencies)             |
+
+## Design system
+
+Luxury dark cinema in black and deep crimson, dark theme only.
+
+- **Styleguide:** `npm run dev`, then http://localhost:5180/styleguide. It shows the logos,
+  favicons, colors with contrast ratios, type, spacing, every component in every state and the hero
+  background, in Albanian and English. It exists only in development builds; production shows the
+  not-found page there.
+- **Tokens:** `apps/web/src/styles/tokens.css` (colors, type scale, spacing, radii, shadows and
+  glows, z-index, motion, focus ring). `src/styles/tokens.test.ts` checks every color pair listed in
+  `src/styles/contrast.ts` for WCAG AA.
+- **Fonts:** Cormorant Garamond (display) and Manrope (body), self-hosted variable fonts from
+  Fontsource, latin subset only (it covers ë, Ë, ç, Ç and €), `font-display: swap`, preloaded in
+  production builds. About 61 KB in total.
+- **Components:** `apps/web/src/components`, React with CSS modules: Button, Link, Input, Select,
+  Checkbox, Radio/RadioGroup, Switch, FormField, Tabs, Badge (age, format, language), Chip, Card,
+  MovieCard, Skeleton, Modal, Toast, Container/Grid, Icon, Logo, LanguageSwitch and
+  HeroBackground.
+- **Logo:** the KX monogram. All letters are outlines taken from Cormorant Garamond (SIL Open Font
+  License, see `apps/web/src/assets/brand/FONT-LICENSE.md`).
+  `npm run brand:generate -w @kinemax/web` regenerates the SVGs, `logo-data.ts` and the favicon
+  PNGs (it renders them with Playwright's Chromium).
+- **Languages:** a small typed i18n layer (`apps/web/src/i18n`), not a library. Translations are
+  plain objects; English must match the Albanian type, so a missing key fails `npm run typecheck`.
+  The SQ/EN switch remembers the choice in localStorage and sets `<html lang>`.
 
 ## Security baseline
 

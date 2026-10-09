@@ -49,7 +49,10 @@ npm run db:migrate   # prisma migrate dev (development database)
 npm run db:seed      # idempotent demo data (development database only; refuses *_test)
 npm run db:studio    # Prisma Studio
 npm run db:reset     # wipe, re-migrate and re-seed the dev database (asks; refuses *_test)
+npm run brand:generate -w @kinemax/web  # rebuild logo SVGs, logo-data.ts and favicon PNGs
 ```
+
+The living styleguide is at http://localhost:5180/styleguide (dev server only; 404 in production).
 
 ## Scope
 
@@ -67,8 +70,18 @@ npm run db:reset     # wipe, re-migrate and re-seed the dev database (asks; refu
 
 - Premium, luxury dark theme in **black + red**. The mood is inspired by noircinema.sa, but never copy
   its logos, text, photos, code, assets or layout. Use only Kinemax's own name, text, images and logo.
-- Colors, spacing and typography come from design tokens (CSS variables) only.
-- WCAG AA contrast everywhere. Red text on black often fails: check it.
+- Colors, spacing and typography come from design tokens (CSS variables) only:
+  `apps/web/src/styles/tokens.css`. Translucent colors use the channel tokens
+  (`rgb(var(--rgb-crimson) / 40%)`), never raw values in CSS modules.
+- Build UI from the components in `apps/web/src/components` (CSS modules + tokens) and show every
+  new component and state on `/styleguide`. No UI libraries or CSS frameworks.
+- WCAG AA contrast everywhere. Red text on black often fails: use `--color-crimson-text` for red
+  text, never `--color-crimson`. Every color pair in use is listed in `CONTRAST_PAIRS`
+  (`apps/web/src/styles/contrast.ts`) and checked by a unit test; add new pairs there.
+- Fonts are self-hosted (Cormorant Garamond for display, Manrope for body; latin subset, variable).
+  Never load fonts or assets from third-party CDNs.
+- The logo is generated (`npm run brand:generate -w @kinemax/web`); never hand-edit the SVGs or
+  `logo-data.ts`.
 - If a task needs a visible design change beyond what was asked, describe it and ask first.
 - Keep keyboard navigation, visible focus states, alt text and reduced-motion support.
 

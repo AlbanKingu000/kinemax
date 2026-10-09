@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { ToastProvider } from './components/Toast/ToastProvider';
 import { I18nProvider } from './i18n/I18nProvider';
 import { routes } from './routes';
 import { stubFetchJson } from './test/fetch';
@@ -9,7 +10,9 @@ function renderAt(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
   return render(
     <I18nProvider>
-      <RouterProvider router={router} />
+      <ToastProvider>
+        <RouterProvider router={router} />
+      </ToastProvider>
     </I18nProvider>,
   );
 }
@@ -29,4 +32,21 @@ describe('routes', () => {
       '/',
     );
   });
+
+  it(
+    'serves the styleguide in development builds (production: see e2e)',
+    { timeout: 30_000 },
+    async () => {
+      expect(import.meta.env.DEV).toBe(true);
+      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+      renderAt('/styleguide');
+      expect(
+        await screen.findByRole(
+          'heading',
+          { level: 1, name: 'Udhëzuesi i stilit' },
+          { timeout: 15_000 },
+        ),
+      ).toBeInTheDocument();
+    },
+  );
 });

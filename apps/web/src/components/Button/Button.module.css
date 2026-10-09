@@ -1,0 +1,152 @@
+.button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-family: var(--font-body);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-base) var(--ease-standard),
+    border-color var(--duration-base) var(--ease-standard),
+    color var(--duration-base) var(--ease-standard),
+    box-shadow var(--duration-slow) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-standard);
+}
+
+.button:focus-visible,
+.button[data-demo-state='focus'] {
+  outline: var(--focus-ring-width) solid var(--color-focus-ring);
+  outline-offset: var(--focus-ring-offset);
+  box-shadow: var(--focus-halo);
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  box-shadow: none;
+}
+
+.button[aria-busy='true'] {
+  cursor: progress;
+  opacity: 0.85;
+}
+
+/* Sizes: at least 36 px high, 44 px from md up */
+.sm {
+  min-height: 2.25rem;
+  padding: 0 var(--space-4);
+  font-size: var(--text-overline);
+}
+
+.md {
+  min-height: 2.75rem;
+  padding: 0 var(--space-6);
+  font-size: var(--text-caption);
+}
+
+.lg {
+  min-height: 3.25rem;
+  padding: 0 var(--space-8);
+  font-size: var(--text-body-sm);
+}
+
+/* Primary: crimson with an ivory label */
+.primary {
+  background: var(--color-crimson);
+  color: var(--color-on-crimson);
+  box-shadow: var(--glow-crimson-soft);
+}
+
+.primary:hover:enabled,
+.primary[data-demo-state='hover'] {
+  background: var(--color-crimson-hover);
+  box-shadow: var(--glow-crimson);
+}
+
+.primary:active:enabled,
+.primary[data-demo-state='active'] {
+  background: var(--color-crimson-pressed);
+  transform: translateY(1px);
+}
+
+/* Secondary: outlined */
+.secondary {
+  background: transparent;
+  color: var(--color-text);
+  border-color: var(--color-border-control);
+}
+
+.secondary:hover:enabled,
+.secondary[data-demo-state='hover'] {
+  border-color: var(--color-text);
+  background: var(--color-elevated);
+}
+
+.secondary:active:enabled,
+.secondary[data-demo-state='active'] {
+  background: var(--color-surface);
+  transform: translateY(1px);
+}
+
+/* Ghost: text only */
+.ghost {
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+
+.ghost:hover:enabled,
+.ghost[data-demo-state='hover'] {
+  color: var(--color-text);
+  background: var(--color-surface);
+}
+
+.ghost:active:enabled,
+.ghost[data-demo-state='active'] {
+  background: var(--color-elevated);
+}
+
+/* Icon only: square */
+.icon {
+  padding: 0;
+  aspect-ratio: 1;
+  background: transparent;
+  color: var(--color-text);
+  border-color: var(--color-border-control);
+}
+
+.icon.sm {
+  width: 2.25rem;
+}
+
+.icon.md {
+  width: 2.75rem;
+}
+
+.icon.lg {
+  width: 3.25rem;
+}
+
+.icon:hover:enabled,
+.icon[data-demo-state='hover'] {
+  border-color: var(--color-crimson-text);
+  color: var(--color-crimson-text);
+}
+
+.icon:active:enabled,
+.icon[data-demo-state='active'] {
+  background: var(--color-surface);
+}
+
+.label {
+  /* Uppercase Manrope sits slightly low; nudge it to the optical center. */
+  padding-top: 0.08em;
+}
