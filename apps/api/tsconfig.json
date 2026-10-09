@@ -7,5 +7,5 @@
     "customConditions": ["kinemax-source"],
     "noEmit": true
   },
-  "include": ["src", "test", "scripts", "prisma.config.ts", "vitest.config.ts"]
+  "include": ["src", "test", "scripts", "prisma/seed", "prisma.config.ts", "vitest.config.ts"]
 }

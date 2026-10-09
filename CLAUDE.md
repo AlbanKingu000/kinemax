@@ -20,6 +20,14 @@
 - The app, tests and scripts use the `kinemax` role only. Never use the `postgres` superuser.
 - `kinemax` is the development database; tests (Vitest integration and Playwright e2e) run only
   against `kinemax_test`. The guards that enforce this must never be removed or weakened.
+- Data model: `docs/data-model.md`. Money is integer cents, timestamps are `timestamptz` in UTC
+  (sessions run with `TimeZone=UTC`), texts have `*Sq` (required) and `*En` (optional) columns.
+- The DB-level guarantees (G0-G11 at the end of the `init_domain` migration: overlap exclusion,
+  seat locks, status machine, CHECKs, triggers) must never be removed or weakened. New guarantees
+  go into new migrations as raw SQL with a comment; check that `prisma migrate dev --create-only`
+  then produces an empty migration (no drift).
+- Prisma 7 does not run `generate` after `migrate dev`, nor the seed after `migrate reset`; run them
+  explicitly. Prices are only ever calculated on the server (`apps/api/src/domain/pricing.ts`).
 
 ## Commands
 
@@ -36,8 +44,9 @@ npm run audit        # production audit gate: npm audit --omit=dev, fails on hig
                      # the documented Prisma CLI exceptions in scripts/audit-gate-core.ts
 npm run audit:dev    # full npm audit incl. dev tooling (report only, never fails)
 npm run db:migrate   # prisma migrate dev (development database)
+npm run db:seed      # idempotent demo data (development database only; refuses *_test)
 npm run db:studio    # Prisma Studio
-npm run db:reset     # wipe the development database (asks for confirmation; refuses *_test)
+npm run db:reset     # wipe, re-migrate and re-seed the dev database (asks; refuses *_test)
 ```
 
 ## Scope

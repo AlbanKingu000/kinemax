@@ -16,6 +16,8 @@ export default defineConfig({
   schema: 'prisma/schema.prisma',
   migrations: {
     path: 'prisma/migrations',
+    // Development demo data (refuses *_test databases). Run with `npm run db:seed`.
+    seed: 'tsx prisma/seed/index.ts',
   },
   datasource: {
     // Optional for `prisma generate`; required for migrate/studio, which fail with a clear error.

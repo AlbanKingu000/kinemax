@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900" viewBox="0 0 600 900" role="img">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#140204"/><stop offset="1" stop-color="#000000"/></linearGradient></defs>
+<rect width="100%" height="100%" fill="url(#bg)"/>
+<circle cx="278" cy="162" r="186" fill="#ff5a4f" opacity="0.54"/><circle cx="296" cy="382" r="203" fill="#ff5a4f" opacity="0.70"/><circle cx="504" cy="164" r="186" fill="#ff2a2a" opacity="0.38"/><rect x="-600" y="463" width="1800" height="54" fill="#ff2a2a" opacity="0.85" transform="rotate(-2 300 450)"/><rect y="560" width="600" height="340" fill="#000000" opacity="0.55"/><text x="40" y="609" font-family="'Bebas Neue', 'Arial Narrow', sans-serif" font-size="60" fill="#ffffff" letter-spacing="2">EKSPEDITA</text><text x="40" y="671" font-family="'Bebas Neue', 'Arial Narrow', sans-serif" font-size="60" fill="#ffffff" letter-spacing="2">BJESHKË</text><text x="40" y="860" font-family="'Inter', Arial, sans-serif" font-size="20" fill="#e50914" letter-spacing="6">KINEMAX</text>
+</svg>

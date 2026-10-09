@@ -2,7 +2,13 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../generated/prisma/client.js';
 
 export function createPrismaClient(databaseUrl: string): PrismaClient {
-  const adapter = new PrismaPg({ connectionString: databaseUrl, connectionTimeoutMillis: 5_000 });
+  const adapter = new PrismaPg({
+    connectionString: databaseUrl,
+    connectionTimeoutMillis: 5_000,
+    // The pg adapter sends timestamps without an offset, so every session must run in UTC or
+    // stored instants shift by the server's time zone (see migration block G0).
+    options: '-c TimeZone=UTC',
+  });
   return new PrismaClient({ adapter });
 }
 

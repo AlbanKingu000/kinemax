@@ -1,5 +1,5 @@
-// Drops and recreates the DEVELOPMENT database (all data is lost), then re-applies migrations.
-// Refuses any database ending in "_test" and asks for confirmation first.
+// Drops and recreates the DEVELOPMENT database (all data is lost), re-applies migrations and
+// re-runs the demo seed. Refuses any database ending in "_test" and asks for confirmation first.
 import { execSync } from 'node:child_process';
 import { stdin, stdout } from 'node:process';
 import { createInterface } from 'node:readline/promises';
@@ -34,8 +34,11 @@ if (answer.trim() !== target.name) {
   process.exit(1);
 }
 
-execSync('npx prisma migrate reset --force', {
+const options = {
   cwd: fileURLToPath(new URL('..', import.meta.url)),
   env: { ...process.env, DATABASE_URL: target.url },
   stdio: 'inherit',
-});
+} as const;
+// Prisma 7's `migrate reset` no longer runs the seed itself, so seed explicitly afterwards.
+execSync('npx prisma migrate reset --force', options);
+execSync('npx prisma db seed', options);

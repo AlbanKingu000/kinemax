@@ -1,5 +1,12 @@
-// Kinemax database schema.
-// Business models (locations, movies, halls, showtimes, bookings, ...) come in a later task.
+// Kinemax database schema. See docs/data-model.md for the ER diagram and every DB-level guarantee.
+//
+// Conventions
+// - Money: integer cents (EUR), never floats.
+// - Time: every DateTime is timestamptz (stored in UTC). Locations carry an IANA time zone.
+// - Texts: per-language columns. Albanian (*Sq) is required, English (*En) is optional and falls
+//   back to Albanian.
+// - Guarantees Prisma cannot express (exclusion constraint, CHECK constraints, triggers) are added as
+//   raw SQL in the migration and documented there.
 
 generator client {
   provider               = "prisma-client"
@@ -12,4 +19,630 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Locale {
+  sq
+  en
+}
+
+enum UserRole {
+  CUSTOMER
+  LOCATION_MANAGER
+  SUPER_ADMIN
+}
+
+enum SeatType {
+  STANDARD
+  VIP
+  COUPLE // one bookable sofa for two people (widthUnits = 2)
+  WHEELCHAIR // space without a seat
+  COMPANION // seat next to a wheelchair space
+}
+
+enum AgeRating {
+  ALL
+  AGE_7
+  AGE_12
+  AGE_15
+  AGE_18
+}
+
+enum Genre {
+  ACTION
+  ADVENTURE
+  ANIMATION
+  COMEDY
+  CRIME
+  DOCUMENTARY
+  DRAMA
+  FAMILY
+  FANTASY
+  HISTORY
+  HORROR
+  MUSIC
+  MYSTERY
+  ROMANCE
+  SCI_FI
+  THRILLER
+  WAR
+}
+
+enum MovieStatus {
+  COMING_SOON
+  NOW_SHOWING
+  ARCHIVED
+}
+
+enum ShowtimeFormat {
+  FORMAT_2D @map("2D")
+  FORMAT_3D @map("3D")
+}
+
+enum LanguageVersion {
+  ORIGINAL_SQ_SUBTITLES
+  DUBBED_SQ
+  ORIGINAL_NO_SUBTITLES
+}
+
+enum AdjustmentKind {
+  PERCENT // value = whole percent, e.g. -20 or 15
+  FIXED_CENTS // value = cents, e.g. -100 or 150
+}
+
+enum BookingStatus {
+  HELD
+  CONFIRMED
+  CANCELLED
+  EXPIRED
+  REFUNDED
+}
+
+enum MenuCategory {
+  POPCORN
+  DRINK
+  SNACK
+  NACHOS
+  HOT_DOG
+  VIP_DISH
+  COMBO
+}
+
+enum Fulfillment {
+  PICKUP_AT_COUNTER
+  DELIVER_TO_SEAT
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+// ---------------------------------------------------------------------------
+// Locations and halls
+// ---------------------------------------------------------------------------
+
+model Location {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  slug      String   @unique
+  // Proper nouns: the same in Albanian and English.
+  name      String
+  city      String
+  address   String
+  /// IANA time zone used for display and day/time pricing, e.g. "Europe/Belgrade".
+  timeZone  String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  halls           Hall[]
+  managers        ManagerLocation[]
+  menuItems       LocationMenuItem[]
+  hallTypePrices  HallTypePrice[]
+  timeAdjustments TimePriceAdjustment[]
+}
+
+/// Hall types are data (not an enum) so new formats can be added without a migration.
+model HallType {
+  id                 String   @id @default(uuid(7)) @db.Uuid
+  code               String   @unique
+  nameSq             String
+  nameEn             String?
+  descriptionSq      String
+  descriptionEn      String?
+  /// Feature codes shown in the UI, e.g. RECLINERS, SEAT_SERVICE, GIANT_SCREEN.
+  features           String[]
+  /// Food can be delivered to the seat in halls of this type.
+  allowsSeatDelivery Boolean  @default(false)
+  sortOrder          Int      @default(0)
+  createdAt          DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime @updatedAt @db.Timestamptz(3)
+
+  halls  Hall[]
+  prices HallTypePrice[]
+}
+
+model Hall {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  locationId    String   @db.Uuid
+  hallTypeId    String   @db.Uuid
+  name          String
+  isActive      Boolean  @default(true)
+  /// Private suites: only bookable as a whole hall per showtime, never seat by seat.
+  wholeHallOnly Boolean  @default(false)
+  // Screen geometry for the future 3D seat map (meters, hall coordinate system: x = left/right of
+  // the center line, y = distance from the screen wall, z = height above the front floor).
+  screenWidthM  Float
+  screenHeightM Float
+  screenX       Float    @default(0)
+  screenY       Float    @default(0)
+  screenZ       Float
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+
+  location        Location         @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  hallType        HallType         @relation(fields: [hallTypeId], references: [id], onDelete: Restrict)
+  seats           Seat[]
+  showtimes       Showtime[]
+  wholeHallPrices WholeHallPrice[]
+
+  @@unique([locationId, name])
+  @@index([hallTypeId])
+}
+
+model Seat {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  hallId      String   @db.Uuid
+  rowLabel    String
+  number      Int
+  seatType    SeatType
+  /// Meters: x = left/right from the hall center line, y = distance from the screen, z = elevation.
+  x           Float
+  y           Float
+  z           Float
+  /// Yaw in degrees; 0 = facing the screen straight on.
+  rotationDeg Float    @default(0)
+  /// Width in seat units (couple sofas = 2).
+  widthUnits  Int      @default(1)
+  isActive    Boolean  @default(true)
+
+  hall         Hall              @relation(fields: [hallId], references: [id], onDelete: Cascade)
+  bookingSeats BookingSeat[]
+  reservations SeatReservation[]
+
+  @@unique([hallId, rowLabel, number])
+  // Target of the composite foreign key that keeps reservations inside the showtime's hall.
+  @@unique([id, hallId])
+}
+
+// ---------------------------------------------------------------------------
+// Movies and showtimes
+// ---------------------------------------------------------------------------
+
+model Movie {
+  id               String      @id @default(uuid(7)) @db.Uuid
+  slug             String      @unique
+  titleSq          String
+  titleEn          String?
+  synopsisSq       String
+  synopsisEn       String?
+  durationMinutes  Int
+  ageRating        AgeRating
+  genres           Genre[]
+  releaseDate      DateTime    @db.Date
+  posterPath       String?
+  backdropPath     String?
+  /// YouTube video id only (11 chars); embedded via youtube-nocookie.com after the user presses play.
+  trailerYoutubeId String?
+  director         String
+  cast             String[]
+  status           MovieStatus @default(COMING_SOON)
+  createdAt        DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime    @updatedAt @db.Timestamptz(3)
+
+  showtimes Showtime[]
+
+  @@index([status])
+}
+
+model Showtime {
+  id              String          @id @default(uuid(7)) @db.Uuid
+  movieId         String          @db.Uuid
+  hallId          String          @db.Uuid
+  startsAt        DateTime        @db.Timestamptz(3)
+  /// startsAt + movie duration + cleaning buffer. Used by the no-overlap exclusion constraint.
+  endsAt          DateTime        @db.Timestamptz(3)
+  format          ShowtimeFormat  @default(FORMAT_2D)
+  languageVersion LanguageVersion
+  isActive        Boolean         @default(true)
+  createdAt       DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime        @updatedAt @db.Timestamptz(3)
+
+  movie                 Movie                  @relation(fields: [movieId], references: [id], onDelete: Restrict)
+  hall                  Hall                   @relation(fields: [hallId], references: [id], onDelete: Restrict)
+  bookings              Booking[]
+  seatReservations      SeatReservation[]
+  wholeHallReservations WholeHallReservation[]
+
+  // Target of composite foreign keys (reservations must match the showtime's hall).
+  @@unique([id, hallId])
+  @@index([hallId, startsAt])
+  @@index([movieId, startsAt])
+  @@index([startsAt])
+}
+
+// ---------------------------------------------------------------------------
+// Pricing rules (all amounts in cents; validFrom/validTo + isActive keep history)
+// A rule applies when isActive and validFrom <= pricedAt < validTo (validTo null = open-ended).
+// ---------------------------------------------------------------------------
+
+/// Base ticket price per hall type, optionally specific to one location (beats the global rule).
+model HallTypePrice {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  hallTypeId String    @db.Uuid
+  locationId String?   @db.Uuid
+  priceCents Int
+  validFrom  DateTime  @db.Timestamptz(3)
+  validTo    DateTime? @db.Timestamptz(3)
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+
+  hallType HallType  @relation(fields: [hallTypeId], references: [id], onDelete: Restrict)
+  location Location? @relation(fields: [locationId], references: [id], onDelete: Restrict)
+
+  @@index([hallTypeId, locationId])
+}
+
+/// Surcharge per seat type (VIP, COUPLE, ...). Missing rule = no surcharge.
+model SeatTypeSurcharge {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  seatType    SeatType
+  amountCents Int
+  validFrom   DateTime  @db.Timestamptz(3)
+  validTo     DateTime? @db.Timestamptz(3)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([seatType])
+}
+
+/// Day/time adjustment in the location's local time, e.g. weekday matinee -20%, weekend evening +1 EUR.
+model TimePriceAdjustment {
+  id          String         @id @default(uuid(7)) @db.Uuid
+  locationId  String?        @db.Uuid
+  nameSq      String
+  nameEn      String?
+  /// ISO days of week, 1 = Monday ... 7 = Sunday.
+  daysOfWeek  Int[]
+  /// Local minutes since midnight; the window is [startMinute, endMinute) within one day.
+  startMinute Int
+  endMinute   Int
+  kind        AdjustmentKind
+  /// Percent (whole number) or cents, depending on kind. Negative = cheaper.
+  value       Int
+  /// When several windows match, the highest priority wins (then location-specific, then newest).
+  priority    Int            @default(0)
+  validFrom   DateTime       @db.Timestamptz(3)
+  validTo     DateTime?      @db.Timestamptz(3)
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now()) @db.Timestamptz(3)
+
+  location Location? @relation(fields: [locationId], references: [id], onDelete: Restrict)
+
+  @@index([locationId])
+}
+
+model TicketCategory {
+  id            String  @id @default(uuid(7)) @db.Uuid
+  /// ADULT, STUDENT, CHILD, SENIOR, ...
+  code          String  @unique
+  nameSq        String
+  nameEn        String?
+  descriptionSq String?
+  descriptionEn String?
+  sortOrder     Int     @default(0)
+  isActive      Boolean @default(true)
+
+  discounts    TicketCategoryDiscount[]
+  bookingSeats BookingSeat[]
+}
+
+/// Discount for a ticket category (value >= 0: percent off or cents off).
+model TicketCategoryDiscount {
+  id               String         @id @default(uuid(7)) @db.Uuid
+  ticketCategoryId String         @db.Uuid
+  kind             AdjustmentKind
+  value            Int
+  validFrom        DateTime       @db.Timestamptz(3)
+  validTo          DateTime?      @db.Timestamptz(3)
+  isActive         Boolean        @default(true)
+  createdAt        DateTime       @default(now()) @db.Timestamptz(3)
+
+  ticketCategory TicketCategory @relation(fields: [ticketCategoryId], references: [id], onDelete: Restrict)
+
+  @@index([ticketCategoryId])
+}
+
+/// Whole-hall price per showtime for halls booked as a whole (private suites).
+model WholeHallPrice {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  hallId     String    @db.Uuid
+  priceCents Int
+  validFrom  DateTime  @db.Timestamptz(3)
+  validTo    DateTime? @db.Timestamptz(3)
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+
+  hall Hall @relation(fields: [hallId], references: [id], onDelete: Restrict)
+
+  @@index([hallId])
+}
+
+// ---------------------------------------------------------------------------
+// Users, roles, sessions, settings, audit
+// ---------------------------------------------------------------------------
+
+model User {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  /// Stored normalized (trimmed, lowercase); enforced by a CHECK constraint.
+  email           String   @unique
+  /// argon2id hash; never logged, never returned by the API.
+  passwordHash    String
+  name            String
+  preferredLocale Locale   @default(sq)
+  role            UserRole @default(CUSTOMER)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(3)
+
+  managedLocations ManagerLocation[]
+  sessions         Session[]
+  bookings         Booking[]
+  auditLogs        AuditLog[]
+  settingsUpdates  AppSettings[]
+}
+
+/// Which locations a LOCATION_MANAGER manages.
+model ManagerLocation {
+  userId     String   @db.Uuid
+  locationId String   @db.Uuid
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@id([userId, locationId])
+  @@index([locationId])
+}
+
+/// Server-side session. Only a SHA-256 hash of the session token is stored, never the raw token.
+model Session {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  tokenHash  String   @unique
+  userId     String   @db.Uuid
+  expiresAt  DateTime @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  lastSeenAt DateTime @default(now()) @db.Timestamptz(3)
+  userAgent  String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+/// Singleton settings row (id = 1, enforced by a CHECK constraint).
+model AppSettings {
+  id                        Int      @id @default(1)
+  seatHoldMinutes           Int      @default(10)
+  cancellationCutoffMinutes Int      @default(120)
+  updatedAt                 DateTime @updatedAt @db.Timestamptz(3)
+  updatedById               String?  @db.Uuid
+
+  updatedBy User? @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+}
+
+/// Append-only log of price, role, settings and admin changes.
+model AuditLog {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  /// Null = system action (e.g. seed, scheduled job).
+  actorId    String?  @db.Uuid
+  action     String
+  entityType String
+  entityId   String
+  before     Json?
+  after      Json?
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Bookings
+// ---------------------------------------------------------------------------
+
+model Booking {
+  id                  String        @id @default(uuid(7)) @db.Uuid
+  /// Public, random, unguessable code for the QR ticket (Crockford base32, 16 chars).
+  code                String        @unique
+  userId              String        @db.Uuid
+  showtimeId          String        @db.Uuid
+  status              BookingStatus @default(HELD)
+  holdExpiresAt       DateTime?     @db.Timestamptz(3)
+  /// Seats + food, in cents (snapshot at booking time).
+  totalCents          Int
+  currency            String        @default("EUR") @db.Char(3)
+  ageRatingConfirmed  Boolean       @default(false)
+  /// Whole-hall (suite) booking: price snapshot of the whole hall instead of per-seat tickets.
+  isWholeHall         Boolean       @default(false)
+  wholeHallPriceCents Int?
+  /// Price breakdown snapshot for whole-hall bookings (see apps/api/src/domain/pricing.ts).
+  wholeHallBreakdown  Json?
+  createdAt           DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime      @updatedAt @db.Timestamptz(3)
+  confirmedAt         DateTime?     @db.Timestamptz(3)
+  cancelledAt         DateTime?     @db.Timestamptz(3)
+
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Restrict)
+  showtime              Showtime               @relation(fields: [showtimeId], references: [id], onDelete: Restrict)
+  seats                 BookingSeat[]
+  seatReservations      SeatReservation[]
+  wholeHallReservations WholeHallReservation[]
+  foodItems             BookingFoodItem[]
+  payments              DemoPayment[]
+
+  // Target of composite foreign keys: a reservation's showtime must be its booking's showtime.
+  @@unique([id, showtimeId])
+  @@index([userId, createdAt])
+  @@index([showtimeId, status])
+  @@index([status, holdExpiresAt])
+}
+
+/// Booked seat with its price snapshot. Permanent history row (kept after cancellation).
+model BookingSeat {
+  id                 String @id @default(uuid(7)) @db.Uuid
+  bookingId          String @db.Uuid
+  seatId             String @db.Uuid
+  ticketCategoryId   String @db.Uuid
+  /// Snapshot of the category code at booking time.
+  ticketCategoryCode String
+  unitPriceCents     Int
+  /// Full price breakdown snapshot (base, surcharges, adjustments, discounts, rule ids).
+  priceBreakdown     Json
+
+  booking        Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  seat           Seat           @relation(fields: [seatId], references: [id], onDelete: Restrict)
+  ticketCategory TicketCategory @relation(fields: [ticketCategoryId], references: [id], onDelete: Restrict)
+
+  @@unique([bookingId, seatId])
+  @@index([seatId])
+}
+
+/// Live seat lock: one row per (showtime, seat) while the booking is HELD or CONFIRMED. The unique
+/// key makes double-holding impossible; rows are deleted (by trigger) when the booking is released.
+model SeatReservation {
+  showtimeId String   @db.Uuid
+  seatId     String   @db.Uuid
+  hallId     String   @db.Uuid
+  bookingId  String   @db.Uuid
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  showtime Showtime @relation(fields: [showtimeId, hallId], references: [id, hallId], onDelete: Restrict, onUpdate: Restrict)
+  seat     Seat     @relation(fields: [seatId, hallId], references: [id, hallId], onDelete: Restrict, onUpdate: Restrict)
+  booking  Booking  @relation(fields: [bookingId, showtimeId], references: [id, showtimeId], onDelete: Cascade, onUpdate: Restrict)
+
+  @@id([showtimeId, seatId])
+  @@index([bookingId])
+}
+
+/// Live whole-hall lock for suites: at most one per showtime (primary key = showtimeId).
+model WholeHallReservation {
+  showtimeId String   @id @db.Uuid
+  hallId     String   @db.Uuid
+  bookingId  String   @unique @db.Uuid
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  showtime Showtime @relation(fields: [showtimeId, hallId], references: [id, hallId], onDelete: Restrict, onUpdate: Restrict)
+  booking  Booking  @relation(fields: [bookingId, showtimeId], references: [id, showtimeId], onDelete: Cascade, onUpdate: Restrict)
+}
+
+// ---------------------------------------------------------------------------
+// Food and drinks
+// ---------------------------------------------------------------------------
+
+model MenuItem {
+  id            String       @id @default(uuid(7)) @db.Uuid
+  slug          String       @unique
+  nameSq        String
+  nameEn        String?
+  descriptionSq String?
+  descriptionEn String?
+  category      MenuCategory
+  imagePath     String?
+  isCombo       Boolean      @default(false)
+  isActive      Boolean      @default(true)
+  createdAt     DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime     @updatedAt @db.Timestamptz(3)
+
+  /// Components of this combo (only for isCombo items).
+  components   ComboComponent[]   @relation("ComboComponents")
+  /// Combos this item is part of.
+  partOfCombos ComboComponent[]   @relation("ComponentOfCombos")
+  locations    LocationMenuItem[]
+  orderItems   BookingFoodItem[]
+}
+
+model ComboComponent {
+  comboId     String @db.Uuid
+  componentId String @db.Uuid
+  quantity    Int    @default(1)
+
+  combo     MenuItem @relation("ComboComponents", fields: [comboId], references: [id], onDelete: Cascade)
+  component MenuItem @relation("ComponentOfCombos", fields: [componentId], references: [id], onDelete: Restrict)
+
+  @@id([comboId, componentId])
+}
+
+/// Availability and price of a menu item at one location.
+model LocationMenuItem {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  locationId  String   @db.Uuid
+  menuItemId  String   @db.Uuid
+  priceCents  Int
+  isAvailable Boolean  @default(true)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
+
+  @@unique([locationId, menuItemId])
+}
+
+/// Food ordered with a booking (optional; a booking may have none). Price is a snapshot.
+model BookingFoodItem {
+  id             String      @id @default(uuid(7)) @db.Uuid
+  bookingId      String      @db.Uuid
+  menuItemId     String      @db.Uuid
+  /// Snapshot of the item name at order time.
+  nameSq         String
+  quantity       Int
+  unitPriceCents Int
+  fulfillment    Fulfillment @default(PICKUP_AT_COUNTER)
+
+  booking  Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
+
+  @@index([bookingId])
+}
+
+// ---------------------------------------------------------------------------
+// Payments (DEMO ONLY: never card numbers, CVC or expiry dates)
+// ---------------------------------------------------------------------------
+
+model DemoPayment {
+  id          String        @id @default(uuid(7)) @db.Uuid
+  bookingId   String        @db.Uuid
+  amountCents Int
+  currency    String        @default("EUR") @db.Char(3)
+  status      PaymentStatus @default(PENDING)
+  provider    String        @default("demo")
+  reference   String        @unique
+  createdAt   DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime      @updatedAt @db.Timestamptz(3)
+  succeededAt DateTime?     @db.Timestamptz(3)
+  refundedAt  DateTime?     @db.Timestamptz(3)
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+
+  @@index([bookingId])
 }
