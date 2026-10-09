@@ -123,3 +123,20 @@ Each exception only applies to that package inside the Prisma CLI (`node_modules
 anywhere else, still fails the gate. The gate prints exceptions that are no longer reported as
 "stale" so they can be removed. We do not force other versions into the CLI with `overrides`; update
 Prisma when a release with fixed versions is available. Never run `npm audit fix --force`.
+
+### Install scripts
+
+Dependency install scripts are restricted with npm's `allowScripts` policy (root `package.json`) and
+`strict-allow-scripts=true` (`.npmrc`, needs npm 11.16 or newer). Only these may run install scripts:
+
+| Entry                    | Why                                                                        |
+| ------------------------ | -------------------------------------------------------------------------- |
+| `@prisma/engines@7.10.0` | Downloads the Prisma schema engine needed by `prisma migrate`              |
+| `prisma@7.10.0`          | Node version check only; denying it would also stop npm linking the CLI    |
+| `esbuild@0.28.2`         | Verifies/installs the platform binary used by `tsx`                        |
+| `argon2@0.45.1`          | Password hashing (added with accounts); loads or builds its native binding |
+| `fsevents` → `false`     | macOS-only optional dependency; ships a prebuilt binary, script not needed |
+
+Entries are pinned, so upgrading one of these packages needs a new approval. Any other dependency
+with install scripts makes `npm install`/`npm ci` fail before anything runs. Review it, then approve
+it with `npm approve-scripts <pkg>` or deny it with `npm deny-scripts <pkg>`.

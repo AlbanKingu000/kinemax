@@ -83,6 +83,8 @@ npm run db:reset     # wipe the development database (asks for confirmation; ref
   origin through the Vite proxy), JSON body size limit, the central error handler.
 - New dependencies only when really needed. Explain why and prefer well-known, maintained packages.
   Never run `npm audit fix --force`.
+- Never add a new npm audit exception or a new allowed install script without my explicit approval.
+  Propose it with the advisory/reason and wait.
 
 ## Git and GitHub
 
