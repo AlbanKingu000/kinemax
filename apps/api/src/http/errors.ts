@@ -1,6 +1,8 @@
-import type { ApiErrorCode, ApiErrorResponse } from '@kinemax/shared';
+import type { ApiErrorCode, ApiErrorResponse, ApiFieldIssue } from '@kinemax/shared';
 import type { ErrorRequestHandler, RequestHandler } from 'express';
+import type { ZodType } from 'zod';
 import { describeError, type Logger } from '../logger.js';
+import { databaseErrorInfo, mapDatabaseError } from './db-errors.js';
 
 const CLIENT_ERRORS: Partial<Record<number, { code: ApiErrorCode; message: string }>> = {
   400: { code: 'bad_request', message: 'The request could not be processed.' },
@@ -8,8 +10,42 @@ const CLIENT_ERRORS: Partial<Record<number, { code: ApiErrorCode; message: strin
   415: { code: 'unsupported_media_type', message: 'The request content type is not supported.' },
 };
 
-export function errorBody(code: ApiErrorCode, message: string): ApiErrorResponse {
-  return { error: { code, message } };
+/** An error with a status, code and generic message that is safe to send to the client. */
+export class HttpError extends Error {
+  override name = 'HttpError';
+  constructor(
+    readonly status: number,
+    readonly code: ApiErrorCode,
+    message: string,
+    readonly options: { fields?: ApiFieldIssue[]; headers?: Record<string, string> } = {},
+  ) {
+    super(message);
+  }
+}
+
+export const unauthorized = () => new HttpError(401, 'unauthorized', 'Please sign in.');
+export const forbidden = () => new HttpError(403, 'forbidden', 'You are not allowed to do this.');
+
+export function errorBody(
+  code: ApiErrorCode,
+  message: string,
+  fields?: ApiFieldIssue[],
+): ApiErrorResponse {
+  return { error: { code, message, ...(fields ? { fields } : {}) } };
+}
+
+/**
+ * Parses untrusted input with a zod schema. On failure throws a 400 listing the failing field paths
+ * and reason codes, never the submitted values.
+ */
+export function parseInput<T>(schema: ZodType<T>, input: unknown): T {
+  const result = schema.safeParse(input);
+  if (result.success) return result.data;
+  const fields = result.error.issues.map((issue) => ({
+    path: issue.path.join('.') || '(root)',
+    code: issue.code,
+  }));
+  throw new HttpError(400, 'validation_failed', 'The request data is invalid.', { fields });
 }
 
 export const notFoundHandler: RequestHandler = (_req, res) => {
@@ -17,8 +53,9 @@ export const notFoundHandler: RequestHandler = (_req, res) => {
 };
 
 /**
- * Central error handler. Clients only ever get a generic code and message; details (including
- * stack traces) go to the server log for 5xx errors.
+ * Central error handler. Clients only ever get a generic code and message; details go to the
+ * server log (stack traces for unexpected errors, SQLSTATE + PostgreSQL message for database
+ * errors; never request bodies, passwords, tokens or cookies).
  */
 export function createErrorHandler(logger: Logger): ErrorRequestHandler {
   return (error: unknown, req, res, next) => {
@@ -27,13 +64,31 @@ export function createErrorHandler(logger: Logger): ErrorRequestHandler {
       next(error);
       return;
     }
+    const where = { method: req.method, path: req.path };
+
+    if (error instanceof HttpError) {
+      for (const [name, value] of Object.entries(error.options.headers ?? {})) res.set(name, value);
+      res.status(error.status).json(errorBody(error.code, error.message, error.options.fields));
+      return;
+    }
+
+    const dbError = databaseErrorInfo(error);
+    if (dbError) {
+      const mapped = mapDatabaseError(dbError);
+      const log = mapped.status >= 500 ? logger.error : logger.warn;
+      log('Database error', {
+        ...where,
+        sqlState: dbError.sqlState,
+        dbMessage: dbError.message,
+        status: mapped.status,
+      });
+      res.status(mapped.status).json(errorBody(mapped.code, mapped.message));
+      return;
+    }
+
     const status = clientErrorStatus(error);
     if (status === undefined) {
-      logger.error('Unhandled error', {
-        method: req.method,
-        path: req.path,
-        ...describeError(error),
-      });
+      logger.error('Unhandled error', { ...where, ...describeError(error) });
       res.status(500).json(errorBody('internal_error', 'Something went wrong.'));
       return;
     }

@@ -20,6 +20,12 @@ const originList = z
     return origins;
   });
 
+const booleanFlag = z.enum(['true', 'false']).transform((value) => value === 'true');
+
+/** Where the web app is served from in development (the Vite dev server). */
+export const DEV_APP_ORIGIN = 'http://localhost:5180';
+export const CSRF_SECRET_MIN_LENGTH = 32;
+
 const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -31,6 +37,19 @@ const envSchema = z
         message: 'must be a postgresql:// URL that includes a database name',
       }),
     CORS_ALLOWED_ORIGINS: originList,
+    /** The origin the browser loads the web app from; state-changing requests must come from it. */
+    APP_ORIGIN: z
+      .string()
+      .optional()
+      .refine((value) => value === undefined || isExactOrigin(value), {
+        message: 'must be an exact origin like https://kinemax.example',
+      }),
+    /** Secure session cookies with the __Host- prefix. Defaults to true in production. */
+    COOKIE_SECURE: booleanFlag.optional(),
+    /** HMAC key for CSRF tokens. Required in production; otherwise a random per-process key. */
+    CSRF_SECRET: z.string().min(CSRF_SECRET_MIN_LENGTH).optional(),
+    /** Number of reverse proxies in front of the API whose X-Forwarded-For is trusted. */
+    TRUST_PROXY: z.coerce.number().int().min(0).max(10).default(0),
   })
   .superRefine((env, ctx) => {
     const name = databaseNameFromUrl(env.DATABASE_URL);
@@ -41,7 +60,35 @@ const envSchema = z
         message: `must point at a database ending in "_test" when NODE_ENV=test (got "${name}")`,
       });
     }
-  });
+    if (env.NODE_ENV === 'production') {
+      if (env.APP_ORIGIN === undefined || !env.APP_ORIGIN.startsWith('https://')) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['APP_ORIGIN'],
+          message: 'is required and must use https in production',
+        });
+      }
+      if (env.COOKIE_SECURE === false) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['COOKIE_SECURE'],
+          message: 'cannot be false in production',
+        });
+      }
+      if (env.CSRF_SECRET === undefined) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['CSRF_SECRET'],
+          message: 'is required in production',
+        });
+      }
+    }
+  })
+  .transform((env) => ({
+    ...env,
+    APP_ORIGIN: env.APP_ORIGIN ?? DEV_APP_ORIGIN,
+    COOKIE_SECURE: env.COOKIE_SECURE ?? env.NODE_ENV === 'production',
+  }));
 
 export type Env = z.infer<typeof envSchema>;
 

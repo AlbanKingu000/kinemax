@@ -1,25 +1,26 @@
-import { apiErrorResponseSchema, healthResponseSchema } from '@kinemax/shared';
+import { apiErrorResponseSchema, CSRF_HEADER, healthResponseSchema } from '@kinemax/shared';
 import express from 'express';
 import request from 'supertest';
-import { describe, expect, it, vi, type Mock } from 'vitest';
-import { createApp, JSON_BODY_LIMIT } from '../src/app.js';
+import { afterAll, describe, expect, it } from 'vitest';
+import { JSON_BODY_LIMIT } from '../src/app.js';
 import { createErrorHandler } from '../src/http/errors.js';
-import type { Logger } from '../src/logger.js';
+import { APP_ORIGIN, browserClient, makeTestApp, testLogger, testPrisma } from './support/app.js';
 
-function testLogger(): { info: Mock<Logger['info']>; error: Mock<Logger['error']> } {
-  return { info: vi.fn(), error: vi.fn() };
-}
+const makeApp = makeTestApp;
 
-function makeApp(
-  options: { checkDatabase?: () => Promise<void>; corsAllowedOrigins?: string[] } = {},
-) {
-  const logger = testLogger();
-  const app = createApp({
-    checkDatabase: options.checkDatabase ?? (() => Promise.resolve()),
-    corsAllowedOrigins: options.corsAllowedOrigins ?? [],
-    logger,
-  });
-  return { app, logger };
+afterAll(async () => {
+  await testPrisma().$disconnect();
+});
+
+/** A POST to /api/health with a valid CSRF token and Origin, so body parsing is reached. */
+async function protectedPost(app: ReturnType<typeof makeApp>['app'], body: string) {
+  const client = await browserClient(app);
+  return client.agent
+    .post('/api/health')
+    .set('Origin', APP_ORIGIN)
+    .set(CSRF_HEADER, client.token)
+    .set('Content-Type', 'application/json')
+    .send(body);
 }
 
 describe('GET /api/health', () => {
@@ -93,11 +94,8 @@ describe('errors', () => {
 
   it('returns a generic 400 for malformed JSON without parser details', async () => {
     const { app } = makeApp();
-    const res = await request(app)
-      .post('/api/health')
-      .set('Content-Type', 'application/json')
-      .send('{"broken":')
-      .expect(400);
+    const res = await protectedPost(app, '{"broken":');
+    expect(res.status).toBe(400);
     expect(res.body).toEqual({
       error: { code: 'bad_request', message: 'The request could not be processed.' },
     });
@@ -105,11 +103,8 @@ describe('errors', () => {
 
   it(`rejects JSON bodies over ${JSON_BODY_LIMIT} with 413`, async () => {
     const { app } = makeApp();
-    const res = await request(app)
-      .post('/api/health')
-      .set('Content-Type', 'application/json')
-      .send(JSON.stringify({ data: 'x'.repeat(200 * 1024) }))
-      .expect(413);
+    const res = await protectedPost(app, JSON.stringify({ data: 'x'.repeat(200 * 1024) }));
+    expect(res.status).toBe(413);
     expect(apiErrorResponseSchema.parse(res.body).error.code).toBe('payload_too_large');
   });
 });

@@ -95,6 +95,25 @@ npm run db:reset     # wipe, re-migrate and re-seed the dev database (asks; refu
 - Never add a new npm audit exception or a new allowed install script without my explicit approval.
   Propose it with the advisory/reason and wait.
 
+### Auth building blocks (use them, don't reinvent them; details in `docs/auth.md`)
+
+- Middleware in `apps/api/src/http/auth-middleware.ts`: `requireAuth` (401), `requireRole(...roles)`
+  (401/403), `requireLocationAccess(prisma, req => locationId)` (SUPER_ADMIN everywhere, managers
+  only their `ManagerLocation`s, customers never). `req.auth.user` is the signed-in user. Resource
+  ownership (e.g. "this booking is mine") is checked in the handler, on the server.
+- CSRF + Origin checks run globally for POST/PUT/PATCH/DELETE under `/api`; clients send the token
+  from `GET /api/auth/csrf` in `X-CSRF-Token`. Never exempt a route.
+- Validate input with `parseInput(schema, req.body)` and throw `HttpError` for expected failures
+  (`apps/api/src/http/errors.ts`). Shared request/response schemas live in `packages/shared`.
+- Database errors are mapped centrally (`apps/api/src/http/db-errors.ts`): 23505/23P01/23001 and
+  trigger exceptions -> 409, CHECK constraints and FK-on-insert -> 422, anything else -> 500. Both
+  Prisma error shapes (statement error and COMMIT-time `DriverAdapterError`) are handled; use
+  `sqlStateOf(error)` when a handler needs to branch on a SQLSTATE.
+- Security logs: `logger.info/warn` with ids and `maskEmail(...)`, never passwords, tokens, cookies,
+  full emails or request bodies.
+- Rate limits are in-memory (`apps/api/src/auth/rate-limit.ts`); a multi-instance deployment needs
+  a shared store.
+
 ## Git and GitHub
 
 - Repo-local identity only. Never change global or system git config.

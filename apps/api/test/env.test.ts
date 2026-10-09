@@ -22,6 +22,9 @@ describe('readEnv', () => {
       PORT: 3001,
       DATABASE_URL: DEV_URL,
       CORS_ALLOWED_ORIGINS: [],
+      APP_ORIGIN: 'http://localhost:5180',
+      COOKIE_SECURE: false,
+      TRUST_PROXY: 0,
     });
   });
 
@@ -32,9 +35,51 @@ describe('readEnv', () => {
       PORT: '8080',
       DATABASE_URL: DEV_URL,
       CORS_ALLOWED_ORIGINS: 'https://kinemax.example, http://localhost:5173',
+      APP_ORIGIN: 'https://kinemax.example',
+      CSRF_SECRET: 'c'.repeat(32),
+      TRUST_PROXY: '1',
     });
     expect(env.PORT).toBe(8080);
     expect(env.CORS_ALLOWED_ORIGINS).toEqual(['https://kinemax.example', 'http://localhost:5173']);
+    expect(env).toMatchObject({
+      APP_ORIGIN: 'https://kinemax.example',
+      COOKIE_SECURE: true,
+      CSRF_SECRET: 'c'.repeat(32),
+      TRUST_PROXY: 1,
+    });
+  });
+
+  it('requires https APP_ORIGIN, CSRF_SECRET and secure cookies in production', () => {
+    const error = errorOf(() =>
+      readEnv({
+        NODE_ENV: 'production',
+        DATABASE_URL: DEV_URL,
+        APP_ORIGIN: 'http://kinemax.example',
+        COOKIE_SECURE: 'false',
+      }),
+    );
+    expect(error.message).toContain('APP_ORIGIN: is required and must use https in production');
+    expect(error.message).toContain('COOKIE_SECURE: cannot be false in production');
+    expect(error.message).toContain('CSRF_SECRET: is required in production');
+    expect(
+      errorOf(() => readEnv({ NODE_ENV: 'production', DATABASE_URL: DEV_URL })).message,
+    ).toContain('APP_ORIGIN');
+  });
+
+  it('validates APP_ORIGIN, COOKIE_SECURE, CSRF_SECRET and TRUST_PROXY', () => {
+    const message = errorOf(() =>
+      readEnv({
+        DATABASE_URL: DEV_URL,
+        APP_ORIGIN: 'http://localhost:5180/path',
+        COOKIE_SECURE: 'yes',
+        CSRF_SECRET: 'too-short',
+        TRUST_PROXY: '-1',
+      }),
+    ).message;
+    for (const key of ['APP_ORIGIN', 'COOKIE_SECURE', 'CSRF_SECRET', 'TRUST_PROXY']) {
+      expect(message).toContain(key);
+    }
+    expect(readEnv({ DATABASE_URL: DEV_URL, COOKIE_SECURE: 'true' }).COOKIE_SECURE).toBe(true);
   });
 
   it('fails fast with a clear message when DATABASE_URL is missing', () => {

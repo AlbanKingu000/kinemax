@@ -13,6 +13,8 @@ export default defineConfig({
     environment: 'node',
     include: ['test/**/*.test.ts'],
     globalSetup: ['test/global-setup.ts'],
+    // Several files reset and fill kinemax_test; run them one after the other.
+    fileParallelism: false,
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],

@@ -1,15 +1,19 @@
 /**
  * Minimal server logger. Callers pass only safe metadata: never passwords, tokens, cookies,
- * request bodies or full URLs with query strings.
+ * request bodies, full emails or full URLs with query strings.
  */
 export interface Logger {
   info: (message: string, meta?: Record<string, unknown>) => void;
+  warn: (message: string, meta?: Record<string, unknown>) => void;
   error: (message: string, meta?: Record<string, unknown>) => void;
 }
 
 export const consoleLogger: Logger = {
   info: (message, meta) => {
     console.info(message, ...(meta ? [meta] : []));
+  },
+  warn: (message, meta) => {
+    console.warn(message, ...(meta ? [meta] : []));
   },
   error: (message, meta) => {
     console.error(message, ...(meta ? [meta] : []));
@@ -22,4 +26,11 @@ export function describeError(error: unknown): Record<string, unknown> {
     return { name: error.name, message: error.message, stack: error.stack };
   }
   return { value: String(error) };
+}
+
+/** Masks an email for logs: "ana.demo@kinemax.test" -> "a***@kinemax.test". */
+export function maskEmail(email: string): string {
+  const at = email.lastIndexOf('@');
+  if (at <= 0) return '***';
+  return `${email.charAt(0)}***${email.slice(at)}`;
 }

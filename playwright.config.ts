@@ -36,6 +36,8 @@ export default defineConfig({
         DATABASE_URL: testDatabaseUrl,
         HOST: '127.0.0.1',
         PORT: String(API_PORT),
+        // State-changing requests must come from the web origin (the preview server).
+        APP_ORIGIN: `http://localhost:${String(WEB_PORT)}`,
       },
       reuseExistingServer: false,
       timeout: 120_000,
