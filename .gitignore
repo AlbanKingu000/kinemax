@@ -1,0 +1,17 @@
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+*.log
+
+# Environment files: only the example is committed
+.env
+.env.*
+!.env.example
+
+# Generated Prisma client (rebuilt by `prisma generate` on install)
+apps/api/src/generated/
+
+# Personal Claude Code settings
+.claude/settings.local.json

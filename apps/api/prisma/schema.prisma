@@ -1,0 +1,15 @@
+// Kinemax database schema.
+// Business models (locations, movies, halls, showtimes, bookings, ...) come in a later task.
+
+generator client {
+  provider               = "prisma-client"
+  output                 = "../src/generated/prisma"
+  runtime                = "nodejs"
+  moduleFormat           = "esm"
+  generatedFileExtension = "ts"
+  importFileExtension    = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
