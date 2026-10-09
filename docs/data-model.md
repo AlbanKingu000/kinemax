@@ -159,8 +159,28 @@ it. Example (Thursday 20:00, base €4.50): ADULT €4.50 + STUDENT €3.60 + so
 ## Database-level guarantees
 
 The raw SQL lives at the end of the migrations: G0-G11 in `*_init_domain`, G12 in
-`*_couple_seat_two_tickets`. Prisma ignores these objects when diffing (verified: diffing the
-database against the schema produces an empty migration).
+`*_couple_seat_two_tickets`, and `*_trigger_error_codes` replaces the trigger functions so they
+raise the custom error codes below. Prisma ignores these objects when diffing (verified: diffing
+the database against the schema produces an empty migration).
+
+### Error codes
+
+Our trigger functions raise dedicated SQLSTATEs of the custom class `KX` (classes starting with
+I-Z are implementation-defined in the SQL standard and PostgreSQL uses no `KX` class), so the API
+can tell them apart from built-in errors without reading message text, which PostgreSQL may
+translate (`lc_messages`). The constants live in `apps/api/src/db/domain-error-codes.ts`.
+
+| Code  | Raised by                                                | Meaning                                                                        | HTTP |
+| ----- | -------------------------------------------------------- | ------------------------------------------------------------------------------ | ---- |
+| KX001 | `kinemax_booking_status_guard` (G9)                      | booking status transition not allowed (also: new booking not HELD)             | 409  |
+| KX002 | `kinemax_booking_status_guard` (G9)                      | hold expired: a HELD booking can no longer be confirmed                        | 409  |
+| KX003 | `kinemax_reservation_guard` (G10)                        | seat/whole-hall lock needs an active (HELD or CONFIRMED) booking               | 409  |
+| KX004 | `kinemax_reservation_guard` (G10)                        | per-seat lock in a whole-hall-only hall, or whole-hall lock in a per-seat hall | 422  |
+| KX005 | `kinemax_booking_seat_occupant_guard`, count check (G12) | occupant above the seat's ticket capacity, or wrong ticket count at COMMIT     | 422  |
+| KX006 | `kinemax_seat_type_change_guard` (G12)                   | seat with tickets cannot change to a type with a different ticket capacity     | 409  |
+
+CHECK constraints keep the standard 23514 (mapped to 422), unique 23505, exclusion 23P01,
+foreign key 23503 and RESTRICT 23001. The full HTTP mapping is in [auth.md](auth.md#error-mapping).
 Integration tests: `apps/api/test/db/guarantees.db.test.ts`.
 
 | #   | Guarantee                                                                                                                 | How                                                                                    |

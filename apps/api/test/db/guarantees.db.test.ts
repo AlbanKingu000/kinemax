@@ -84,8 +84,7 @@ describe('seat locks (G10)', () => {
           bookingId: booking.id,
         },
       }),
-      SQLSTATE.checkViolation,
-      'active',
+      SQLSTATE.reservationNeedsActiveBooking,
     );
   });
 });
@@ -147,8 +146,7 @@ describe('booking status machine (G9)', () => {
           totalCents: 0,
         },
       }),
-      SQLSTATE.checkViolation,
-      'must start as HELD',
+      SQLSTATE.bookingTransition,
     );
   });
 
@@ -161,8 +159,7 @@ describe('booking status machine (G9)', () => {
           where: { id: booking.id },
           data: { status, confirmedAt: new Date() },
         }),
-        SQLSTATE.checkViolation,
-        'cannot change',
+        SQLSTATE.bookingTransition,
       );
     }
   });
@@ -180,8 +177,7 @@ describe('booking status machine (G9)', () => {
         where: { id: booking.id },
         data: { status: 'CONFIRMED', confirmedAt: new Date() },
       }),
-      SQLSTATE.checkViolation,
-      'hold has expired',
+      SQLSTATE.holdExpired,
     );
   });
 
@@ -189,27 +185,23 @@ describe('booking status machine (G9)', () => {
     const base = { userId: f.user.id, showtimeId: f.showtime.id, totalCents: 0 };
     await expectDbError(
       prisma.booking.create({ data: { ...base, code: generateBookingCode() } }),
-      SQLSTATE.checkViolation,
-      'Booking_held_has_expiry',
+      SQLSTATE.checkViolation, // Booking_held_has_expiry
     );
     const holdExpiresAt = new Date(Date.now() + 60_000);
     await expectDbError(
       prisma.booking.create({ data: { ...base, holdExpiresAt, code: 'not-a-code' } }),
-      SQLSTATE.checkViolation,
-      'Booking_code_format',
+      SQLSTATE.checkViolation, // Booking_code_format
     );
     await expectDbError(
       prisma.booking.create({
         data: { ...base, holdExpiresAt, code: generateBookingCode(), currency: 'USD' },
       }),
-      SQLSTATE.checkViolation,
-      'Booking_currency_eur',
+      SQLSTATE.checkViolation, // Booking_currency_eur
     );
     const booking = await seatHold([seatId(0)]);
     await expectDbError(
       prisma.booking.update({ where: { id: booking.id }, data: { status: 'CONFIRMED' } }),
-      SQLSTATE.checkViolation,
-      'Booking_confirmed_has_timestamp',
+      SQLSTATE.checkViolation, // Booking_confirmed_has_timestamp
     );
   });
 });
@@ -231,8 +223,7 @@ describe('showtimes never overlap in a hall (G2)', () => {
     const start = new Date(f.showtime.startsAt.getTime() + 30 * 60_000);
     await expectDbError(
       show(f.hall.id, start, new Date(start.getTime() + 3_600_000)),
-      SQLSTATE.exclusionViolation,
-      'Showtime_no_overlap_in_hall',
+      SQLSTATE.exclusionViolation, // Showtime_no_overlap_in_hall
     );
   });
 
@@ -260,8 +251,7 @@ describe('showtimes never overlap in a hall (G2)', () => {
     const start = new Date(Date.now() + 10 * 24 * 3_600_000);
     await expectDbError(
       show(f.hall.id, start, start),
-      SQLSTATE.checkViolation,
-      'Showtime_ends_after_start',
+      SQLSTATE.checkViolation, // Showtime_ends_after_start
     );
   });
 });
@@ -287,16 +277,14 @@ describe('private suites (G10)', () => {
         hallId: f.suite.id,
         seatIds: [f.seats.suite[0]?.id ?? ''],
       }),
-      SQLSTATE.checkViolation,
-      'only be booked as a whole',
+      SQLSTATE.hallBookingMode,
     );
   });
 
   it('rejects whole-hall locks in normal halls', async () => {
     await expectDbError(
       holdWholeHall(prisma, { userId: f.user.id, showtimeId: f.showtime.id, hallId: f.hall.id }),
-      SQLSTATE.checkViolation,
-      'whole-hall',
+      SQLSTATE.hallBookingMode,
     );
   });
 
@@ -314,8 +302,7 @@ describe('unique and check constraints (G3-G8)', () => {
   it('stores emails normalized and unique', async () => {
     await expectDbError(
       prisma.user.create({ data: { email: 'Ana@Kinemax.test', passwordHash: 'x', name: 'Ana' } }),
-      SQLSTATE.checkViolation,
-      'User_email_normalized',
+      SQLSTATE.checkViolation, // User_email_normalized
     );
     await expectDbError(
       prisma.user.create({ data: { email: 'test@kinemax.test', passwordHash: 'x', name: 'Dup' } }),
@@ -390,8 +377,7 @@ describe('unique and check constraints (G3-G8)', () => {
       prisma.hallTypePrice.create({
         data: { hallTypeId: f.hall.hallTypeId, priceCents: -1, validFrom },
       }),
-      SQLSTATE.checkViolation,
-      'HallTypePrice_price_nonneg',
+      SQLSTATE.checkViolation, // HallTypePrice_price_nonneg
     );
     await expectDbError(
       prisma.timePriceAdjustment.create({
@@ -405,23 +391,20 @@ describe('unique and check constraints (G3-G8)', () => {
           validFrom,
         },
       }),
-      SQLSTATE.checkViolation,
-      'TimePriceAdjustment_days',
+      SQLSTATE.checkViolation, // TimePriceAdjustment_days
     );
     await expectDbError(
       prisma.ticketCategoryDiscount.create({
         data: { ticketCategoryId: f.adult.id, kind: 'PERCENT', value: 120, validFrom },
       }),
-      SQLSTATE.checkViolation,
-      'TicketCategoryDiscount_value',
+      SQLSTATE.checkViolation, // TicketCategoryDiscount_value
     );
     const booking = await seatHold([seatId(0)]);
     await expectDbError(
       prisma.demoPayment.create({
         data: { bookingId: booking.id, amountCents: 100, provider: 'stripe', reference: 'ref-1' },
       }),
-      SQLSTATE.checkViolation,
-      'DemoPayment_provider_demo',
+      SQLSTATE.checkViolation, // DemoPayment_provider_demo
     );
     await expectDbError(
       prisma.bookingFoodItem.create({
@@ -437,8 +420,7 @@ describe('unique and check constraints (G3-G8)', () => {
           unitPriceCents: 100,
         },
       }),
-      SQLSTATE.checkViolation,
-      'BookingFoodItem_quantity_range',
+      SQLSTATE.checkViolation, // BookingFoodItem_quantity_range
     );
     await expectDbError(prisma.appSettings.create({ data: { id: 2 } }), SQLSTATE.checkViolation);
     expect(await prisma.appSettings.findUnique({ where: { id: 1 } })).toMatchObject({
@@ -485,14 +467,13 @@ describe('couple sofas sell exactly two tickets (G12)', () => {
     const booking = await sofaHold();
     await expectDbError(
       prisma.bookingSeat.create({ data: ticket(booking.id, f.couple.id, f.adult) }),
-      SQLSTATE.checkViolation,
-      'exactly 2 ticket(s), found 1',
+      SQLSTATE.seatTicketCount,
     );
     await expectDbError(
       prisma.$transaction(async (tx) => {
         await tx.bookingSeat.create({ data: ticket(booking.id, f.couple.id, f.adult) });
       }),
-      SQLSTATE.checkViolation,
+      SQLSTATE.seatTicketCount,
     );
     expect(await prisma.bookingSeat.count()).toBe(0);
   });
@@ -503,8 +484,7 @@ describe('couple sofas sell exactly two tickets (G12)', () => {
       prisma.bookingSeat.createMany({
         data: [1, 2, 3].map((occupant) => ticket(booking.id, f.couple.id, f.adult, occupant)),
       }),
-      SQLSTATE.checkViolation,
-      'occupant 3 is not allowed',
+      SQLSTATE.seatTicketCount,
     );
     await prisma.bookingSeat.createMany({
       data: [1, 2].map((occupant) => ticket(booking.id, f.couple.id, f.adult, occupant)),
@@ -519,8 +499,7 @@ describe('couple sofas sell exactly two tickets (G12)', () => {
     const booking = await seatHold([seatId(0)]);
     await expectDbError(
       prisma.bookingSeat.create({ data: ticket(booking.id, seatId(0), f.adult, 0) }),
-      SQLSTATE.checkViolation,
-      'BookingSeat_occupant_range',
+      SQLSTATE.checkViolation, // BookingSeat_occupant_range
     );
   });
 
@@ -533,8 +512,7 @@ describe('couple sofas sell exactly two tickets (G12)', () => {
           ticket(booking.id, seatId(0), f.adult, 2),
         ],
       }),
-      SQLSTATE.checkViolation,
-      'takes 1 ticket(s)',
+      SQLSTATE.seatTicketCount,
     );
     await expect(
       prisma.bookingSeat.create({ data: ticket(booking.id, seatId(0), f.adult) }),
@@ -550,8 +528,7 @@ describe('couple sofas sell exactly two tickets (G12)', () => {
           ticket(booking.id, f.couple.id, f.adult, 2, 200),
         ],
       }),
-      SQLSTATE.checkViolation,
-      'BookingSeat_surcharge_on_first_occupant',
+      SQLSTATE.checkViolation, // BookingSeat_surcharge_on_first_occupant
     );
   });
 
@@ -569,8 +546,7 @@ describe('couple sofas sell exactly two tickets (G12)', () => {
         where: { id: f.couple.id },
         data: { seatType: 'STANDARD', widthUnits: 1 },
       }),
-      SQLSTATE.checkViolation,
-      'cannot change from COUPLE to STANDARD',
+      SQLSTATE.seatTypeChange,
     );
     // Same capacity (1 -> 1) is fine.
     await expect(

@@ -1,33 +1,27 @@
 // Helpers for integration tests against kinemax_test (never the development database).
 import { expect } from 'vitest';
+import { DOMAIN_SQLSTATE } from '../../src/db/domain-error-codes.js';
 import { generateBookingCode } from '../../src/domain/booking-code.js';
 import type { PrismaClient } from '../../src/generated/prisma/client.js';
+import { sqlStateOf } from '../../src/http/db-errors.js';
 
-/**
- * SQLSTATE of a database error raised through Prisma's pg driver adapter. Statement errors are
- * PrismaClientKnownRequestErrors (code in meta.driverAdapterError.cause); errors raised at COMMIT
- * of an interactive transaction (deferred constraints) are DriverAdapterErrors (code in cause).
- */
-export function sqlStateOf(error: unknown): string | undefined {
-  type Cause = { originalCode?: unknown } | undefined;
-  const e = error as { meta?: { driverAdapterError?: { cause?: Cause } }; cause?: Cause };
-  const code = e.meta?.driverAdapterError?.cause?.originalCode ?? e.cause?.originalCode;
-  return typeof code === 'string' ? code : undefined;
-}
+export { sqlStateOf };
 
+/** Standard PostgreSQL codes plus our custom trigger codes (class KX). */
 export const SQLSTATE = {
   uniqueViolation: '23505',
   foreignKeyViolation: '23503',
+  restrictViolation: '23001',
   checkViolation: '23514',
   exclusionViolation: '23P01',
+  ...DOMAIN_SQLSTATE,
 } as const;
 
-/** Asserts that a database operation fails with the given SQLSTATE (and message part, if given). */
-export async function expectDbError(
-  operation: Promise<unknown>,
-  sqlState: string,
-  messagePart?: string,
-): Promise<void> {
+/**
+ * Asserts that a database operation fails with the given SQLSTATE. Deliberately no way to match
+ * message text: PostgreSQL may translate it (lc_messages), so neither code nor tests rely on it.
+ */
+export async function expectDbError(operation: Promise<unknown>, sqlState: string): Promise<void> {
   let caught: unknown;
   try {
     await operation;
@@ -36,7 +30,6 @@ export async function expectDbError(
   }
   expect(caught, 'expected the database to reject the operation').toBeDefined();
   expect(sqlStateOf(caught)).toBe(sqlState);
-  if (messagePart) expect((caught as Error).message).toContain(messagePart);
 }
 
 /**

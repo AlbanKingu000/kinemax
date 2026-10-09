@@ -130,23 +130,42 @@ message, fields? } }` and logs details server-side. Throw `HttpError` for expect
 use `parseInput(schema, req.body)` for validation (400 `validation_failed` with field paths and
 codes, never values). Database errors are recognized in both Prisma shapes (statement errors as
 `PrismaClientKnownRequestError`, COMMIT-time errors of interactive transactions as a raw
-`DriverAdapterError`) by `apps/api/src/http/db-errors.ts`:
+`DriverAdapterError`) by `apps/api/src/http/db-errors.ts`. The mapping looks at the **SQLSTATE
+only**: PostgreSQL can translate its messages (`lc_messages`), so message text is logged for humans
+but never interpreted. Our triggers raise custom codes (class `KX`, see
+[data-model.md](data-model.md#error-codes)) instead of 23514.
 
-| SQLSTATE | Meaning                                                      | HTTP | code             |
-| -------- | ------------------------------------------------------------ | ---- | ---------------- |
-| 23505    | unique violation (e.g. seat already locked)                  | 409  | `conflict`       |
-| 23P01    | exclusion violation (overlapping showtime)                   | 409  | `conflict`       |
-| 23514    | CHECK constraint (`violates check constraint`)               | 422  | `unprocessable`  |
-| 23514    | our trigger exceptions (status machine, locks, ticket count) | 409  | `conflict`       |
-| 23503    | FK on insert/update (unknown referenced row)                 | 422  | `unprocessable`  |
-| 23503    | FK on update/delete of a referenced row (NO ACTION)          | 409  | `conflict`       |
-| 23001    | RESTRICT violation (deleting a protected row)                | 409  | `conflict`       |
-| other    | anything else                                                | 500  | `internal_error` |
+| SQLSTATE | Meaning                                                           | HTTP | code             |
+| -------- | ----------------------------------------------------------------- | ---- | ---------------- |
+| 23505    | unique violation (e.g. seat already locked)                       | 409  | `conflict`       |
+| 23P01    | exclusion violation (overlapping showtime)                        | 409  | `conflict`       |
+| 23001    | RESTRICT violation (deleting or re-keying a referenced row)       | 409  | `conflict`       |
+| KX001    | booking status transition not allowed                             | 409  | `conflict`       |
+| KX002    | hold expired, booking can no longer be confirmed                  | 409  | `conflict`       |
+| KX003    | seat/hall lock needs an active booking                            | 409  | `conflict`       |
+| KX006    | seat type change on a seat with tickets                           | 409  | `conflict`       |
+| 23514    | CHECK constraint                                                  | 422  | `unprocessable`  |
+| 23503    | foreign key on insert/update (referenced row does not exist)      | 422  | `unprocessable`  |
+| KX004    | hall booking mode (seat lock in a suite, suite lock elsewhere)    | 422  | `unprocessable`  |
+| KX005    | wrong ticket count on a seat (occupant above capacity, at COMMIT) | 422  | `unprocessable`  |
+| other    | anything else                                                     | 500  | `internal_error` |
 
 Why: 409 means "well-formed, but conflicts with the current state; refresh and retry" (someone took
-the seat, the hold expired). 422 means "the data itself is unacceptable": validation should have
-caught it before the database. Logs contain the SQLSTATE and PostgreSQL's message, never the error
-`detail` (it can contain row values such as password hashes).
+the seat, the hold expired, the booking was released). 422 means "the request describes something
+the database never accepts, whatever the state": validation or domain logic should have caught it
+before the database.
+
+- 23514 is identified by SQLSTATE alone. PostgreSQL also reports the constraint name as a
+  structured field, but Prisma's pg adapter does not pass it on for CHECK violations (it does for
+  unique, foreign key and RESTRICT violations, and the handler logs it). Since our triggers no
+  longer use 23514, the code alone is unambiguous.
+- All our foreign keys are RESTRICT, CASCADE or SET NULL (none NO ACTION), so a delete of a
+  referenced row is always 23001, and 23503 always means "insert/update with a missing referenced
+  row". New foreign keys should keep that rule.
+- Logs contain the SQLSTATE, the constraint name when available and PostgreSQL's message, never
+  the error `detail` (it can contain row values such as password hashes).
+- Branch on codes with `sqlStateOf(error)` and the constants in
+  `apps/api/src/db/domain-error-codes.ts`; never match message text.
 
 ## Out of scope (later)
 

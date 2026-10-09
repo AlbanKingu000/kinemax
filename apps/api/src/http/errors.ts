@@ -74,11 +74,13 @@ export function createErrorHandler(logger: Logger): ErrorRequestHandler {
 
     const dbError = databaseErrorInfo(error);
     if (dbError) {
-      const mapped = mapDatabaseError(dbError);
+      const mapped = mapDatabaseError(dbError.sqlState);
       const log = mapped.status >= 500 ? logger.error : logger.warn;
       log('Database error', {
         ...where,
         sqlState: dbError.sqlState,
+        ...(dbError.constraint ? { constraint: dbError.constraint } : {}),
+        // For humans reading the log only; the mapping above never looks at it.
         dbMessage: dbError.message,
         status: mapped.status,
       });

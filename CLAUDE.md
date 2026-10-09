@@ -22,10 +22,12 @@
   against `kinemax_test`. The guards that enforce this must never be removed or weakened.
 - Data model: `docs/data-model.md`. Money is integer cents, timestamps are `timestamptz` in UTC
   (sessions run with `TimeZone=UTC`), texts have `*Sq` (required) and `*En` (optional) columns.
-- The DB-level guarantees (G0-G11 at the end of the `init_domain` migration: overlap exclusion,
-  seat locks, status machine, CHECKs, triggers) must never be removed or weakened. New guarantees
-  go into new migrations as raw SQL with a comment; check that `prisma migrate dev --create-only`
-  then produces an empty migration (no drift).
+- The DB-level guarantees (G0-G12 in the migrations: overlap exclusion, seat locks, status machine,
+  CHECKs, triggers) must never be removed or weakened. New guarantees go into new migrations as raw
+  SQL with a comment (never edit a committed migration); check that `prisma migrate dev
+--create-only` then produces an empty migration (no drift).
+- Trigger exceptions use custom SQLSTATEs of class `KX` (table in `docs/data-model.md`), never 23514. A new trigger error gets a new `KX` code in a new migration plus a mapping entry. Never
+  match PostgreSQL message text anywhere (it can be localized); branch on SQLSTATEs only.
 - Prisma 7 does not run `generate` after `migrate dev`, nor the seed after `migrate reset`; run them
   explicitly. Prices are only ever calculated on the server (`apps/api/src/domain/pricing.ts`).
 
@@ -105,10 +107,12 @@ npm run db:reset     # wipe, re-migrate and re-seed the dev database (asks; refu
   from `GET /api/auth/csrf` in `X-CSRF-Token`. Never exempt a route.
 - Validate input with `parseInput(schema, req.body)` and throw `HttpError` for expected failures
   (`apps/api/src/http/errors.ts`). Shared request/response schemas live in `packages/shared`.
-- Database errors are mapped centrally (`apps/api/src/http/db-errors.ts`): 23505/23P01/23001 and
-  trigger exceptions -> 409, CHECK constraints and FK-on-insert -> 422, anything else -> 500. Both
-  Prisma error shapes (statement error and COMMIT-time `DriverAdapterError`) are handled; use
-  `sqlStateOf(error)` when a handler needs to branch on a SQLSTATE.
+- Database errors are mapped centrally by SQLSTATE only (`apps/api/src/http/db-errors.ts`):
+  23505/23P01/23001 and KX001/KX002/KX003/KX006 -> 409, 23514 (CHECK), 23503 (FK on insert) and
+  KX004/KX005 -> 422, anything else -> 500. Both Prisma error shapes (statement error and
+  COMMIT-time `DriverAdapterError`) are handled; use `sqlStateOf(error)` with the constants in
+  `apps/api/src/db/domain-error-codes.ts` when a handler needs to branch on a code. Keep foreign
+  keys RESTRICT/CASCADE/SET NULL (never NO ACTION), so deletes of referenced rows stay 23001.
 - Security logs: `logger.info/warn` with ids and `maskEmail(...)`, never passwords, tokens, cookies,
   full emails or request bodies.
 - Rate limits are in-memory (`apps/api/src/auth/rate-limit.ts`); a multi-instance deployment needs
