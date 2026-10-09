@@ -20,12 +20,13 @@
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "typecheck": "npm run typecheck --workspaces && tsc -p tsconfig.json",
-    "test": "npm run test --workspaces",
-    "test:cov": "npm run test:cov --workspaces",
+    "test": "npm run test --workspaces && vitest run",
+    "test:cov": "npm run test:cov --workspaces && vitest run --coverage",
     "build": "npm run build -w @kinemax/shared && npm run build -w @kinemax/api && npm run build -w @kinemax/web",
     "e2e": "npm run build && npm run e2e:run",
     "e2e:run": "playwright test",
-    "audit": "npm audit --audit-level=high",
+    "audit": "node scripts/audit-gate.ts",
+    "audit:dev": "npm audit || exit 0",
     "verify": "npm run lint && npm run typecheck && npm run test:cov && npm run build && npm run e2e:run && npm run audit"
   },
   "devDependencies": {
@@ -43,9 +44,5 @@
     "typescript": "6.0.3",
     "typescript-eslint": "8.71.1",
     "vitest": "5.0.3"
-  },
-  "overrides": {
-    "mysql2": "3.24.5",
-    "deepmerge-ts": "8.0.2"
   }
 }

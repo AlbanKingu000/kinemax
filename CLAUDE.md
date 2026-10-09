@@ -31,7 +31,10 @@ npm test             # Vitest (shared, api incl. kinemax_test integration, web)
 npm run test:cov     # Vitest with coverage (80% minimum)
 npm run build        # shared -> api -> web
 npm run e2e          # build + Playwright against the production builds (kinemax_test)
-npm run verify       # lint, typecheck, test:cov, build, e2e, npm audit --audit-level=high
+npm run verify       # lint, typecheck, test:cov, build, e2e, audit (production deps)
+npm run audit        # production audit gate: npm audit --omit=dev, fails on high/critical except
+                     # the documented Prisma CLI exceptions in scripts/audit-gate-core.ts
+npm run audit:dev    # full npm audit incl. dev tooling (report only, never fails)
 npm run db:migrate   # prisma migrate dev (development database)
 npm run db:studio    # Prisma Studio
 npm run db:reset     # wipe the development database (asks for confirmation; refuses *_test)

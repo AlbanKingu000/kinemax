@@ -31,7 +31,13 @@ export default defineConfig([
     languageOptions: { globals: globals.browser },
   },
   {
-    files: ['apps/api/**/*.ts', 'packages/**/*.ts', 'e2e/**/*.ts', '*.config.ts'],
+    files: [
+      'apps/api/**/*.ts',
+      'packages/**/*.ts',
+      'e2e/**/*.ts',
+      'scripts/**/*.ts',
+      '*.config.ts',
+    ],
     languageOptions: { globals: globals.node },
   },
   {

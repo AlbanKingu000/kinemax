@@ -85,21 +85,41 @@ missing or wrong.
 | `npm run lint`       | ESLint and Prettier check                                                                |
 | `npm run format`     | Prettier write                                                                           |
 | `npm run typecheck`  | TypeScript in every workspace                                                            |
-| `npm test`           | Vitest in shared, api (incl. integration tests on `kinemax_test`) and web                |
+| `npm test`           | Vitest in shared, api (incl. integration tests on `kinemax_test`), web and `scripts/`    |
 | `npm run test:cov`   | Same with coverage, 80% minimum                                                          |
 | `npm run build`      | Builds shared, api and web                                                               |
 | `npm run e2e`        | Builds, then runs Playwright against the production builds and `kinemax_test`            |
-| `npm run audit`      | `npm audit --audit-level=high`                                                           |
-| `npm run verify`     | lint, typecheck, test:cov, build, e2e and audit                                          |
+| `npm run audit`      | Production audit gate (`npm audit --omit=dev`, fails on high/critical, see below)        |
+| `npm run audit:dev`  | Full `npm audit` including dev tooling; reports only, never fails                        |
+| `npm run verify`     | lint, typecheck, test:cov, build, e2e and audit (production dependencies)                |
 
 ## Security baseline
 
 helmet, no `x-powered-by`, strict CORS (no wildcard), a 100 kB JSON body limit, zod validation of the
 environment, and a central error handler that never sends stack traces or internals to the client.
 
-### Dependency audit note
+### Dependency audit
 
-`prisma@7.10.0` pins `mysql2` and `deepmerge-ts` versions with high-severity advisories. They are only
-used by the Prisma CLI (dev dependency; `mysql2` is not used with PostgreSQL). The root `package.json`
-`overrides` lift them to fixed versions (`mysql2@3.24.5`, `deepmerge-ts@8.0.2`), so `npm ls` reports
-them as "invalid" (expected). Remove the overrides once Prisma ships fixed versions.
+The audit is split in two:
+
+- `npm run audit` (part of `verify`, `scripts/audit-gate.ts`) runs `npm audit --omit=dev` and fails
+  on any high or critical advisory in **production** dependencies, except the documented exceptions
+  below.
+- `npm run audit:dev` runs the full audit including dev-only tooling and only reports. Review its
+  findings when updating dependencies, but they do not block `verify`.
+
+Why the gate needs exceptions: `@prisma/client` (a production dependency) declares the Prisma CLI as
+an optional peer dependency, so npm counts the whole CLI tree as production-reachable (`devOptional`),
+and `--omit=dev` alone still reports it. The CLI pins `mysql2` and `deepmerge-ts` versions with
+high-severity advisories:
+
+| Advisory              | Package        | Why it is accepted                                                     |
+| --------------------- | -------------- | ---------------------------------------------------------------------- |
+| `GHSA-ggr8-5vv4-36mx` | `deepmerge-ts` | Only used by the Prisma CLI to merge its own config files              |
+| `GHSA-3f6p-5ww8-9rcr` | `mysql2`       | MySQL driver bundled with the Prisma CLI; Kinemax uses PostgreSQL only |
+
+Each exception only applies to that package inside the Prisma CLI (`node_modules/prisma/` or
+`node_modules/@prisma/config/`). Any other high/critical advisory, or the same package installed
+anywhere else, still fails the gate. The gate prints exceptions that are no longer reported as
+"stale" so they can be removed. We do not force other versions into the CLI with `overrides`; update
+Prisma when a release with fixed versions is available. Never run `npm audit fix --force`.
