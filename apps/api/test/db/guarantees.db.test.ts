@@ -12,6 +12,7 @@ import {
   resetDatabase,
   SQLSTATE,
   sqlStateOf,
+  ticket,
   type Fixture,
 } from './helpers.js';
 
@@ -444,6 +445,137 @@ describe('unique and check constraints (G3-G8)', () => {
       seatHoldMinutes: 10,
       cancellationCutoffMinutes: 120,
     });
+  });
+});
+
+describe('couple sofas sell exactly two tickets (G12)', () => {
+  const sofaHold = () => seatHold([f.couple.id]);
+
+  it('accepts two tickets with their own categories and the surcharge on occupant 1', async () => {
+    const booking = await sofaHold();
+    await prisma.bookingSeat.createMany({
+      data: [
+        ticket(booking.id, f.couple.id, f.adult, 1, 200),
+        ticket(booking.id, f.couple.id, f.student, 2),
+      ],
+    });
+    const tickets = await prisma.bookingSeat.findMany({
+      where: { bookingId: booking.id },
+      orderBy: { occupant: 'asc' },
+    });
+    expect(tickets.map((t) => [t.occupant, t.ticketCategoryCode, t.seatSurchargeCents])).toEqual([
+      [1, 'ADULT', 200],
+      [2, 'STUDENT', 0],
+    ]);
+    // One sofa = one lock.
+    expect(await prisma.seatReservation.count({ where: { seatId: f.couple.id } })).toBe(1);
+    await expectDbError(sofaHold(), SQLSTATE.uniqueViolation);
+  });
+
+  it('lets the two tickets be written one after the other in one transaction', async () => {
+    const booking = await sofaHold();
+    await prisma.$transaction(async (tx) => {
+      await tx.bookingSeat.create({ data: ticket(booking.id, f.couple.id, f.adult, 1, 200) });
+      await tx.bookingSeat.create({ data: ticket(booking.id, f.couple.id, f.adult, 2) });
+    });
+    expect(await prisma.bookingSeat.count({ where: { bookingId: booking.id } })).toBe(2);
+  });
+
+  it('rejects a sofa with only one ticket (checked at commit)', async () => {
+    const booking = await sofaHold();
+    await expectDbError(
+      prisma.bookingSeat.create({ data: ticket(booking.id, f.couple.id, f.adult) }),
+      SQLSTATE.checkViolation,
+      'exactly 2 ticket(s), found 1',
+    );
+    await expectDbError(
+      prisma.$transaction(async (tx) => {
+        await tx.bookingSeat.create({ data: ticket(booking.id, f.couple.id, f.adult) });
+      }),
+      SQLSTATE.checkViolation,
+    );
+    expect(await prisma.bookingSeat.count()).toBe(0);
+  });
+
+  it('rejects a third ticket on a sofa', async () => {
+    const booking = await sofaHold();
+    await expectDbError(
+      prisma.bookingSeat.createMany({
+        data: [1, 2, 3].map((occupant) => ticket(booking.id, f.couple.id, f.adult, occupant)),
+      }),
+      SQLSTATE.checkViolation,
+      'occupant 3 is not allowed',
+    );
+    await prisma.bookingSeat.createMany({
+      data: [1, 2].map((occupant) => ticket(booking.id, f.couple.id, f.adult, occupant)),
+    });
+    await expectDbError(
+      prisma.bookingSeat.create({ data: ticket(booking.id, f.couple.id, f.adult, 2) }),
+      SQLSTATE.uniqueViolation,
+    );
+  });
+
+  it('only allows occupant numbers 1..2', async () => {
+    const booking = await seatHold([seatId(0)]);
+    await expectDbError(
+      prisma.bookingSeat.create({ data: ticket(booking.id, seatId(0), f.adult, 0) }),
+      SQLSTATE.checkViolation,
+      'BookingSeat_occupant_range',
+    );
+  });
+
+  it('rejects two tickets on a standard seat', async () => {
+    const booking = await seatHold([seatId(0)]);
+    await expectDbError(
+      prisma.bookingSeat.createMany({
+        data: [
+          ticket(booking.id, seatId(0), f.adult, 1),
+          ticket(booking.id, seatId(0), f.adult, 2),
+        ],
+      }),
+      SQLSTATE.checkViolation,
+      'takes 1 ticket(s)',
+    );
+    await expect(
+      prisma.bookingSeat.create({ data: ticket(booking.id, seatId(0), f.adult) }),
+    ).resolves.toBeDefined();
+  });
+
+  it('charges the sofa surcharge only on occupant 1', async () => {
+    const booking = await sofaHold();
+    await expectDbError(
+      prisma.bookingSeat.createMany({
+        data: [
+          ticket(booking.id, f.couple.id, f.adult, 1, 200),
+          ticket(booking.id, f.couple.id, f.adult, 2, 200),
+        ],
+      }),
+      SQLSTATE.checkViolation,
+      'BookingSeat_surcharge_on_first_occupant',
+    );
+  });
+
+  it('keeps booked seats from changing to a seat type with a different capacity', async () => {
+    const booking = await seatHold([f.couple.id, seatId(0)]);
+    await prisma.bookingSeat.createMany({
+      data: [
+        ticket(booking.id, f.couple.id, f.adult, 1, 200),
+        ticket(booking.id, f.couple.id, f.adult, 2),
+        ticket(booking.id, seatId(0), f.adult),
+      ],
+    });
+    await expectDbError(
+      prisma.seat.update({
+        where: { id: f.couple.id },
+        data: { seatType: 'STANDARD', widthUnits: 1 },
+      }),
+      SQLSTATE.checkViolation,
+      'cannot change from COUPLE to STANDARD',
+    );
+    // Same capacity (1 -> 1) is fine.
+    await expect(
+      prisma.seat.update({ where: { id: seatId(0) }, data: { seatType: 'VIP' } }),
+    ).resolves.toMatchObject({ seatType: 'VIP' });
   });
 });
 

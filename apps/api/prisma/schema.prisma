@@ -508,15 +508,23 @@ model Booking {
   @@index([status, holdExpiresAt])
 }
 
-/// Booked seat with its price snapshot. Permanent history row (kept after cancellation).
+/// One ticket on a booked seat, with its price snapshot. Permanent history row (kept after
+/// cancellation). A COUPLE sofa carries exactly 2 tickets (occupant 1 and 2, each with its own
+/// category), every other seat exactly 1 (enforced by migration couple_seat_two_tickets, G12).
 model BookingSeat {
   id                 String @id @default(uuid(7)) @db.Uuid
   bookingId          String @db.Uuid
   seatId             String @db.Uuid
+  /// 1..2 for COUPLE sofas, always 1 for other seat types.
+  occupant           Int    @default(1)
   ticketCategoryId   String @db.Uuid
   /// Snapshot of the category code at booking time.
   ticketCategoryCode String
+  /// Price of this ticket (after time adjustment and category discount).
   unitPriceCents     Int
+  /// Once-per-seat surcharge not included in the ticket price (couple sofa surcharge). Carried by
+  /// occupant 1 only; never discounted.
+  seatSurchargeCents Int    @default(0)
   /// Full price breakdown snapshot (base, surcharges, adjustments, discounts, rule ids).
   priceBreakdown     Json
 
@@ -524,7 +532,7 @@ model BookingSeat {
   seat           Seat           @relation(fields: [seatId], references: [id], onDelete: Restrict)
   ticketCategory TicketCategory @relation(fields: [ticketCategoryId], references: [id], onDelete: Restrict)
 
-  @@unique([bookingId, seatId])
+  @@unique([bookingId, seatId, occupant])
   @@index([seatId])
 }
 

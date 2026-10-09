@@ -3,9 +3,11 @@ import {
   adjustmentAmount,
   isRuleApplicable,
   priceSeat,
+  priceSeatTickets,
   priceWholeHall,
   PricingError,
   roundHalfAwayFromZero,
+  type PricingContext,
   type PricingRules,
   type SeatPriceInput,
   type TimeAdjustmentRule,
@@ -90,7 +92,7 @@ const rules: PricingRules = {
     {
       id: 'sur-couple',
       seatType: 'COUPLE',
-      amountCents: 450,
+      amountCents: 200,
       validFrom: V0,
       validTo: null,
       isActive: true,
@@ -157,6 +159,12 @@ function input(overrides: Partial<SeatPriceInput> & { startsAt?: string } = {}):
   };
 }
 
+/** The pricing context of a seat input (without its single ticket category). */
+function contextOf(seatInput: SeatPriceInput): PricingContext {
+  const { pricedAt, showtime, location, hall, rules: seatRules } = seatInput;
+  return { pricedAt, showtime, location, hall, rules: seatRules };
+}
+
 const kinds = (breakdown: ReturnType<typeof priceSeat>) => breakdown.lines.map((l) => l.kind);
 const sum = (breakdown: ReturnType<typeof priceSeat>) =>
   breakdown.lines.reduce((total, line) => total + line.amountCents, 0);
@@ -181,10 +189,16 @@ describe('priceSeat', () => {
     expect(priceSeat(input({ location: { id: 'PRN', timeZone: TZ } })).totalCents).toBe(500);
   });
 
-  it('adds the seat-type surcharge', () => {
+  it('adds the seat-type surcharge to single-ticket seats', () => {
     expect(priceSeat(input({ seat: { seatType: 'VIP' } })).totalCents).toBe(600);
-    expect(priceSeat(input({ seat: { seatType: 'COUPLE' } })).totalCents).toBe(900);
     expect(priceSeat(input({ seat: { seatType: 'WHEELCHAIR' } })).totalCents).toBe(450);
+    expect(priceSeat(input({ seat: { seatType: 'COMPANION' } })).totalCents).toBe(450);
+  });
+
+  it('refuses COUPLE sofas, which sell two tickets', () => {
+    expect(() => priceSeat(input({ seat: { seatType: 'COUPLE' } }))).toThrow(
+      expect.objectContaining({ code: 'WRONG_TICKET_COUNT' }),
+    );
   });
 
   describe('time windows (location time zone)', () => {
@@ -409,6 +423,119 @@ describe('priceSeat', () => {
       ).toBe('INVALID_INPUT');
       expect(codeOf(() => priceSeat(input({ pricedAt: new Date('nope') })))).toBe('INVALID_INPUT');
     });
+  });
+});
+
+describe('priceSeatTickets', () => {
+  const ADULT = { id: 'ADULT', code: 'ADULT' };
+  const STUDENT = { id: 'STUDENT', code: 'STUDENT' };
+  const CHILD = { id: 'CHILD', code: 'CHILD' };
+  const base = input();
+  const sofa = (
+    ticketCategories: { id: string; code: string }[],
+    overrides: Partial<SeatPriceInput> & { startsAt?: string } = {},
+  ) => {
+    const context = contextOf(input(overrides));
+    return priceSeatTickets({ ...context, seat: { seatType: 'COUPLE' }, ticketCategories });
+  };
+
+  it('prices a sofa as two tickets with their own categories plus the surcharge once', () => {
+    // Thursday 20:00: ADULT 450 + STUDENT 450 - 20% = 360, sofa surcharge 200 once.
+    const price = sofa([ADULT, STUDENT]);
+    expect(price.tickets.map((t) => [t.ticketCategoryCode, t.totalCents])).toEqual([
+      ['ADULT', 450],
+      ['STUDENT', 360],
+    ]);
+    expect(price.seatSurcharge).toEqual({
+      kind: 'SEAT_SURCHARGE',
+      ruleId: 'sur-couple',
+      amountCents: 200,
+      detail: 'COUPLE per sofa',
+    });
+    expect(price.totalCents).toBe(1010);
+    expect(price.seatType).toBe('COUPLE');
+    expect(price.currency).toBe('EUR');
+  });
+
+  it('never puts the sofa surcharge into a ticket, so discounts do not touch it', () => {
+    const price = sofa([STUDENT, STUDENT]);
+    for (const ticket of price.tickets) {
+      expect(ticket.lines.map((l) => l.kind)).toEqual(['BASE', 'CATEGORY_DISCOUNT']);
+      expect(ticket.totalCents).toBe(360);
+    }
+    expect(price.totalCents).toBe(360 + 360 + 200);
+  });
+
+  it('applies the time adjustment to each ticket but not to the surcharge', () => {
+    // Monday matinee -20%: tickets 360 each, CHILD -150 -> 210; surcharge stays 200.
+    const price = sofa([ADULT, CHILD], { startsAt: '2026-10-12T10:00:00Z' });
+    expect(price.tickets.map((t) => t.totalCents)).toEqual([360, 210]);
+    expect(price.seatSurcharge?.amountCents).toBe(200);
+    expect(price.totalCents).toBe(770);
+  });
+
+  it('charges no surcharge when no COUPLE rule applies', () => {
+    const noSofaRule = {
+      ...rules,
+      seatTypeSurcharges: rules.seatTypeSurcharges.filter((r) => r.seatType !== 'COUPLE'),
+    };
+    const price = sofa([ADULT, ADULT], { rules: noSofaRule });
+    expect(price.seatSurcharge).toBeNull();
+    expect(price.totalCents).toBe(900);
+  });
+
+  it('prices ordinary seats as one ticket with the surcharge inside the ticket', () => {
+    const context = contextOf(base);
+    const vip = priceSeatTickets({
+      ...context,
+      seat: { seatType: 'VIP' },
+      ticketCategories: [STUDENT],
+    });
+    expect(vip.tickets).toHaveLength(1);
+    expect(vip.seatSurcharge).toBeNull();
+    // (450 + 150) - 20% = 480: same as priceSeat.
+    expect(vip.totalCents).toBe(480);
+    expect(vip.tickets[0]).toEqual(
+      priceSeat({ ...base, seat: { seatType: 'VIP' }, ticketCategory: STUDENT }),
+    );
+  });
+
+  it('rejects the wrong number of tickets and whole-hall-only halls', () => {
+    const context = contextOf(base);
+    const code = (fn: () => unknown) => {
+      try {
+        fn();
+      } catch (error) {
+        return error instanceof PricingError ? error.code : 'OTHER';
+      }
+      return 'NONE';
+    };
+    expect(code(() => sofa([ADULT]))).toBe('WRONG_TICKET_COUNT');
+    expect(code(() => sofa([ADULT, ADULT, ADULT]))).toBe('WRONG_TICKET_COUNT');
+    expect(
+      code(() =>
+        priceSeatTickets({
+          ...context,
+          seat: { seatType: 'STANDARD' },
+          ticketCategories: [ADULT, ADULT],
+        }),
+      ),
+    ).toBe('WRONG_TICKET_COUNT');
+    expect(
+      code(() =>
+        priceSeatTickets({ ...context, seat: { seatType: 'STANDARD' }, ticketCategories: [] }),
+      ),
+    ).toBe('WRONG_TICKET_COUNT');
+    expect(
+      code(() =>
+        priceSeatTickets({
+          ...context,
+          hall: { id: 'S', hallTypeId: 'STD', wholeHallOnly: true },
+          seat: { seatType: 'COUPLE' },
+          ticketCategories: [ADULT, ADULT],
+        }),
+      ),
+    ).toBe('WHOLE_HALL_ONLY');
   });
 });
 

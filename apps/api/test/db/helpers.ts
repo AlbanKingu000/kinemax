@@ -3,11 +3,15 @@ import { expect } from 'vitest';
 import { generateBookingCode } from '../../src/domain/booking-code.js';
 import type { PrismaClient } from '../../src/generated/prisma/client.js';
 
-/** SQLSTATE of a database error raised through Prisma's pg driver adapter. */
+/**
+ * SQLSTATE of a database error raised through Prisma's pg driver adapter. Statement errors are
+ * PrismaClientKnownRequestErrors (code in meta.driverAdapterError.cause); errors raised at COMMIT
+ * of an interactive transaction (deferred constraints) are DriverAdapterErrors (code in cause).
+ */
 export function sqlStateOf(error: unknown): string | undefined {
-  const meta = (error as { meta?: { driverAdapterError?: { cause?: { originalCode?: unknown } } } })
-    .meta;
-  const code = meta?.driverAdapterError?.cause?.originalCode;
+  type Cause = { originalCode?: unknown } | undefined;
+  const e = error as { meta?: { driverAdapterError?: { cause?: Cause } }; cause?: Cause };
+  const code = e.meta?.driverAdapterError?.cause?.originalCode ?? e.cause?.originalCode;
   return typeof code === 'string' ? code : undefined;
 }
 
@@ -101,6 +105,7 @@ export async function createFixture(prisma: PrismaClient) {
   await prisma.seat.createMany({
     data: [
       ...[1, 2, 3, 4].map((n) => seat(hall.id, 'A', n)),
+      { ...seat(hall.id, 'B', 1), seatType: 'COUPLE' as const, widthUnits: 2 },
       seat(otherHall.id, 'A', 1),
       ...[1, 2].map((n) => ({ ...seat(suite.id, 'A', n), seatType: 'VIP' as const })),
     ],
@@ -140,14 +145,22 @@ export async function createFixture(prisma: PrismaClient) {
     data: { email: 'test@kinemax.test', passwordHash: 'not-a-real-hash', name: 'Test User' },
   });
   const adult = await prisma.ticketCategory.create({ data: { code: 'ADULT', nameSq: 'I rritur' } });
+  const student = await prisma.ticketCategory.create({
+    data: { code: 'STUDENT', nameSq: 'Student' },
+  });
+  const couple = seats.find((s) => s.hallId === hall.id && s.seatType === 'COUPLE');
+  if (!couple) throw new Error('fixture couple sofa missing');
 
   return {
     location,
     hall,
     otherHall,
     suite,
+    couple,
+    student,
     seats: {
-      hall: seats.filter((s) => s.hallId === hall.id),
+      /** Row A of Salla 1: four standard seats. */
+      hall: seats.filter((s) => s.hallId === hall.id && s.rowLabel === 'A'),
       otherHall: seats.filter((s) => s.hallId === otherHall.id),
       suite: seats.filter((s) => s.hallId === suite.id),
     },
@@ -217,4 +230,24 @@ export function holdWholeHall(
     });
     return booking;
   });
+}
+
+/** A ticket row for BookingSeat (occupant 1 by default) with a dummy price snapshot. */
+export function ticket(
+  bookingId: string,
+  seatId: string,
+  ticketCategory: { id: string; code: string },
+  occupant = 1,
+  seatSurchargeCents = 0,
+) {
+  return {
+    bookingId,
+    seatId,
+    occupant,
+    ticketCategoryId: ticketCategory.id,
+    ticketCategoryCode: ticketCategory.code,
+    unitPriceCents: 450,
+    seatSurchargeCents,
+    priceBreakdown: { totalCents: 450 },
+  };
 }

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { hashPassword, verifyPassword } from '../../src/auth/password.js';
 import {
+  assertTicketCount,
+  SeatTicketCountError,
+  ticketsPerSeat,
+} from '../../src/domain/seat-tickets.js';
+import {
   BOOKING_CODE_LENGTH,
   BOOKING_CODE_PATTERN,
   generateBookingCode,
@@ -58,5 +63,27 @@ describe('password hashing', () => {
     await expect(verifyPassword(hash, 'correct horse battery staple')).resolves.toBe(true);
     await expect(verifyPassword(hash, 'wrong')).resolves.toBe(false);
     await expect(verifyPassword('not-a-hash', 'x')).resolves.toBe(false);
+  });
+});
+
+describe('seat tickets', () => {
+  it('sells two tickets for a COUPLE sofa and one for every other seat', () => {
+    expect(ticketsPerSeat('COUPLE')).toBe(2);
+    for (const type of ['STANDARD', 'VIP', 'WHEELCHAIR', 'COMPANION'] as const) {
+      expect(ticketsPerSeat(type)).toBe(1);
+    }
+  });
+
+  it('rejects a wrong ticket count', () => {
+    expect(() => {
+      assertTicketCount('COUPLE', 2);
+      assertTicketCount('STANDARD', 1);
+    }).not.toThrow();
+    expect(() => {
+      assertTicketCount('COUPLE', 1);
+    }).toThrow(SeatTicketCountError);
+    expect(() => {
+      assertTicketCount('STANDARD', 2);
+    }).toThrow(/exactly 1 ticket/);
   });
 });

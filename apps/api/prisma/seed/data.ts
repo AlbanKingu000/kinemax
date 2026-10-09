@@ -412,10 +412,13 @@ export const BASE_PRICES: { hallType: HallTypeCode; locationSlug?: string; price
     { hallType: 'PREMIUM_LARGE_FORMAT', locationSlug: 'prishtine', priceCents: 700 },
   ];
 
-/** COUPLE sofas are one ticket for two people, so the surcharge is close to a second ticket. */
+/**
+ * VIP: added to every VIP ticket. COUPLE: a sofa sells two tickets (one per person) and this
+ * surcharge is charged once per sofa, without time adjustment or discount.
+ */
 export const SEAT_SURCHARGES: { seatType: 'VIP' | 'COUPLE'; amountCents: number }[] = [
   { seatType: 'VIP', amountCents: 150 },
-  { seatType: 'COUPLE', amountCents: 450 },
+  { seatType: 'COUPLE', amountCents: 200 },
 ];
 
 export const TIME_ADJUSTMENTS: {

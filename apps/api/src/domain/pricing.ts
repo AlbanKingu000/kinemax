@@ -1,11 +1,14 @@
 // Ticket pricing. Pure and deterministic: the server is the only place that calculates prices, and
 // the resulting breakdown is stored as a snapshot on the booking.
 //
-// Order of calculation (all amounts in integer cents):
+// Order of calculation for one ticket (all amounts in integer cents):
 //   1. base price for the hall type (location-specific rule beats the global one)
-//   2. + seat-type surcharge (VIP, COUPLE, ...)                     -> subtotal
+//   2. + seat-type surcharge (VIP, ...)                             -> subtotal
 //   3. + time adjustment in the location's local time (one rule)  -> percent of the subtotal or fixed
 //   4. - ticket-category discount (STUDENT, CHILD, ...)            -> percent of step 3 or fixed
+// COUPLE sofas sell two tickets (one per person, each with its own category) priced with steps 1, 3
+// and 4, plus the COUPLE surcharge ONCE per sofa as a flat amount: it is neither time-adjusted nor
+// discounted. Use priceSeatTickets for any seat; priceSeat prices single-ticket seats.
 // Whole-hall (suite) prices use the hall's whole-hall price and step 3 only.
 //
 // Rule versions are chosen by `pricedAt` (normally "now", the purchase time): a rule applies when it
@@ -13,6 +16,7 @@
 // start in the location's time zone. Percentages round half away from zero to whole cents. A price
 // never goes below 0; the lines always add up to the total.
 
+import { ticketsPerSeat } from './seat-tickets.js';
 import { toLocalDateTime } from './time-zone.js';
 
 export type AdjustmentKind = 'PERCENT' | 'FIXED_CENTS';
@@ -75,9 +79,20 @@ export interface PricingContext {
   rules: PricingRules;
 }
 
+export interface TicketCategoryRef {
+  id: string;
+  code: string;
+}
+
 export interface SeatPriceInput extends PricingContext {
   seat: { seatType: SeatTypeCode };
-  ticketCategory: { id: string; code: string };
+  ticketCategory: TicketCategoryRef;
+}
+
+export interface SeatTicketsInput extends PricingContext {
+  seat: { seatType: SeatTypeCode };
+  /** One category per person: 2 for a COUPLE sofa (occupant 1, 2), 1 for any other seat. */
+  ticketCategories: readonly TicketCategoryRef[];
 }
 
 export type PriceLineKind =
@@ -101,8 +116,23 @@ export interface PriceBreakdown {
   ticketCategoryCode?: string;
 }
 
+/** Price of one seat: its tickets (in occupant order) plus an optional once-per-seat surcharge. */
+export interface SeatPrice {
+  currency: 'EUR';
+  seatType: SeatTypeCode;
+  tickets: PriceBreakdown[];
+  /** COUPLE sofa surcharge, charged once per sofa (null when there is none). */
+  seatSurcharge: PriceLine | null;
+  totalCents: number;
+}
+
 export type PricingErrorCode =
-  'NO_BASE_PRICE' | 'NO_WHOLE_HALL_PRICE' | 'WHOLE_HALL_ONLY' | 'NOT_WHOLE_HALL' | 'INVALID_INPUT';
+  | 'NO_BASE_PRICE'
+  | 'NO_WHOLE_HALL_PRICE'
+  | 'WHOLE_HALL_ONLY'
+  | 'NOT_WHOLE_HALL'
+  | 'WRONG_TICKET_COUNT'
+  | 'INVALID_INPUT';
 
 export class PricingError extends Error {
   override name = 'PricingError';
@@ -213,16 +243,36 @@ function applyTimeAdjustment(
   });
 }
 
-/** Price of one seat ticket for a showtime. */
-export function priceSeat(input: SeatPriceInput): PriceBreakdown {
-  const local = validateContext(input);
-  const { pricedAt, hall, location, rules, seat, ticketCategory } = input;
+function selectSeatSurcharge(
+  rules: PricingRules,
+  seatType: SeatTypeCode,
+  pricedAt: Date,
+): SeatTypeSurchargeRule | undefined {
+  return rules.seatTypeSurcharges
+    .filter((rule) => rule.seatType === seatType && isRuleApplicable(rule, pricedAt))
+    .sort(byNewest)[0];
+}
+
+function assertSeatSoldPerSeat(hall: PricingContext['hall']): void {
   if (hall.wholeHallOnly) {
     throw new PricingError(
       'WHOLE_HALL_ONLY',
       'This hall is only sold as a whole; use priceWholeHall',
     );
   }
+}
+
+/**
+ * One ticket. `seatSurchargeType` is the seat type whose surcharge is part of the ticket price
+ * (VIP, ...), or null for tickets on a COUPLE sofa, whose surcharge is charged once per sofa.
+ */
+function priceTicket(
+  input: PricingContext,
+  local: ReturnType<typeof toLocalDateTime>,
+  ticketCategory: TicketCategoryRef,
+  seatSurchargeType: SeatTypeCode | null,
+): PriceBreakdown {
+  const { pricedAt, hall, location, rules } = input;
 
   const base = rules.hallTypePrices
     .filter(
@@ -239,15 +289,16 @@ export function priceSeat(input: SeatPriceInput): PriceBreakdown {
   const lines: PriceLine[] = [];
   let running = addLine(lines, 0, { kind: 'BASE', ruleId: base.id, amountCents: base.priceCents });
 
-  const surcharge = rules.seatTypeSurcharges
-    .filter((rule) => rule.seatType === seat.seatType && isRuleApplicable(rule, pricedAt))
-    .sort(byNewest)[0];
+  const surcharge =
+    seatSurchargeType === null
+      ? undefined
+      : selectSeatSurcharge(rules, seatSurchargeType, pricedAt);
   if (surcharge) {
     running = addLine(lines, running, {
       kind: 'SEAT_SURCHARGE',
       ruleId: surcharge.id,
       amountCents: surcharge.amountCents,
-      detail: seat.seatType,
+      detail: surcharge.seatType,
     });
   }
 
@@ -268,6 +319,60 @@ export function priceSeat(input: SeatPriceInput): PriceBreakdown {
   }
 
   return finish(input, local, lines, running, ticketCategory.code);
+}
+
+/** Price of one ticket on a single-ticket seat (every seat type except COUPLE). */
+export function priceSeat(input: SeatPriceInput): PriceBreakdown {
+  const local = validateContext(input);
+  assertSeatSoldPerSeat(input.hall);
+  if (ticketsPerSeat(input.seat.seatType) !== 1) {
+    throw new PricingError(
+      'WRONG_TICKET_COUNT',
+      `${input.seat.seatType} seats sell ${String(ticketsPerSeat(input.seat.seatType))} tickets; use priceSeatTickets`,
+    );
+  }
+  return priceTicket(input, local, input.ticketCategory, input.seat.seatType);
+}
+
+/**
+ * Price of all tickets on one seat: 1 ticket for ordinary seats, 2 for a COUPLE sofa (each priced
+ * with its own category) plus the sofa surcharge once, not time-adjusted and not discounted.
+ */
+export function priceSeatTickets(input: SeatTicketsInput): SeatPrice {
+  const local = validateContext(input);
+  assertSeatSoldPerSeat(input.hall);
+  const { seat, ticketCategories, rules, pricedAt } = input;
+  const expected = ticketsPerSeat(seat.seatType);
+  if (ticketCategories.length !== expected) {
+    throw new PricingError(
+      'WRONG_TICKET_COUNT',
+      `A ${seat.seatType} seat needs exactly ${String(expected)} ticket(s), got ${String(ticketCategories.length)}`,
+    );
+  }
+
+  const perSeatSurcharge = seat.seatType === 'COUPLE';
+  const tickets = ticketCategories.map((category) =>
+    priceTicket(input, local, category, perSeatSurcharge ? null : seat.seatType),
+  );
+  const rule = perSeatSurcharge ? selectSeatSurcharge(rules, seat.seatType, pricedAt) : undefined;
+  const seatSurcharge: PriceLine | null = rule
+    ? {
+        kind: 'SEAT_SURCHARGE',
+        ruleId: rule.id,
+        amountCents: rule.amountCents,
+        detail: 'COUPLE per sofa',
+      }
+    : null;
+
+  return {
+    currency: 'EUR',
+    seatType: seat.seatType,
+    tickets,
+    seatSurcharge,
+    totalCents:
+      tickets.reduce((sum, ticket) => sum + ticket.totalCents, 0) +
+      (seatSurcharge?.amountCents ?? 0),
+  };
 }
 
 /** Price of a whole hall (private suite) for one showtime. */

@@ -107,18 +107,27 @@ erDiagram
 
 - `HallTypePrice`: base ticket price per hall type, optionally for one location (beats the global
   rule).
-- `SeatTypeSurcharge`: surcharge per seat type (VIP, COUPLE).
+- `SeatTypeSurcharge`: surcharge per seat type. VIP: added to each VIP ticket. COUPLE: charged
+  once per sofa (seed: €2.00), see "Couple sofas" below.
 - `TimePriceAdjustment`: percent or fixed adjustment for ISO weekdays and a local time window
   `[startMinute, endMinute)` within one day, optionally per location, with a priority.
 - `TicketCategory` + `TicketCategoryDiscount`: ADULT, STUDENT, CHILD, SENIOR with percent or fixed
   discounts.
 - `WholeHallPrice`: price per showtime for halls sold as a whole (suites).
 
-The server calculates every price with `apps/api/src/domain/pricing.ts` (pure, unit-tested): base +
-seat surcharge, then one time adjustment (highest priority, then location-specific, then newest),
-then the category discount; percentages round half away from zero, totals never go below 0. Rule
-versions are picked by the purchase time (`pricedAt`), time windows by the showtime start in the
-location's time zone. Bookings store the full breakdown as a snapshot.
+The server calculates every price with `apps/api/src/domain/pricing.ts` (pure, unit-tested). A
+ticket is base + seat surcharge (VIP), then one time adjustment (highest priority, then
+location-specific, then newest), then the category discount; percentages round half away from
+zero, totals never go below 0. Rule versions are picked by the purchase time (`pricedAt`), time
+windows by the showtime start in the location's time zone. Bookings store the full breakdown as a
+snapshot. `priceSeatTickets` prices any seat (1 or 2 tickets); `priceSeat` prices single-ticket
+seats.
+
+**Couple sofas.** A COUPLE sofa is one seat (one lock) for two people and sells **two tickets**,
+one per person, each with its own ticket category (e.g. ADULT + STUDENT), each priced like a normal
+ticket of that hall type at that time (base, time adjustment, category discount). On top comes the
+COUPLE surcharge **once per sofa**, as a flat amount: no time adjustment and no discount apply to
+it. Example (Thursday 20:00, base €4.50): ADULT €4.50 + STUDENT €3.60 + sofa €2.00 = €10.10.
 
 **Users and administration**
 
@@ -136,8 +145,10 @@ location's time zone. Bookings store the full breakdown as a snapshot.
 
 - `Booking`: user, showtime, status, hold expiry, total, currency (EUR), age-rating confirmation,
   public code, timestamps; for suites `isWholeHall` + whole-hall price snapshot.
-- `BookingSeat`: permanent history of booked seats with ticket category and price snapshot (kept
-  after cancellation).
+- `BookingSeat`: one row per **ticket** on a booked seat (permanent history, kept after
+  cancellation): seat, `occupant` (1, or 1..2 on a COUPLE sofa), ticket category, ticket price,
+  price breakdown, and `seatSurchargeCents` (the once-per-sofa surcharge, on occupant 1 only).
+  Unique `(bookingId, seatId, occupant)`. A seat's total is its tickets plus its surcharge.
 - `SeatReservation` / `WholeHallReservation`: live locks (see G10/G11).
 - `MenuItem` (+ `ComboComponent`), `LocationMenuItem` (availability and price per location),
   `BookingFoodItem` (optional food with name and price snapshot, fulfillment PICKUP_AT_COUNTER or
@@ -147,8 +158,9 @@ location's time zone. Bookings store the full breakdown as a snapshot.
 
 ## Database-level guarantees
 
-All raw SQL lives at the end of `prisma/migrations/*_init_domain/migration.sql`, labelled G0-G11.
-Prisma ignores these objects when diffing (verified: `migrate dev` produces an empty migration).
+The raw SQL lives at the end of the migrations: G0-G11 in `*_init_domain`, G12 in
+`*_couple_seat_two_tickets`. Prisma ignores these objects when diffing (verified: diffing the
+database against the schema produces an empty migration).
 Integration tests: `apps/api/test/db/guarantees.db.test.ts`.
 
 | #   | Guarantee                                                                                                                 | How                                                                                    |
@@ -165,6 +177,7 @@ Integration tests: `apps/api/test/db/guarantees.db.test.ts`.
 | G9  | Bookings follow the status machine; released bookings never come back; expired holds cannot be confirmed                  | `BEFORE INSERT OR UPDATE OF status` trigger                                            |
 | G10 | A seat is never held/booked twice for a showtime; locks stay inside the showtime's hall; suites are only sold whole, once | PK `(showtimeId, seatId)`, PK `showtimeId` for suites, composite FKs, guard trigger    |
 | G11 | Releasing a booking frees its seats atomically                                                                            | `AFTER UPDATE OF status` trigger deletes the live locks                                |
+| G12 | A COUPLE sofa has exactly 2 tickets per booking, every other seat exactly 1; the sofa surcharge is charged once           | Occupant CHECK + capacity trigger, deferred count trigger, seat-type change guard      |
 
 ### Why a separate lock table (G10/G11)
 
@@ -190,6 +203,31 @@ A HELD booking whose `holdExpiresAt` has passed still holds its locks until it i
 The future hold endpoint must expire stale holds of the showtime in the same transaction before
 locking seats (`UPDATE "Booking" SET status = 'EXPIRED' WHERE status = 'HELD' AND "holdExpiresAt"
 <= now() ...`); G9 already prevents confirming an expired hold.
+
+### Two tickets per sofa (G12)
+
+The lock and the tickets are separate on purpose: a sofa is **one** `SeatReservation` row (one lock,
+so it can never be split between two bookings) but **two** `BookingSeat` rows (two people, two
+categories, two price snapshots). The ticket count is enforced in layers:
+
+- `kinemax_seat_ticket_capacity(seatType)` returns 2 for COUPLE and 1 otherwise; the domain mirror
+  is `apps/api/src/domain/seat-tickets.ts`, used by the pricing function.
+- **At most**: CHECK `occupant BETWEEN 1 AND 2`, a `BEFORE INSERT/UPDATE` trigger that rejects an
+  occupant number above the seat's capacity, and the unique key `(bookingId, seatId, occupant)`.
+  So a standard seat can only have occupant 1, a sofa only occupants 1 and 2.
+- **At least**: a `DEFERRABLE INITIALLY DEFERRED` constraint trigger checks at COMMIT that every
+  booked seat has 0 or exactly `capacity` tickets. Deferring the check lets the application write
+  the two tickets one after the other in the same transaction, while a transaction that leaves a
+  sofa with one ticket can never commit.
+- **Surcharge once**: `seatSurchargeCents` is never negative and may only be non-zero on
+  occupant 1 (CHECK).
+- **Stays true later**: a seat with tickets cannot change to a seat type with a different capacity
+  (e.g. COUPLE to STANDARD); deactivate it and add a new seat instead. Same-capacity changes
+  (STANDARD to VIP) are allowed.
+
+Tickets written before this migration are kept as history (the migration only reports mismatches).
+Errors raised at COMMIT of an interactive transaction surface from Prisma as a `DriverAdapterError`
+with the SQLSTATE in `cause.originalCode`, not as a `PrismaClientKnownRequestError`.
 
 ## Seed
 
