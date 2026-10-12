@@ -16,7 +16,10 @@ const location = (slug: string, city: string): LocationSummary => ({
   city,
   address: `Rruga e ${city} 1`,
   timeZone: 'Europe/Belgrade',
-  hallTypes: [{ code: 'STANDARD', nameSq: 'Standard', nameEn: null, hallCount: 2 }],
+  hallTypes: [
+    { code: 'STANDARD', nameSq: 'Standard', nameEn: null, hallCount: 2 },
+    { code: 'VIP_RECLINER', nameSq: 'VIP Recliner', nameEn: 'VIP Recliner', hallCount: 1 },
+  ],
 });
 
 export const LOCATIONS: LocationSummary[] = [
@@ -60,12 +63,18 @@ export interface CatalogStub {
   nowShowing?: Record<string, Answer>;
   comingSoon?: Answer;
   featured?: Record<string, Answer>;
+  /** /api/movies/:slug by slug. */
+  movieDetail?: Record<string, Answer>;
+  /** /api/showtimes: computed from the request URL. */
+  showtimes?: (url: URL) => Answer;
+  /** /api/showtimes/:id by id. */
+  showtime?: Record<string, Answer>;
 }
 
 const isStatus = (value: unknown): value is { status: number; body: unknown } =>
   typeof value === 'object' && value !== null && 'status' in value && 'body' in value;
 
-/** Stubs fetch for /api/locations, /api/movies and /api/featured. Unknown URLs answer 404. */
+/** Stubs fetch for the public catalog API. Unknown URLs answer 404. */
 export function stubCatalog(stub: CatalogStub = {}) {
   const answer = (value: Answer) => {
     if (value instanceof Error) return Promise.reject(value);
@@ -87,6 +96,13 @@ export function stubCatalog(stub: CatalogStub = {}) {
     }
     if (url.pathname === '/api/movies') {
       return answer(stub.nowShowing?.[slug] ?? { movies: [movie(`now-${slug || 'all'}`)] });
+    }
+    if (url.pathname.startsWith('/api/movies/')) {
+      return answer(stub.movieDetail?.[decodeURIComponent(url.pathname.slice(12))]);
+    }
+    if (url.pathname === '/api/showtimes') return answer(stub.showtimes?.(url));
+    if (url.pathname.startsWith('/api/showtimes/')) {
+      return answer(stub.showtime?.[decodeURIComponent(url.pathname.slice(15))]);
     }
     if (url.pathname === '/api/featured') {
       return answer(stub.featured?.[slug] ?? { movie: featured(`featured-${slug || 'all'}`) });

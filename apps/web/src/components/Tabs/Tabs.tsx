@@ -12,6 +12,9 @@ interface TabsProps {
   label: string;
   tabs: readonly TabItem[];
   defaultTab?: string;
+  /** Controlled mode: the selected tab, kept by the parent (e.g. in the URL). */
+  selected?: string;
+  onSelect?: (id: string) => void;
   className?: string;
 }
 
@@ -19,9 +22,21 @@ interface TabsProps {
  * WAI-ARIA tabs with automatic activation: arrow keys move and select, Home/End jump to the ends,
  * only the selected tab is in the tab order.
  */
-export function Tabs({ label, tabs, defaultTab, className }: TabsProps) {
+export function Tabs({
+  label,
+  tabs,
+  defaultTab,
+  selected: controlled,
+  onSelect,
+  className,
+}: TabsProps) {
   const baseId = useId();
-  const [selected, setSelected] = useState(defaultTab ?? tabs[0]?.id);
+  const [own, setOwn] = useState(defaultTab ?? tabs[0]?.id);
+  const selected = controlled ?? own;
+  const setSelected = (id: string) => {
+    setOwn(id);
+    onSelect?.(id);
+  };
   const tabRefs = useRef(new Map<string, HTMLButtonElement>());
 
   function select(index: number) {

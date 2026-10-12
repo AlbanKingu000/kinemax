@@ -1,11 +1,17 @@
 import {
   featuredResponseSchema,
   locationsResponseSchema,
+  movieDetailResponseSchema,
   moviesResponseSchema,
+  showtimeDetailResponseSchema,
+  showtimesResponseSchema,
   type FeaturedMovie,
   type LocationSummary,
+  type MovieDetail,
   type MovieListStatus,
   type MovieSummary,
+  type ShowtimeDetailResponse,
+  type ShowtimesResponse,
 } from '@kinemax/shared';
 import type { ZodType } from 'zod';
 
@@ -49,4 +55,46 @@ export async function fetchFeatured(
   const query = withLocation({}, location);
   return (await getJson(`/api/featured${query ? `?${query}` : ''}`, featuredResponseSchema, signal))
     .movie;
+}
+
+export async function fetchMovie(slug: string, signal?: AbortSignal): Promise<MovieDetail> {
+  return (
+    await getJson(`/api/movies/${encodeURIComponent(slug)}`, movieDetailResponseSchema, signal)
+  ).movie;
+}
+
+export interface ShowtimesFilter {
+  location: string;
+  date: string;
+  movie?: string;
+  hallType?: readonly string[];
+  format?: readonly string[];
+  language?: readonly string[];
+}
+
+/** Query string for /api/showtimes; empty filters are left out. */
+export function showtimesQuery(filter: ShowtimesFilter): string {
+  const params = new URLSearchParams({ location: filter.location, date: filter.date });
+  if (filter.movie) params.set('movie', filter.movie);
+  for (const key of ['hallType', 'format', 'language'] as const) {
+    const values = filter[key];
+    if (values && values.length > 0) params.set(key, values.join(','));
+  }
+  return params.toString();
+}
+
+export async function fetchShowtimes(
+  filter: ShowtimesFilter,
+  signal?: AbortSignal,
+): Promise<ShowtimesResponse> {
+  return getJson(`/api/showtimes?${showtimesQuery(filter)}`, showtimesResponseSchema, signal);
+}
+
+export async function fetchShowtime(
+  id: string,
+  signal?: AbortSignal,
+): Promise<ShowtimeDetailResponse['showtime']> {
+  return (
+    await getJson(`/api/showtimes/${encodeURIComponent(id)}`, showtimeDetailResponseSchema, signal)
+  ).showtime;
 }

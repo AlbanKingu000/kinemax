@@ -1,17 +1,19 @@
-/* The hero runs under the transparent header (pulled up by the header height). */
+/* The hero runs under the transparent header (pulled up by the header height). Phones: as tall
+   as its content, so "Now showing" follows right after the buttons. Desktop: a cinematic height
+   that still leaves the next section in view. */
 .hero {
   position: relative;
   display: flex;
   align-items: center;
-  min-height: min(40rem, 78svh);
   margin-top: calc(var(--header-height) * -1);
-  padding-block: calc(var(--header-height) + var(--space-10)) var(--space-12);
+  padding-block: calc(var(--header-height) + var(--space-8)) var(--space-8);
   overflow: hidden;
 }
 
 @media (min-width: 1024px) {
   .hero {
-    min-height: 100svh;
+    min-height: min(46rem, 86svh);
+    padding-bottom: var(--space-10);
   }
 }
 
@@ -106,29 +108,13 @@
   object-fit: cover;
 }
 
-.video {
-  position: relative;
-  aspect-ratio: 16 / 9;
-  overflow: hidden;
-  border-radius: var(--radius-md);
-  background: var(--color-bg);
-}
-
-.video iframe {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  border: 0;
-}
-
 /* The background's crimson glow fades into the page instead of ending in a hard edge */
 .hero::after {
   position: absolute;
   right: 0;
   bottom: 0;
   left: 0;
-  height: 8rem;
+  height: 5rem;
   background: linear-gradient(180deg, rgb(var(--rgb-black) / 0%), var(--color-bg));
   content: '';
   pointer-events: none;

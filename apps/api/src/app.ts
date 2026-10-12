@@ -13,6 +13,7 @@ import { createAuthRouter } from './routes/auth.js';
 import { createCatalogRouter } from './routes/catalog.js';
 import { createHealthRouter } from './routes/health.js';
 import { createProtectedExamplesRouter } from './routes/protected-examples.js';
+import { createShowtimesRouter } from './routes/showtimes.js';
 
 export const JSON_BODY_LIMIT = '100kb';
 
@@ -36,6 +37,8 @@ export interface AppDeps {
   /** Exact extra origins allowed to call the API cross-origin. Empty: same-origin only. */
   corsAllowedOrigins: readonly string[];
   auth: AuthOptions;
+  /** Clock for time-dependent public data (tests pin it). Default: the system clock. */
+  now?: () => Date;
 }
 
 export function createApp({
@@ -44,6 +47,7 @@ export function createApp({
   logger,
   corsAllowedOrigins,
   auth,
+  now = () => new Date(),
 }: AppDeps): Express {
   const app = express();
   const cookies = cookieSettings(auth.cookieSecure);
@@ -85,7 +89,8 @@ export function createApp({
       rateLimits: auth.rateLimits ?? AUTH_RATE_LIMITS,
     }),
   );
-  app.use('/api', createCatalogRouter(prisma));
+  app.use('/api', createCatalogRouter(prisma, now));
+  app.use('/api', createShowtimesRouter(prisma, now));
   app.use('/api', createProtectedExamplesRouter(prisma));
 
   app.use(notFoundHandler);

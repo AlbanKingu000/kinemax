@@ -1,0 +1,104 @@
+.groups {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.group {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.hallType {
+  font-family: var(--font-body);
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+
+.price {
+  margin-left: auto;
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+.times {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A time: large touch target with the hall (or the availability) underneath */
+.slot {
+  display: inline-grid;
+  justify-items: center;
+  align-content: center;
+  gap: 0.15rem;
+  min-width: 5.5rem;
+  min-height: 3.25rem;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border-control);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  text-decoration: none;
+  transition:
+    border-color var(--duration-base) var(--ease-standard),
+    background-color var(--duration-base) var(--ease-standard),
+    box-shadow var(--duration-slow) var(--ease-standard);
+}
+
+a.slot:hover {
+  border-color: var(--color-crimson-text);
+  background: rgb(var(--rgb-crimson) / 14%);
+  box-shadow: var(--glow-crimson-soft);
+}
+
+.time {
+  font-size: var(--text-body);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.meta {
+  color: var(--color-text-muted);
+  font-size: var(--text-overline);
+  letter-spacing: var(--tracking-wide);
+  line-height: 1.2;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Few seats left: a crimson edge and label */
+.slot[data-availability='FEW_LEFT'] {
+  border-color: var(--color-crimson);
+}
+
+.slot[data-availability='FEW_LEFT'] .meta {
+  color: var(--color-crimson-text);
+}
+
+/* Sold out: still listed, clearly unavailable, not interactive */
+.slot[data-availability='SOLD_OUT'] {
+  border-style: dashed;
+  border-color: var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.slot[data-availability='SOLD_OUT'] .time {
+  text-decoration: line-through;
+}

@@ -113,7 +113,9 @@ describe('StyleguidePage', { timeout: 30_000 }, () => {
     fireEvent.click(screen.getByRole('radio', { name: 'Standard' }));
     expect(screen.getByRole('radio', { name: 'Standard' })).toBeChecked();
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Nesër' }));
-    expect(screen.getByRole('tabpanel')).toHaveTextContent('Nesër: 16:00');
+    // The navigation demo (the home section has its own day tabs).
+    const navigation = within(document.getElementById('navigation') as HTMLElement);
+    fireEvent.click(navigation.getByRole('tab', { name: 'Nesër' }));
+    expect(navigation.getByRole('tabpanel')).toHaveTextContent('Nesër: 16:00');
   });
 });

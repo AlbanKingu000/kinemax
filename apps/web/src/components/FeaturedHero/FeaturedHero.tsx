@@ -1,5 +1,5 @@
 import type { FeaturedMovie } from '@kinemax/shared';
-import { useId, useState } from 'react';
+import { useId } from 'react';
 import type { AsyncState } from '../../hooks/use-async';
 import { pickText } from '../../i18n/messages';
 import { useLocale, useMessages } from '../../i18n/use-messages';
@@ -8,8 +8,8 @@ import { Button, ButtonLink } from '../Button/Button';
 import { EmptyState } from '../EmptyState/EmptyState';
 import { HeroBackground } from '../HeroBackground/HeroBackground';
 import { Container } from '../Layout/Layout';
-import { Modal } from '../Modal/Modal';
 import { Skeleton } from '../Skeleton/Skeleton';
+import { TrailerButton } from '../Trailer/TrailerButton';
 import styles from './FeaturedHero.module.css';
 
 interface FeaturedHeroProps {
@@ -94,7 +94,6 @@ function FeaturedMovieContent({
 }) {
   const t = useMessages();
   const { locale } = useLocale();
-  const [trailerOpen, setTrailerOpen] = useState(false);
   const title = pickText(locale, movie.titleSq, movie.titleEn);
   const meta = [
     t.movie.duration(movie.durationMinutes),
@@ -128,17 +127,7 @@ function FeaturedMovieContent({
             {t.nav.buyTicket}
           </ButtonLink>
           {movie.trailerYoutubeId && (
-            <Button
-              variant="secondary"
-              size="lg"
-              icon="play"
-              aria-haspopup="dialog"
-              onClick={() => {
-                setTrailerOpen(true);
-              }}
-            >
-              {t.home.trailer}
-            </Button>
+            <TrailerButton youtubeId={movie.trailerYoutubeId} title={title} />
           )}
         </div>
       </div>
@@ -155,27 +144,6 @@ function FeaturedMovieContent({
             decoding="async"
           />
         </div>
-      )}
-
-      {movie.trailerYoutubeId && (
-        <Modal
-          open={trailerOpen}
-          onClose={() => {
-            setTrailerOpen(false);
-          }}
-          title={t.home.trailerTitle(title)}
-          size="lg"
-        >
-          <div className={styles.video}>
-            <iframe
-              src={`https://www.youtube-nocookie.com/embed/${movie.trailerYoutubeId}?autoplay=1&rel=0`}
-              title={t.home.trailerTitle(title)}
-              allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-              allowFullScreen
-              referrerPolicy="strict-origin-when-cross-origin"
-            />
-          </div>
-        </Modal>
       )}
     </>
   );

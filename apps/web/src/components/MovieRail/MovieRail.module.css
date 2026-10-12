@@ -1,7 +1,7 @@
 .section {
   /* Inside a grid or flex parent the sideways row must not widen the section. */
   min-width: 0;
-  padding-block: var(--space-12);
+  padding-block: var(--space-10);
 }
 
 .heading {

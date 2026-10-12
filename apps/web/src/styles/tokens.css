@@ -36,12 +36,7 @@
   --color-error-bg: #2b1216;
   --color-info-bg: #101d2a;
 
-  /* Age ratings (badge text/borders on --color-badge-bg or any background) */
-  --color-age-all: #4fbf8a;
-  --color-age-7: #7ab3e8;
-  --color-age-12: #e3b341;
-  --color-age-15: #f2994a;
-  --color-age-18: #e6566a;
+  /* Badges. Age ratings are monochrome (ivory on a grey outline); only 18+ is crimson, as a warning. */
   --color-badge-bg: #0b0a0b;
 
   /* RGB channels for translucent variants: rgb(var(--rgb-crimson) / 40%) */

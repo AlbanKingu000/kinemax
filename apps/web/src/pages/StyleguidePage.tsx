@@ -14,7 +14,9 @@ import { Card } from '../components/Card/Card';
 import { Checkbox } from '../components/Choice/Checkbox';
 import { RadioGroup } from '../components/Choice/Radio';
 import { Switch } from '../components/Choice/Switch';
+import { ChooseCinema } from '../components/ChooseCinema/ChooseCinema';
 import { Chip } from '../components/Chip/Chip';
+import { DayTabs } from '../components/DayTabs/DayTabs';
 import { EmptyState } from '../components/EmptyState/EmptyState';
 import { FeaturedHero } from '../components/FeaturedHero/FeaturedHero';
 import { FormField } from '../components/FormField/FormField';
@@ -31,6 +33,7 @@ import { Modal } from '../components/Modal/Modal';
 import { MovieCard } from '../components/MovieCard/MovieCard';
 import { MovieRail } from '../components/MovieRail/MovieRail';
 import { Select } from '../components/Select/Select';
+import { ShowtimeGroups } from '../components/ShowtimeGroups/ShowtimeGroups';
 import { SiteFooter } from '../components/SiteFooter/SiteFooter';
 import { SiteHeader } from '../components/SiteHeader/SiteHeader';
 import { MovieCardSkeleton } from '../components/Skeleton/Skeleton';
@@ -42,7 +45,13 @@ import { useLocale } from '../i18n/use-messages';
 import { useLocationChoice } from '../location/location-context';
 import { AA_TEXT, CONTRAST_PAIRS, contrastRatio, readColorTokens } from '../styles/contrast';
 import tokensCss from '../styles/tokens.css?raw';
-import { DEMO_FEATURED, DEMO_LOCATIONS, DEMO_MOVIES } from './styleguide-demo-data';
+import {
+  DEMO_DAYS,
+  DEMO_FEATURED,
+  DEMO_LOCATIONS,
+  DEMO_MOVIES,
+  DEMO_SHOWTIME_GROUPS,
+} from './styleguide-demo-data';
 import styles from './StyleguidePage.module.css';
 
 const COLORS = readColorTokens(tokensCss);
@@ -88,7 +97,6 @@ const SWATCH_GROUPS = {
     'color-crimson-text',
   ],
   status: ['color-success', 'color-warning', 'color-error', 'color-info'],
-  age: ['color-age-all', 'color-age-7', 'color-age-12', 'color-age-15', 'color-age-18'],
 } as const;
 
 const TYPE_SCALE = [
@@ -163,6 +171,7 @@ export function StyleguidePage() {
   const { openPicker } = useLocationChoice();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [demoLocation, setDemoLocation] = useState('prizren');
+  const [demoDay, setDemoDay] = useState(DEMO_DAYS[0] ?? '');
   const [seatType, setSeatType] = useState<'standard' | 'vip' | 'couple'>('vip');
   const [selectedGenres, setSelectedGenres] = useState<string[]>(['drama']);
   const [activeFilters, setActiveFilters] = useState<('prishtina' | 'vip')[]>(['prishtina', 'vip']);
@@ -1070,6 +1079,14 @@ export function StyleguidePage() {
                     titleTag="h2"
                   />
                 </div>
+              </Sub>
+              <Sub title={s.home.showtimes} note={s.home.showtimesNote}>
+                <DayTabs days={DEMO_DAYS} selected={demoDay} onSelect={setDemoDay}>
+                  <ShowtimeGroups groups={DEMO_SHOWTIME_GROUPS} headingLevel="h4" />
+                </DayTabs>
+              </Sub>
+              <Sub title={s.home.chooseCinema}>
+                <ChooseCinema headingLevel="h3" />
               </Sub>
               <Sub title={s.home.rails}>
                 <div className={styles.railDemo}>

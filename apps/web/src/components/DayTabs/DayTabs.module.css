@@ -1,0 +1,28 @@
+/* Inside a grid or flex parent the scrolling tab row must not widen it. */
+.tabs {
+  min-width: 0;
+}
+
+.tabs [role='tablist'] {
+  scroll-snap-type: x proximity;
+}
+
+.tabs [role='tab'] {
+  min-width: 4.5rem;
+  min-height: 3.5rem;
+  scroll-snap-align: start;
+}
+
+.label {
+  display: grid;
+  justify-items: center;
+  gap: 0.1rem;
+}
+
+.date {
+  color: var(--color-text-muted);
+  font-size: var(--text-overline);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-normal);
+  text-transform: none;
+}

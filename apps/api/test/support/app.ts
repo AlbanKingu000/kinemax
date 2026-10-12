@@ -56,6 +56,7 @@ export function makeTestApp(
       trustProxy: 0,
       ...(options.rateLimits ? { rateLimits: options.rateLimits } : {}),
     },
+    ...(options.now ? { now: options.now } : {}),
   };
   return { app: createApp(deps), logger, prisma };
 }

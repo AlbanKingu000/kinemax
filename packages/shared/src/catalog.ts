@@ -112,3 +112,151 @@ export type FeaturedMovie = z.infer<typeof featuredMovieSchema>;
 /** `movie` is null when nothing is scheduled in the featured window. */
 export const featuredResponseSchema = z.object({ movie: featuredMovieSchema.nullable() });
 export type FeaturedResponse = z.infer<typeof featuredResponseSchema>;
+
+// ---------------------------------------------------------------------------------------------
+// Movie detail (/api/movies/:slug)
+// ---------------------------------------------------------------------------------------------
+
+export const movieDetailSchema = movieSummarySchema
+  .omit({ formats: true, languageVersions: true })
+  .extend({
+    status: movieListStatusSchema,
+    director: z.string(),
+    cast: z.array(z.string()),
+    backdropPath: z.string().nullable(),
+    trailerYoutubeId: z
+      .string()
+      .regex(/^[A-Za-z0-9_-]{11}$/)
+      .nullable(),
+  });
+export type MovieDetail = z.infer<typeof movieDetailSchema>;
+
+export const movieDetailResponseSchema = z.object({ movie: movieDetailSchema });
+export type MovieDetailResponse = z.infer<typeof movieDetailResponseSchema>;
+
+// ---------------------------------------------------------------------------------------------
+// Showtimes (/api/showtimes, /api/showtimes/:id)
+// ---------------------------------------------------------------------------------------------
+
+/** Days that can be browsed: today and the 6 following days, in the cinema's time zone. */
+export const SCHEDULE_DAYS = 7;
+
+/** Comma-separated query values ("2D,3D"), each validated; duplicates removed. */
+const csv = <T extends z.ZodType<string, string>>(item: T) =>
+  z
+    .string()
+    .max(200)
+    .transform((value) => [...new Set(value.split(',').map((part) => part.trim()))])
+    .pipe(z.array(item).min(1));
+
+export const hallTypeCodeSchema = z.string().regex(/^[A-Z][A-Z0-9_]{0,39}$/);
+
+export const showtimesQuerySchema = z
+  .object({
+    location: slugSchema,
+    /** Calendar day in the cinema's time zone; defaults to its today. */
+    date: isoDateSchema.optional(),
+    movie: slugSchema.optional(),
+    hallType: csv(hallTypeCodeSchema).optional(),
+    format: csv(movieFormatSchema).optional(),
+    language: csv(languageVersionSchema).optional(),
+  })
+  .strict();
+export type ShowtimesQuery = z.input<typeof showtimesQuerySchema>;
+
+/**
+ * AVAILABLE, FEW_LEFT (fewer than 15% of the hall's seats free) or SOLD_OUT. Suites are sold as a
+ * whole, so they are only AVAILABLE or SOLD_OUT.
+ */
+export const availabilitySchema = z.enum(['AVAILABLE', 'FEW_LEFT', 'SOLD_OUT']);
+export type Availability = z.infer<typeof availabilitySchema>;
+
+const localTimeSchema = z.string().regex(/^\d{2}:\d{2}$/);
+
+const hallTypeRefSchema = z.object({
+  code: z.string(),
+  nameSq: z.string(),
+  nameEn: z.string().nullable(),
+});
+
+export const showtimeSlotSchema = z.object({
+  id: z.uuid(),
+  startsAt: z.iso.datetime(),
+  endsAt: z.iso.datetime(),
+  /** Start and end in the cinema's time zone, "HH:MM". */
+  startTime: localTimeSchema,
+  endTime: localTimeSchema,
+  hallName: z.string(),
+  availability: availabilitySchema,
+});
+export type ShowtimeSlot = z.infer<typeof showtimeSlotSchema>;
+
+/**
+ * Lowest price in the group: an ADULT ticket on the cheapest single-ticket seat type of the hall
+ * (TICKET), or the price of the whole suite (WHOLE_HALL). Null when no price rule applies.
+ */
+export const fromPriceSchema = z.object({
+  kind: z.enum(['TICKET', 'WHOLE_HALL']),
+  amountCents: z.number().int().nonnegative(),
+});
+export type FromPrice = z.infer<typeof fromPriceSchema>;
+
+export const showtimeGroupSchema = z.object({
+  hallType: hallTypeRefSchema,
+  format: movieFormatSchema,
+  languageVersion: languageVersionSchema,
+  fromPrice: fromPriceSchema.nullable(),
+  showtimes: z.array(showtimeSlotSchema),
+});
+export type ShowtimeGroup = z.infer<typeof showtimeGroupSchema>;
+
+export const scheduleMovieSchema = movieSummarySchema.pick({
+  slug: true,
+  titleSq: true,
+  titleEn: true,
+  ageRating: true,
+  durationMinutes: true,
+  genres: true,
+  posterPath: true,
+});
+export type ScheduleMovie = z.infer<typeof scheduleMovieSchema>;
+
+export const showtimesResponseSchema = z.object({
+  location: z.object({
+    slug: slugSchema,
+    name: z.string(),
+    city: z.string(),
+    timeZone: z.string(),
+  }),
+  date: isoDateSchema,
+  /** The browsable days (today first), in the cinema's time zone. */
+  days: z.array(isoDateSchema),
+  movies: z.array(z.object({ movie: scheduleMovieSchema, groups: z.array(showtimeGroupSchema) })),
+});
+export type ShowtimesResponse = z.infer<typeof showtimesResponseSchema>;
+
+export const showtimeDetailResponseSchema = z.object({
+  showtime: z.object({
+    id: z.uuid(),
+    startsAt: z.iso.datetime(),
+    endsAt: z.iso.datetime(),
+    /** Calendar day and times in the cinema's time zone. */
+    date: isoDateSchema,
+    startTime: localTimeSchema,
+    endTime: localTimeSchema,
+    format: movieFormatSchema,
+    languageVersion: languageVersionSchema,
+    /** True once the show has started: it can no longer be booked. */
+    hasStarted: z.boolean(),
+    movie: scheduleMovieSchema,
+    location: z.object({
+      slug: slugSchema,
+      name: z.string(),
+      city: z.string(),
+      address: z.string(),
+      timeZone: z.string(),
+    }),
+    hall: z.object({ name: z.string(), wholeHallOnly: z.boolean(), hallType: hallTypeRefSchema }),
+  }),
+});
+export type ShowtimeDetailResponse = z.infer<typeof showtimeDetailResponseSchema>;

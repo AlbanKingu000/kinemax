@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export type AsyncState<T> =
-  { status: 'loading' } | { status: 'error' } | { status: 'ready'; data: T };
+  { status: 'loading' } | { status: 'error'; error?: unknown } | { status: 'ready'; data: T };
 
 const LOADING = { status: 'loading' } as const;
 
@@ -32,8 +32,8 @@ export function useAsync<T>(
       (data) => {
         if (!controller.signal.aborted) setResult({ request, state: { status: 'ready', data } });
       },
-      () => {
-        if (!controller.signal.aborted) setResult({ request, state: { status: 'error' } });
+      (error: unknown) => {
+        if (!controller.signal.aborted) setResult({ request, state: { status: 'error', error } });
       },
     );
     return () => {

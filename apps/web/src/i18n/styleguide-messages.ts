@@ -45,7 +45,6 @@ const sq = {
       text: 'Teksti',
       crimson: 'E kuqja',
       status: 'Gjendjet',
-      age: 'Kufijtë e moshës',
     },
     contrastHeading: 'Kontrasti (WCAG AA)',
     contrastIntro:
@@ -264,6 +263,9 @@ const sq = {
     railLoading: 'Lista duke u ngarkuar',
     railError: 'Lista me gabim',
     railEmpty: 'Lista bosh',
+    showtimes: 'Oraret: ditët, grupet dhe disponueshmëria',
+    showtimesNote: 'Ka vende, pak vende (nën 15% të lira) dhe shitur (jo e klikueshme).',
+    chooseCinema: 'Pa kinema të zgjedhur',
   },
   hero: {
     eyebrow: 'Tani në kinema',
@@ -318,7 +320,6 @@ const en: StyleguideMessages = {
       text: 'Text',
       crimson: 'Crimson',
       status: 'Status',
-      age: 'Age ratings',
     },
     contrastHeading: 'Contrast (WCAG AA)',
     contrastIntro: 'Every color pair the interface uses. The same check runs as an automated test.',
@@ -536,6 +537,9 @@ const en: StyleguideMessages = {
     railLoading: 'List loading',
     railError: 'List with an error',
     railEmpty: 'Empty list',
+    showtimes: 'Showtimes: days, groups and availability',
+    showtimesNote: 'Available, few left (under 15% free) and sold out (not clickable).',
+    chooseCinema: 'No cinema chosen',
   },
   hero: {
     eyebrow: 'Now showing',

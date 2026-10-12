@@ -1,8 +1,11 @@
 import type { RouteObject } from 'react-router';
 import { AppShell } from './components/AppShell/AppShell';
 import { ComingSoonPage } from './pages/ComingSoonPage';
+import { BookingPage } from './pages/BookingPage';
 import { HomePage } from './pages/HomePage';
+import { MovieDetailPage } from './pages/MovieDetailPage';
 import { NotFoundPage } from './pages/NotFoundPage';
+import { SchedulePage } from './pages/SchedulePage';
 
 // The styleguide exists in development builds only. In production `import.meta.env.DEV` is the
 // constant `false`, so this branch and its lazy chunk are dropped from the bundle and /styleguide
@@ -25,8 +28,9 @@ export const routes: RouteObject[] = [
     children: [
       { index: true, element: <HomePage /> },
       { path: 'movies', element: <ComingSoonPage page="movies" /> },
-      { path: 'movies/:slug', element: <ComingSoonPage page="movie" /> },
-      { path: 'schedule', element: <ComingSoonPage page="schedule" /> },
+      { path: 'movies/:slug', element: <MovieDetailPage /> },
+      { path: 'schedule', element: <SchedulePage /> },
+      { path: 'booking/:showtimeId', element: <BookingPage /> },
       { path: 'experiences', element: <ComingSoonPage page="experiences" /> },
       { path: 'locations', element: <ComingSoonPage page="locations" /> },
       { path: 'food', element: <ComingSoonPage page="food" /> },

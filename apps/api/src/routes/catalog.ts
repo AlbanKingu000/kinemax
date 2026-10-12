@@ -1,5 +1,8 @@
 import {
   featuredQuerySchema,
+  movieDetailSchema,
+  slugSchema,
+  type MovieDetailResponse,
   moviesQuerySchema,
   type FeaturedResponse,
   type LanguageVersion,
@@ -9,6 +12,7 @@ import {
   type MoviesResponse,
 } from '@kinemax/shared';
 import { Router, type Response } from 'express';
+import { z } from 'zod';
 import type { Prisma, PrismaClient } from '../generated/prisma/client.js';
 import { HttpError, parseInput } from '../http/errors.js';
 
@@ -80,7 +84,10 @@ function cachePublicly(res: Response): void {
   }
 }
 
-export function createCatalogRouter(prisma: PrismaClient): Router {
+export function createCatalogRouter(
+  prisma: PrismaClient,
+  now: () => Date = () => new Date(),
+): Router {
   const router = Router();
 
   /** 404 for a slug that does not exist or is inactive; nothing else is revealed. */
@@ -95,10 +102,10 @@ export function createCatalogRouter(prisma: PrismaClient): Router {
 
   /** Active upcoming showtimes of NOW_SHOWING movies in active halls (of one location). */
   function showtimeScope(locationSlug: string | undefined, days: number) {
-    const now = new Date();
+    const at = now();
     return {
       isActive: true,
-      startsAt: { gte: now, lt: new Date(now.getTime() + days * DAY_MS) },
+      startsAt: { gte: at, lt: new Date(at.getTime() + days * DAY_MS) },
       movie: { status: 'NOW_SHOWING' },
       hall: {
         isActive: true,
@@ -239,6 +246,29 @@ export function createCatalogRouter(prisma: PrismaClient): Router {
         },
       };
     }
+    cachePublicly(res);
+    res.json(body);
+  });
+
+  /** Public detail of a movie that is showing or coming soon; archived and unknown ones are 404. */
+  router.get('/movies/:slug', async (req, res) => {
+    const { slug } = parseInput(z.object({ slug: slugSchema }), req.params);
+    const movie = await prisma.movie.findFirst({
+      where: { slug, status: { in: ['NOW_SHOWING', 'COMING_SOON'] } },
+      select: { ...movieSelect, director: true, cast: true, status: true },
+    });
+    if (!movie) throw new HttpError(404, 'not_found', 'Not found.');
+    // The schema drops the showtime-only fields (formats, language versions) of the summary.
+    const body: MovieDetailResponse = {
+      movie: movieDetailSchema.parse({
+        ...toSummary(movie),
+        status: movie.status,
+        director: movie.director,
+        cast: movie.cast,
+        backdropPath: movie.backdropPath,
+        trailerYoutubeId: movie.trailerYoutubeId,
+      }),
+    };
     cachePublicly(res);
     res.json(body);
   });

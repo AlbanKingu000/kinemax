@@ -53,12 +53,12 @@ describe('SiteHeader', () => {
     Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
     unmount();
 
-    renderApp('/schedule');
+    renderApp('/experiences');
     expect(header()).toHaveAttribute('data-solid', 'true');
   });
 
   it('opens an accessible drawer: focus inside, inert page, Escape closes and returns focus', async () => {
-    const { container } = renderApp('/schedule');
+    const { container } = renderApp('/experiences');
     const menuButton = within(header()).getByRole('button', { name: 'Hap menynë' });
     menuButton.focus();
     fireEvent.click(menuButton);
@@ -67,7 +67,7 @@ describe('SiteHeader', () => {
     expect(within(drawer).getByRole('button', { name: 'Mbyll' })).toHaveFocus();
     expect(container.inert).toBe(true);
     const drawerNav = within(drawer).getByRole('navigation', { name: 'Navigimi kryesor' });
-    expect(within(drawerNav).getByRole('link', { name: 'Orari' })).toHaveAttribute(
+    expect(within(drawerNav).getByRole('link', { name: 'Përvojat' })).toHaveAttribute(
       'aria-current',
       'page',
     );
@@ -85,7 +85,7 @@ describe('SiteHeader', () => {
   });
 
   it('closes the drawer when a section is chosen and navigates there', () => {
-    const { router } = renderApp('/schedule');
+    const { router } = renderApp('/experiences');
     fireEvent.click(within(header()).getByRole('button', { name: 'Hap menynë' }));
     fireEvent.click(
       within(screen.getByRole('dialog', { name: 'Menyja' })).getByRole('link', { name: 'Ushqimi' }),
@@ -96,7 +96,7 @@ describe('SiteHeader', () => {
   });
 
   it('opens the cinema picker on top of the drawer and returns to it', async () => {
-    renderApp('/schedule');
+    renderApp('/experiences');
     fireEvent.click(within(header()).getByRole('button', { name: 'Hap menynë' }));
     const drawer = screen.getByRole('dialog', { name: 'Menyja' });
     const locationButton = await within(drawer).findByRole('button', { name: 'Kinemaja: Prizren' });
@@ -111,7 +111,7 @@ describe('SiteHeader', () => {
   });
 
   it('switches the language of the whole shell', () => {
-    renderApp('/schedule');
+    renderApp('/experiences');
     fireEvent.click(within(header()).getByRole('button', { name: 'EN (English)' }));
     expect(document.documentElement.lang).toBe('en');
     const nav = within(header()).getByRole('navigation', { name: 'Main navigation' });

@@ -98,10 +98,8 @@ export const CONTRAST_PAIRS: readonly ContrastPair[] = [
   pair('color-text', 'color-warning-bg', 'toast'),
   pair('color-text', 'color-error-bg', 'toast'),
   pair('color-text', 'color-info-bg', 'toast'),
-  pair('color-age-all', 'color-badge-bg', 'badge'),
-  pair('color-age-7', 'color-badge-bg', 'badge'),
-  pair('color-age-12', 'color-badge-bg', 'badge'),
-  pair('color-age-15', 'color-badge-bg', 'badge'),
-  pair('color-age-18', 'color-badge-bg', 'badge'),
+  // Age ratings: ivory text with a control-grey outline; 18+ crimson text and outline.
+  pair('color-border-control', 'color-badge-bg', 'badge', AA_NON_TEXT),
+  pair('color-crimson-text', 'color-badge-bg', 'badge'),
   pair('color-text', 'color-badge-bg', 'badge'),
 ];

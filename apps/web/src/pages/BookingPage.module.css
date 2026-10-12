@@ -1,0 +1,87 @@
+.page {
+  display: grid;
+  /* One column that may shrink: scrolling rows (day tabs, chips) never widen the page. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-8);
+  padding-block: var(--space-12) 0;
+}
+
+.title {
+  font-size: var(--text-h1);
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: 6rem minmax(0, 1fr);
+  gap: var(--space-5);
+  padding: var(--space-6);
+  border: 1px solid var(--color-border);
+  border-top: 2px solid var(--color-crimson);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+@media (min-width: 640px) {
+  .summary {
+    grid-template-columns: 9rem minmax(0, 1fr);
+    gap: var(--space-8);
+  }
+}
+
+.poster {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 2 / 3;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  object-fit: cover;
+}
+
+.details {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.movieTitle {
+  font-family: var(--font-display);
+  font-size: var(--text-h3);
+  line-height: var(--leading-tight);
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.facts {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+}
+
+@media (min-width: 640px) {
+  .facts {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.facts dt {
+  color: var(--color-text-muted);
+  font-size: var(--text-overline);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-overline);
+  text-transform: uppercase;
+}
+
+.facts dd {
+  display: grid;
+  margin: var(--space-1) 0 0;
+}
+
+.secondary {
+  color: var(--color-text-secondary);
+  font-size: var(--text-body-sm);
+}

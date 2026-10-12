@@ -77,22 +77,16 @@
   font-variant-numeric: tabular-nums;
 }
 
-.ageAll {
-  color: var(--color-age-all);
-}
-
-.age7 {
-  color: var(--color-age-7);
-}
-
-.age12 {
-  color: var(--color-age-12);
-}
-
+.ageAll,
+.age7,
+.age12,
 .age15 {
-  color: var(--color-age-15);
+  border-color: var(--color-border-control);
+  color: var(--color-text);
 }
 
+/* Adults only: the one rating that warns in crimson */
 .age18 {
-  color: var(--color-age-18);
+  border-color: var(--color-crimson-text);
+  color: var(--color-crimson-text);
 }

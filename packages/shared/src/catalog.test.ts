@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { featuredResponseSchema, moviesQuerySchema, slugSchema } from './index.js';
+import {
+  featuredResponseSchema,
+  moviesQuerySchema,
+  showtimesQuerySchema,
+  slugSchema,
+} from './index.js';
 
 describe('catalog query schemas', () => {
   it('accepts a status with an optional location slug', () => {
@@ -47,5 +52,41 @@ describe('featuredResponseSchema', () => {
       featuredResponseSchema.safeParse({ movie: { ...movie, trailerYoutubeId: 'dQw4w9WgXcQ' } })
         .success,
     ).toBe(true);
+  });
+});
+
+describe('showtimesQuerySchema', () => {
+  it('splits comma-separated filters, trims and removes duplicates', () => {
+    expect(
+      showtimesQuerySchema.parse({
+        location: 'prizren',
+        date: '2026-10-12',
+        hallType: 'VIP_RECLINER, STANDARD,VIP_RECLINER',
+        format: '3D,2D',
+        language: 'DUBBED_SQ',
+      }),
+    ).toEqual({
+      location: 'prizren',
+      date: '2026-10-12',
+      hallType: ['VIP_RECLINER', 'STANDARD'],
+      format: ['3D', '2D'],
+      language: ['DUBBED_SQ'],
+    });
+    expect(showtimesQuerySchema.parse({ location: 'prizren' })).toEqual({ location: 'prizren' });
+  });
+
+  it('rejects unknown values, empty lists, bad dates and unknown keys', () => {
+    for (const query of [
+      { location: 'prizren', format: '4D' },
+      { location: 'prizren', language: 'KLINGON' },
+      { location: 'prizren', hallType: 'vip' },
+      { location: 'prizren', hallType: '' },
+      { location: 'prizren', format: '2D,' },
+      { location: 'prizren', date: '12.10.2026' },
+      { location: 'prizren', sort: 'time' },
+      { date: '2026-10-12' },
+    ]) {
+      expect(showtimesQuerySchema.safeParse(query).success, JSON.stringify(query)).toBe(false);
+    }
   });
 });

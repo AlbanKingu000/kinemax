@@ -1,5 +1,12 @@
 // Sample catalog data for the /styleguide demos (development only). Fictional, like the seed.
-import type { FeaturedMovie, LocationSummary, MovieSummary } from '@kinemax/shared';
+import type {
+  FeaturedMovie,
+  LocationSummary,
+  MovieSummary,
+  ShowtimeGroup,
+  ShowtimeSlot,
+} from '@kinemax/shared';
+import { scheduleDays } from '../i18n/format';
 
 const hallType = (code: string, nameSq: string, nameEn: string, hallCount: number) => ({
   code,
@@ -88,3 +95,41 @@ export const DEMO_FEATURED: FeaturedMovie = {
   // No trailer in the demo: the button only appears with a real id (and loads YouTube on click).
   trailerYoutubeId: null,
 };
+
+export const DEMO_DAYS = scheduleDays('Europe/Belgrade');
+
+const slot = (
+  n: number,
+  startTime: string,
+  availability: ShowtimeSlot['availability'],
+): ShowtimeSlot => ({
+  id: `0190f0a0-0000-7000-8000-${String(n).padStart(12, '0')}`,
+  startsAt: '2026-10-12T18:00:00.000Z',
+  endsAt: '2026-10-12T20:00:00.000Z',
+  startTime,
+  endTime: '22:00',
+  hallName: 'Salla 2',
+  availability,
+});
+
+// Links point to /booking/:id in the demo too; the ids do not exist.
+export const DEMO_SHOWTIME_GROUPS: ShowtimeGroup[] = [
+  {
+    hallType: { code: 'STANDARD', nameSq: 'Standard', nameEn: 'Standard' },
+    format: '2D',
+    languageVersion: 'ORIGINAL_SQ_SUBTITLES',
+    fromPrice: { kind: 'TICKET', amountCents: 360 },
+    showtimes: [
+      slot(1, '16:00', 'AVAILABLE'),
+      slot(2, '18:30', 'FEW_LEFT'),
+      slot(3, '21:00', 'SOLD_OUT'),
+    ],
+  },
+  {
+    hallType: { code: 'PRIVATE_SUITE', nameSq: 'Suitë private', nameEn: 'Private suite' },
+    format: '3D',
+    languageVersion: 'DUBBED_SQ',
+    fromPrice: { kind: 'WHOLE_HALL', amountCents: 11_000 },
+    showtimes: [slot(4, '14:15', 'AVAILABLE'), slot(5, '17:45', 'SOLD_OUT')],
+  },
+];

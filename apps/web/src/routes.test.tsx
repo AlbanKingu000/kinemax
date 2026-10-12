@@ -20,8 +20,6 @@ const description = () =>
 describe('routes', () => {
   it.each([
     ['/movies', 'Filmat'],
-    ['/movies/fanari-i-heshtur', 'Filmi'],
-    ['/schedule', 'Orari'],
     ['/experiences', 'Përvojat'],
     ['/locations', 'Lokacionet'],
     ['/food', 'Ushqimi'],
@@ -59,7 +57,7 @@ describe('routes', () => {
   });
 
   it('has a skip link to the main content', () => {
-    renderApp('/schedule');
+    renderApp('/food');
     expect(screen.getByRole('link', { name: 'Kalo te përmbajtja' })).toHaveAttribute(
       'href',
       '#main',
@@ -68,7 +66,7 @@ describe('routes', () => {
   });
 
   it('shows the cinemas with their addresses and the portfolio note in the footer', async () => {
-    renderApp('/schedule');
+    renderApp('/food');
     const footer = screen.getByRole('contentinfo');
     expect(await within(footer).findByText('Kinemax Prizren')).toBeInTheDocument();
     expect(within(footer).getByText('Rruga e Prizren 1')).toBeInTheDocument();
