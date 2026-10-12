@@ -56,6 +56,8 @@ The living styleguide is at http://localhost:5180/styleguide (dev server only; 4
 
 ## Scope
 
+- At the start of a session, read docs/roadmap.md. When a task is finished, update it (move the
+  item to DONE with its commit hash).
 - One task per prompt. Do exactly that task. No unrelated refactors or "improvements".
 
 ## Definition of done (every task)
