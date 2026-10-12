@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('home page loads and shows a healthy API and database', async ({ page }) => {
+test('home page loads in Albanian with the site shell', async ({ page }) => {
   const problems: string[] = [];
   page.on('console', (message) => {
     if (message.type() === 'error' || message.type() === 'warning') {
@@ -11,13 +11,11 @@ test('home page loads and shows a healthy API and database', async ({ page }) =>
 
   await page.goto('/');
 
-  await expect(page).toHaveTitle('Kinemax');
+  await expect(page).toHaveTitle('Kinemax · Kinema premium');
   await expect(page.locator('html')).toHaveAttribute('lang', 'sq');
-  await expect(page.getByRole('heading', { level: 1, name: 'Kinemax' })).toBeVisible();
-
-  const status = page.getByRole('status');
-  await expect(status.getByRole('definition').first()).toHaveText('Në rregull');
-  await expect(status.getByRole('definition').nth(1)).toHaveText('Në funksion');
+  await expect(page.getByRole('banner')).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  await expect(page.getByRole('contentinfo')).toContainText('Kinemax është kinema fiktive');
 
   expect(problems).toEqual([]);
 });

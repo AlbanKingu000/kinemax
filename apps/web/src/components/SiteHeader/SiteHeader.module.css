@@ -1,0 +1,183 @@
+/* Desktop navigation from 1280px (the xl breakpoint) of header width: the full row (logo, five
+   sections, cinema, language, sign in, tickets) needs about 1220px, so below that the controls move
+   into the drawer. Container queries, so the header also behaves in narrower frames (styleguide). */
+
+.header {
+  position: sticky;
+  container-type: inline-size;
+  top: 0;
+  z-index: var(--z-sticky);
+  border-bottom: 1px solid transparent;
+  transition:
+    background-color var(--duration-slow) var(--ease-standard),
+    border-color var(--duration-slow) var(--ease-standard),
+    backdrop-filter var(--duration-slow) var(--ease-standard);
+}
+
+/* Over the hero: a soft top shade keeps the controls readable on any image */
+.header[data-solid='false'] {
+  background: linear-gradient(180deg, rgb(var(--rgb-black) / 70%), rgb(var(--rgb-black) / 0%));
+}
+
+.header[data-solid='true'] {
+  border-bottom-color: var(--color-border);
+  background: rgb(var(--rgb-black) / 88%);
+  backdrop-filter: blur(12px);
+}
+
+.inner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  min-height: var(--header-height);
+}
+
+.logoLink {
+  flex: none;
+  border-radius: var(--radius-sm);
+}
+
+.logo {
+  width: auto;
+  height: 2rem;
+}
+
+.nav {
+  display: none;
+}
+
+.navList {
+  display: flex;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.navLink,
+.login {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-decoration: none;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: color var(--duration-base) var(--ease-standard);
+}
+
+.navLink:hover,
+.login:hover,
+.navLink[aria-current='page'],
+.login[aria-current='page'] {
+  color: var(--color-text);
+}
+
+/* Active section: a short crimson rule under the label */
+.navLink::after {
+  position: absolute;
+  right: var(--space-3);
+  bottom: 0.4rem;
+  left: var(--space-3);
+  height: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--color-crimson);
+  content: '';
+  opacity: 0;
+  transform: scaleX(0.4);
+  transition:
+    opacity var(--duration-base) var(--ease-standard),
+    transform var(--duration-slow) var(--ease-emphasized);
+}
+
+.navLink[aria-current='page']::after {
+  opacity: 1;
+  transform: none;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-left: auto;
+}
+
+.desktopOnly {
+  display: none;
+}
+
+@container (min-width: 1280px) {
+  .nav {
+    display: block;
+  }
+
+  .desktopOnly {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .menuButton {
+    display: none;
+  }
+}
+
+/* Very narrow phones: the drawer has the ticket button too */
+@container (max-width: 359px) {
+  .cta {
+    display: none;
+  }
+}
+
+/* Drawer content */
+.drawer {
+  display: grid;
+  gap: var(--space-8);
+}
+
+.drawerList {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.drawerLink {
+  display: flex;
+  align-items: center;
+  min-height: 3rem;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-family: var(--font-display);
+  font-size: var(--text-h4);
+  text-decoration: none;
+}
+
+.drawerLink:hover {
+  color: var(--color-crimson-text);
+}
+
+.drawerLink[aria-current='page'] {
+  color: var(--color-crimson-text);
+}
+
+.drawerControls {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-4);
+}
+
+.drawerControls > :last-child {
+  width: 100%;
+}
+
+.drawerControls .login {
+  padding-inline: 0;
+  font-size: var(--text-body-sm);
+}

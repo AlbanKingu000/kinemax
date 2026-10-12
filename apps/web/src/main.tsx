@@ -5,6 +5,7 @@ import { createBrowserRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import { ToastProvider } from './components/Toast/ToastProvider';
 import { I18nProvider } from './i18n/I18nProvider';
+import { LocationProvider } from './location/LocationProvider';
 import { routes } from './routes';
 
 const root = document.getElementById('root');
@@ -16,7 +17,9 @@ createRoot(root).render(
   <StrictMode>
     <I18nProvider>
       <ToastProvider>
-        <RouterProvider router={router} />
+        <LocationProvider>
+          <RouterProvider router={router} />
+        </LocationProvider>
       </ToastProvider>
     </I18nProvider>
   </StrictMode>,

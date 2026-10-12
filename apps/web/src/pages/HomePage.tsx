@@ -1,48 +1,63 @@
-import type { HealthResponse } from '@kinemax/shared';
-import { useEffect, useState } from 'react';
-import { fetchHealth } from '../api/health';
+import { fetchFeatured, fetchMovies } from '../api/catalog';
+import { Button } from '../components/Button/Button';
+import { EmptyState } from '../components/EmptyState/EmptyState';
+import { FeaturedHero } from '../components/FeaturedHero/FeaturedHero';
+import { MovieRail } from '../components/MovieRail/MovieRail';
+import { useAsync } from '../hooks/use-async';
+import { usePageMeta } from '../hooks/use-page-meta';
 import { useMessages } from '../i18n/use-messages';
-
-type HealthState =
-  { kind: 'loading' } | { kind: 'ready'; health: HealthResponse } | { kind: 'unreachable' };
+import { useLocationChoice } from '../location/location-context';
 
 export function HomePage() {
   const t = useMessages();
-  const [state, setState] = useState<HealthState>({ kind: 'loading' });
+  const { selected, ready, openPicker } = useLocationChoice();
+  usePageMeta(t.meta.homeTitle, t.meta.homeDescription);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    fetchHealth(controller.signal).then(
-      (health) => {
-        setState({ kind: 'ready', health });
-      },
-      () => {
-        if (!controller.signal.aborted) setState({ kind: 'unreachable' });
-      },
-    );
-    return () => {
-      controller.abort();
-    };
-  }, []);
+  // Location-dependent data waits until the saved choice is checked (an unknown slug would 404).
+  const slug = selected?.slug;
+  const featured = useAsync(
+    (signal) => fetchFeatured(slug, signal),
+    `featured:${slug ?? ''}`,
+    ready,
+  );
+  const nowShowing = useAsync(
+    (signal) => fetchMovies('NOW_SHOWING', slug, signal),
+    `now:${slug ?? ''}`,
+    ready,
+  );
+  // Releases are chain-wide.
+  const comingSoon = useAsync((signal) => fetchMovies('COMING_SOON', undefined, signal), 'soon');
 
   return (
-    <main>
-      <h1>{t.appName}</h1>
-      <section aria-labelledby="system-status-heading">
-        <h2 id="system-status-heading">{t.home.statusHeading}</h2>
-        <div role="status" aria-live="polite">
-          {state.kind === 'loading' && <p>{t.home.checking}</p>}
-          {state.kind === 'unreachable' && <p>{t.home.unreachable}</p>}
-          {state.kind === 'ready' && (
-            <dl>
-              <dt>{t.home.api}</dt>
-              <dd>{state.health.status === 'ok' ? t.home.apiOk : t.home.apiError}</dd>
-              <dt>{t.home.database}</dt>
-              <dd>{state.health.db === 'up' ? t.home.dbUp : t.home.dbDown}</dd>
-            </dl>
-          )}
-        </div>
-      </section>
-    </main>
+    <>
+      <FeaturedHero state={featured} onRetry={featured.retry} />
+      <MovieRail
+        id="now-showing"
+        title={t.home.nowShowing}
+        subtitle={selected ? t.home.atLocation(selected.city) : t.home.allLocations}
+        state={nowShowing}
+        onRetry={nowShowing.retry}
+        empty={
+          <EmptyState
+            title={t.home.noMoviesTitle}
+            action={
+              <Button variant="secondary" icon="mapPin" onClick={openPicker}>
+                {t.home.changeLocation}
+              </Button>
+            }
+          >
+            <p>{t.home.noMoviesBody}</p>
+          </EmptyState>
+        }
+      />
+      <MovieRail
+        id="coming-soon"
+        title={t.home.comingSoon}
+        state={comingSoon}
+        onRetry={comingSoon.retry}
+        showRelease
+        empty={<EmptyState title={t.home.noComingSoon} icon="calendar" />}
+      />
+    </>
   );
 }

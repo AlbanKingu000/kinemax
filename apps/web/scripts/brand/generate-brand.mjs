@@ -146,11 +146,12 @@ const horizontal = (() => {
 })();
 
 // Favicons on a #1C181B rounded tile. Large (48 px and up): ring + KX semibold. Small (32 px and
-// below): no ring, bold letters filling more of the tile so they stay readable.
+// below): no ring, bold letters, with about a sixth of the tile free around them so KX does not
+// touch the rounded edges.
 const tileLarge = monogramLetters({ ...MONO, size: 31, cx: 32, cy: 32 });
 const tileSmall = monogramLetters({
   font: fonts[700],
-  size: 48,
+  size: 40,
   cx: 32,
   cy: 32,
   overlap: 0.1,

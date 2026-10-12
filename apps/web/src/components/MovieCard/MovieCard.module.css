@@ -123,3 +123,12 @@
   flex-wrap: wrap;
   gap: var(--space-2);
 }
+
+.release {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-crimson-text);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
+}

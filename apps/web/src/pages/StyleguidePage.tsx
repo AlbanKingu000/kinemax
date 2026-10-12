@@ -9,12 +9,14 @@ import {
   type BadgeTone,
 } from '../components/Badge/Badge';
 import { AGE_RATINGS, LANGUAGE_VERSIONS } from '../components/Badge/movie-labels';
-import { Button } from '../components/Button/Button';
+import { Button, ButtonLink } from '../components/Button/Button';
 import { Card } from '../components/Card/Card';
 import { Checkbox } from '../components/Choice/Checkbox';
 import { RadioGroup } from '../components/Choice/Radio';
 import { Switch } from '../components/Choice/Switch';
 import { Chip } from '../components/Chip/Chip';
+import { EmptyState } from '../components/EmptyState/EmptyState';
+import { FeaturedHero } from '../components/FeaturedHero/FeaturedHero';
 import { FormField } from '../components/FormField/FormField';
 import { HeroBackground } from '../components/HeroBackground/HeroBackground';
 import { Icon } from '../components/Icon/Icon';
@@ -23,17 +25,24 @@ import { Input } from '../components/Input/Input';
 import { LanguageSwitch } from '../components/LanguageSwitch/LanguageSwitch';
 import { Container, Grid } from '../components/Layout/Layout';
 import { Link } from '../components/Link/Link';
+import { LocationCard } from '../components/LocationPicker/LocationPicker';
 import { Logo } from '../components/Logo/Logo';
 import { Modal } from '../components/Modal/Modal';
 import { MovieCard } from '../components/MovieCard/MovieCard';
+import { MovieRail } from '../components/MovieRail/MovieRail';
 import { Select } from '../components/Select/Select';
+import { SiteFooter } from '../components/SiteFooter/SiteFooter';
+import { SiteHeader } from '../components/SiteHeader/SiteHeader';
 import { MovieCardSkeleton } from '../components/Skeleton/Skeleton';
 import { Tabs } from '../components/Tabs/Tabs';
 import { useToast, type ToastTone } from '../components/Toast/toast-context';
 import { styleguideMessages } from '../i18n/styleguide-messages';
+import { messages } from '../i18n/messages';
 import { useLocale } from '../i18n/use-messages';
+import { useLocationChoice } from '../location/location-context';
 import { AA_TEXT, CONTRAST_PAIRS, contrastRatio, readColorTokens } from '../styles/contrast';
 import tokensCss from '../styles/tokens.css?raw';
+import { DEMO_FEATURED, DEMO_LOCATIONS, DEMO_MOVIES } from './styleguide-demo-data';
 import styles from './StyleguidePage.module.css';
 
 const COLORS = readColorTokens(tokensCss);
@@ -58,6 +67,8 @@ const SECTION_IDS = [
   'feedback',
   'icons',
   'layout',
+  'shell',
+  'home',
 ] as const;
 
 const SWATCH_GROUPS = {
@@ -148,7 +159,10 @@ export function StyleguidePage() {
   const { locale } = useLocale();
   const s = styleguideMessages[locale];
   const toast = useToast();
+  const t = messages[locale];
+  const { openPicker } = useLocationChoice();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [demoLocation, setDemoLocation] = useState('prizren');
   const [seatType, setSeatType] = useState<'standard' | 'vip' | 'couple'>('vip');
   const [selectedGenres, setSelectedGenres] = useState<string[]>(['drama']);
   const [activeFilters, setActiveFilters] = useState<('prishtina' | 'vip')[]>(['prishtina', 'vip']);
@@ -873,6 +887,17 @@ export function StyleguidePage() {
                   }
                 >
                   <p>{s.feedback.dialogBody}</p>
+                  <p className={styles.dialogExtra}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        toast.show({ tone: 'info', title: s.shell.toastQueued });
+                      }}
+                    >
+                      {s.shell.toastInDialog}
+                    </Button>
+                  </p>
                 </Modal>
               </Sub>
               <Sub title={s.feedback.toasts}>
@@ -931,6 +956,154 @@ export function StyleguidePage() {
                   </div>
                 ))}
               </Grid>
+            </Section>
+
+            <Section id="shell" title={s.sections.shell}>
+              <Sub title={s.shell.header} note={s.shell.headerNote}>
+                <div className={styles.shellDemo}>
+                  <SiteHeader />
+                </div>
+                <p className={styles.note}>{s.shell.drawerNote}</p>
+              </Sub>
+              <Sub title={s.shell.picker} note={s.shell.pickerNote}>
+                <ul className={styles.locationDemo}>
+                  {DEMO_LOCATIONS.map((location) => (
+                    <li key={location.slug}>
+                      <LocationCard
+                        location={location}
+                        selected={location.slug === demoLocation}
+                        onChoose={() => {
+                          setDemoLocation(location.slug);
+                        }}
+                      />
+                    </li>
+                  ))}
+                </ul>
+                <Button variant="secondary" icon="mapPin" onClick={openPicker}>
+                  {s.shell.openPicker}
+                </Button>
+              </Sub>
+              <Sub title={s.shell.buttonLinks}>
+                <div className={styles.row}>
+                  <ButtonLink to="#shell" icon="ticket">
+                    {t.nav.buyTicket}
+                  </ButtonLink>
+                  <ButtonLink to="#shell" variant="secondary" icon="arrowRight">
+                    {t.common.backHome}
+                  </ButtonLink>
+                  <ButtonLink to="#shell" variant="ghost" size="sm">
+                    {t.nav.login}
+                  </ButtonLink>
+                </div>
+              </Sub>
+              <Sub title={s.shell.emptyStates}>
+                <Grid min="18rem">
+                  <EmptyState
+                    title={t.home.noMoviesTitle}
+                    action={
+                      <Button variant="secondary" icon="mapPin">
+                        {t.home.changeLocation}
+                      </Button>
+                    }
+                  >
+                    <p>{s.shell.emptyBody}</p>
+                  </EmptyState>
+                  <EmptyState
+                    icon="warning"
+                    tone="error"
+                    title={t.home.moviesError}
+                    action={<Button variant="secondary">{t.common.retry}</Button>}
+                  />
+                  <EmptyState
+                    eyebrow={t.comingSoon.badge}
+                    title={t.comingSoon.pages.food.title}
+                    action={
+                      <ButtonLink to="#shell" variant="secondary" icon="arrowRight">
+                        {t.common.backHome}
+                      </ButtonLink>
+                    }
+                  >
+                    <p>{t.comingSoon.pages.food.body}</p>
+                  </EmptyState>
+                </Grid>
+              </Sub>
+              <Sub title={s.shell.footer}>
+                <div className={styles.shellDemo}>
+                  <SiteFooter />
+                </div>
+              </Sub>
+            </Section>
+
+            <Section id="home" title={s.sections.home}>
+              <Sub title={s.home.hero}>
+                <div className={styles.heroFrame}>
+                  <FeaturedHero
+                    state={{ status: 'ready', data: DEMO_FEATURED }}
+                    onRetry={() => undefined}
+                    titleTag="h2"
+                  />
+                </div>
+              </Sub>
+              <Sub title={s.home.heroLoading}>
+                <div className={styles.heroFrame}>
+                  <FeaturedHero
+                    state={{ status: 'loading' }}
+                    onRetry={() => undefined}
+                    titleTag="h2"
+                  />
+                </div>
+              </Sub>
+              <Sub title={s.home.heroError}>
+                <div className={styles.heroFrame}>
+                  <FeaturedHero
+                    state={{ status: 'error' }}
+                    onRetry={() => undefined}
+                    titleTag="h2"
+                  />
+                </div>
+              </Sub>
+              <Sub title={s.home.heroNone}>
+                <div className={styles.heroFrame}>
+                  <FeaturedHero
+                    state={{ status: 'ready', data: null }}
+                    onRetry={() => undefined}
+                    titleTag="h2"
+                  />
+                </div>
+              </Sub>
+              <Sub title={s.home.rails}>
+                <div className={styles.railDemo}>
+                  <MovieRail
+                    id="demo-rail-ready"
+                    title={t.home.comingSoon}
+                    state={{ status: 'ready', data: DEMO_MOVIES }}
+                    onRetry={() => undefined}
+                    empty={null}
+                    showRelease
+                  />
+                  <MovieRail
+                    id="demo-rail-loading"
+                    title={s.home.railLoading}
+                    state={{ status: 'loading' }}
+                    onRetry={() => undefined}
+                    empty={null}
+                  />
+                  <MovieRail
+                    id="demo-rail-error"
+                    title={s.home.railError}
+                    state={{ status: 'error' }}
+                    onRetry={() => undefined}
+                    empty={null}
+                  />
+                  <MovieRail
+                    id="demo-rail-empty"
+                    title={s.home.railEmpty}
+                    state={{ status: 'ready', data: [] }}
+                    onRetry={() => undefined}
+                    empty={<EmptyState title={t.home.noMoviesTitle} />}
+                  />
+                </div>
+              </Sub>
             </Section>
           </div>
         </Container>

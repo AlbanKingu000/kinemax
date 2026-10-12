@@ -66,13 +66,13 @@
   box-shadow: var(--glow-crimson-soft);
 }
 
-.primary:hover:enabled,
+.primary:hover:not(:disabled),
 .primary[data-demo-state='hover'] {
   background: var(--color-crimson-hover);
   box-shadow: var(--glow-crimson);
 }
 
-.primary:active:enabled,
+.primary:active:not(:disabled),
 .primary[data-demo-state='active'] {
   background: var(--color-crimson-pressed);
   transform: translateY(1px);
@@ -85,13 +85,13 @@
   border-color: var(--color-border-control);
 }
 
-.secondary:hover:enabled,
+.secondary:hover:not(:disabled),
 .secondary[data-demo-state='hover'] {
   border-color: var(--color-text);
   background: var(--color-elevated);
 }
 
-.secondary:active:enabled,
+.secondary:active:not(:disabled),
 .secondary[data-demo-state='active'] {
   background: var(--color-surface);
   transform: translateY(1px);
@@ -103,13 +103,13 @@
   color: var(--color-text-secondary);
 }
 
-.ghost:hover:enabled,
+.ghost:hover:not(:disabled),
 .ghost[data-demo-state='hover'] {
   color: var(--color-text);
   background: var(--color-surface);
 }
 
-.ghost:active:enabled,
+.ghost:active:not(:disabled),
 .ghost[data-demo-state='active'] {
   background: var(--color-elevated);
 }
@@ -135,13 +135,13 @@
   width: 3.25rem;
 }
 
-.icon:hover:enabled,
+.icon:hover:not(:disabled),
 .icon[data-demo-state='hover'] {
   border-color: var(--color-crimson-text);
   color: var(--color-crimson-text);
 }
 
-.icon:active:enabled,
+.icon:active:not(:disabled),
 .icon[data-demo-state='active'] {
   background: var(--color-surface);
 }

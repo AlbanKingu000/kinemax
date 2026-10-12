@@ -1,0 +1,105 @@
+.footer {
+  margin-top: var(--space-24);
+  border-top: 1px solid var(--color-border);
+  background:
+    radial-gradient(ellipse at 50% 0%, rgb(var(--rgb-crimson) / 10%), transparent 55%),
+    var(--color-surface);
+}
+
+.grid {
+  display: grid;
+  gap: var(--space-10);
+  padding-block: var(--space-16) var(--space-10);
+}
+
+@media (min-width: 768px) {
+  .grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid {
+    grid-template-columns: 1.2fr 0.8fr 2fr;
+  }
+}
+
+.brand {
+  display: grid;
+  justify-items: start;
+  align-content: start;
+  gap: var(--space-6);
+}
+
+.logoLink {
+  border-radius: var(--radius-sm);
+}
+
+.logo {
+  width: auto;
+  height: 2.25rem;
+}
+
+.links {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  transition: color var(--duration-base) var(--ease-standard);
+}
+
+.link:hover {
+  color: var(--color-crimson-text);
+}
+
+.heading {
+  margin-bottom: var(--space-4);
+  color: var(--color-text-muted);
+  font-family: var(--font-body);
+  font-size: var(--text-overline);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-overline);
+  text-transform: uppercase;
+}
+
+.locationList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(13rem, 100%), 1fr));
+  gap: var(--space-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.city {
+  font-family: var(--font-display);
+  font-size: var(--text-h4);
+  line-height: var(--leading-tight);
+}
+
+.address {
+  color: var(--color-text-secondary);
+  font-size: var(--text-body-sm);
+  font-style: normal;
+}
+
+.bottom {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-6);
+  padding-block: var(--space-6);
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: var(--text-caption);
+}

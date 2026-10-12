@@ -10,6 +10,7 @@ import { createPortal } from 'react-dom';
 import { useMessages } from '../../i18n/use-messages';
 import { Button } from '../Button/Button';
 import styles from './Modal.module.css';
+import { registerOpenModal } from './modal-stack';
 
 interface ModalProps {
   open: boolean;
@@ -20,6 +21,10 @@ interface ModalProps {
   footer?: ReactNode;
   /** Element to focus when the dialog opens (defaults to the first focusable element). */
   initialFocusRef?: RefObject<HTMLElement | null>;
+  /** `lg` for wide content (cinema cards, video). */
+  size?: 'md' | 'lg';
+  /** `drawer`: a full-height panel sliding in from the right (mobile menu). */
+  variant?: 'dialog' | 'drawer';
 }
 
 const FOCUSABLE =
@@ -29,7 +34,16 @@ const FOCUSABLE =
  * Modal dialog: rendered into <body>, everything else becomes inert, focus is trapped inside,
  * Escape and the backdrop close it, and focus returns to the element that opened it.
  */
-export function Modal({ open, onClose, title, children, footer, initialFocusRef }: ModalProps) {
+export function Modal({
+  open,
+  onClose,
+  title,
+  children,
+  footer,
+  initialFocusRef,
+  size = 'md',
+  variant = 'dialog',
+}: ModalProps) {
   const t = useMessages();
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -54,6 +68,7 @@ export function Modal({ open, onClose, title, children, footer, initialFocusRef 
     for (const element of inerted) element.inert = true;
     const { overflow } = document.body.style;
     document.body.style.overflow = 'hidden';
+    const release = registerOpenModal();
 
     const panel = panelRef.current;
     const first = initialFocusRef?.current ?? panel?.querySelector<HTMLElement>(FOCUSABLE) ?? panel;
@@ -62,6 +77,7 @@ export function Modal({ open, onClose, title, children, footer, initialFocusRef 
     return () => {
       for (const element of inerted) element.inert = false;
       document.body.style.overflow = overflow;
+      release();
       previouslyFocused?.focus();
     };
   }, [open, initialFocusRef]);
@@ -92,7 +108,7 @@ export function Modal({ open, onClose, title, children, footer, initialFocusRef 
   }
 
   return createPortal(
-    <div ref={portalRef} className={styles.layer}>
+    <div ref={portalRef} className={`${styles.layer} ${styles[variant]} ${styles[size]}`}>
       <div
         className={styles.backdrop}
         aria-hidden="true"

@@ -1,36 +1,84 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from './components/Toast/ToastProvider';
 import { I18nProvider } from './i18n/I18nProvider';
+import { LocationProvider } from './location/LocationProvider';
+import { LOCATION_STORAGE_KEY } from './location/location-storage';
 import { routes } from './routes';
-import { stubFetchJson } from './test/fetch';
+import { renderApp, stubCatalog } from './test/catalog';
 
-function renderAt(path: string) {
-  const router = createMemoryRouter(routes, { initialEntries: [path] });
-  return render(
-    <I18nProvider>
-      <ToastProvider>
-        <RouterProvider router={router} />
-      </ToastProvider>
-    </I18nProvider>,
-  );
-}
+beforeEach(() => {
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+  window.localStorage.setItem(LOCATION_STORAGE_KEY, 'prizren');
+  stubCatalog();
+});
+
+const description = () =>
+  document.querySelector('meta[name="description"]')?.getAttribute('content');
 
 describe('routes', () => {
-  it('renders the home page at /', () => {
-    stubFetchJson({ status: 'ok', db: 'up' });
-    renderAt('/');
-    expect(screen.getByRole('heading', { level: 1, name: 'Kinemax' })).toBeInTheDocument();
+  it.each([
+    ['/movies', 'Filmat'],
+    ['/movies/fanari-i-heshtur', 'Filmi'],
+    ['/schedule', 'Orari'],
+    ['/experiences', 'Përvojat'],
+    ['/locations', 'Lokacionet'],
+    ['/food', 'Ushqimi'],
+    ['/login', 'Hyr'],
+  ])('%s is a translated "coming soon" page with its own title', (path, title) => {
+    renderApp(path);
+    const main = screen.getByRole('main');
+    expect(within(main).getByRole('heading', { level: 1, name: title })).toBeInTheDocument();
+    expect(within(main).getByText('Së shpejti')).toBeInTheDocument();
+    expect(within(main).getByRole('link', { name: 'Kthehu në faqen kryesore' })).toHaveAttribute(
+      'href',
+      '/',
+    );
+    expect(document.title).toBe(`${title} · Kinemax`);
+    expect(description()).toBeTruthy();
   });
 
-  it('renders a translated not-found page with a link home', () => {
-    renderAt('/no-such-page');
+  it('shows the coming soon pages in English too', () => {
+    renderApp('/experiences', { locale: 'en' });
+    expect(screen.getByRole('heading', { level: 1, name: 'Experiences' })).toBeInTheDocument();
+    expect(document.title).toBe('Experiences · Kinemax');
+    expect(description()).toMatch(/VIP Recliner/);
+  });
+
+  it('renders a translated 404 page inside the site shell', () => {
+    renderApp('/no-such-page');
     expect(screen.getByRole('heading', { level: 1, name: 'Faqja nuk u gjet' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Kthehu në faqen kryesore' })).toHaveAttribute(
       'href',
       '/',
     );
+    expect(screen.getByRole('banner')).toBeInTheDocument();
+    expect(screen.getByRole('contentinfo')).toBeInTheDocument();
+    expect(document.title).toBe('Faqja nuk u gjet · Kinemax');
+  });
+
+  it('has a skip link to the main content', () => {
+    renderApp('/schedule');
+    expect(screen.getByRole('link', { name: 'Kalo te përmbajtja' })).toHaveAttribute(
+      'href',
+      '#main',
+    );
+    expect(screen.getByRole('main')).toHaveAttribute('id', 'main');
+  });
+
+  it('shows the cinemas with their addresses and the portfolio note in the footer', async () => {
+    renderApp('/schedule');
+    const footer = screen.getByRole('contentinfo');
+    expect(await within(footer).findByText('Kinemax Prizren')).toBeInTheDocument();
+    expect(within(footer).getByText('Rruga e Prizren 1')).toBeInTheDocument();
+    expect(
+      within(footer).getByText('Projekt portfolio – Kinemax është kinema fiktive.'),
+    ).toBeInTheDocument();
+    expect(
+      within(footer).getByText(`© ${String(new Date().getFullYear())} Kinemax`),
+    ).toBeInTheDocument();
+    expect(within(footer).getByRole('group', { name: 'Gjuha' })).toBeInTheDocument();
   });
 
   it(
@@ -38,8 +86,16 @@ describe('routes', () => {
     { timeout: 30_000 },
     async () => {
       expect(import.meta.env.DEV).toBe(true);
-      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
-      renderAt('/styleguide');
+      const router = createMemoryRouter(routes, { initialEntries: ['/styleguide'] });
+      render(
+        <I18nProvider>
+          <ToastProvider>
+            <LocationProvider>
+              <RouterProvider router={router} />
+            </LocationProvider>
+          </ToastProvider>
+        </I18nProvider>,
+      );
       expect(
         await screen.findByRole(
           'heading',

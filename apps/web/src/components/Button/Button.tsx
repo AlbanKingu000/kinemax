@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode, Ref } from 'react';
+import { Link as RouterLink, type LinkProps as RouterLinkProps } from 'react-router';
 import { useMessages } from '../../i18n/use-messages';
 import { Icon } from '../Icon/Icon';
 import type { IconName } from '../Icon/icon-paths';
@@ -67,5 +68,39 @@ export function Button({
       {textButton && !loading && iconEnd && <Icon name={iconEnd} size={iconSize} />}
       {loading && <span className="visually-hidden">{t.common.loading}</span>}
     </button>
+  );
+}
+
+interface ButtonLinkProps extends Omit<RouterLinkProps, 'className' | 'children'> {
+  variant?: 'primary' | 'secondary' | 'ghost';
+  size?: ButtonSize;
+  icon?: IconName;
+  iconEnd?: IconName;
+  className?: string;
+  children: ReactNode;
+}
+
+/** An in-app link that looks like a button: for navigation ("Buy tickets" goes to a page). */
+export function ButtonLink({
+  variant = 'primary',
+  size = 'md',
+  icon,
+  iconEnd,
+  className,
+  children,
+  ...rest
+}: ButtonLinkProps) {
+  const iconSize = ICON_SIZE[size];
+  return (
+    <RouterLink
+      {...rest}
+      className={[styles.button, styles[variant], styles[size], className]
+        .filter(Boolean)
+        .join(' ')}
+    >
+      {icon && <Icon name={icon} size={iconSize} />}
+      <span className={styles.label}>{children}</span>
+      {iconEnd && <Icon name={iconEnd} size={iconSize} />}
+    </RouterLink>
   );
 }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useMessages } from '../../i18n/use-messages';
 import { Icon } from '../Icon/Icon';
 import type { IconName } from '../Icon/icon-paths';
+import { useIsModalOpen } from '../Modal/modal-stack';
 import { ToastContext, type ToastOptions, type ToastTone } from './toast-context';
 import styles from './Toast.module.css';
 
@@ -20,10 +21,12 @@ const ICONS: Record<ToastTone, IconName> = {
 
 /**
  * Toast notifications. The list is a polite live region that exists from the start, so screen
- * readers announce new toasts; errors use role="alert". Timers pause on hover and focus.
+ * readers announce new toasts; errors use role="alert". Timers pause on hover and focus. While a
+ * modal dialog is open, toasts wait and appear (with their full duration) once it closes.
  */
 export function ToastProvider({ children }: { children: ReactNode }) {
   const t = useMessages();
+  const modalOpen = useIsModalOpen();
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const nextId = useRef(1);
 
@@ -45,7 +48,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <section className={styles.region} aria-label={t.toast.region}>
         <ol className={styles.list} aria-live="polite">
-          {toasts.map((toast) => (
+          {/* Queued while a dialog is open: they would cover it and be inert behind it. */}
+          {(modalOpen ? [] : toasts).map((toast) => (
             <Toast
               key={toast.id}
               toast={toast}

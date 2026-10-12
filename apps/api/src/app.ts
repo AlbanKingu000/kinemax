@@ -10,6 +10,7 @@ import { csrfProtection, loadSession } from './http/auth-middleware.js';
 import { createErrorHandler, notFoundHandler } from './http/errors.js';
 import type { Logger } from './logger.js';
 import { createAuthRouter } from './routes/auth.js';
+import { createCatalogRouter } from './routes/catalog.js';
 import { createHealthRouter } from './routes/health.js';
 import { createProtectedExamplesRouter } from './routes/protected-examples.js';
 
@@ -84,6 +85,7 @@ export function createApp({
       rateLimits: auth.rateLimits ?? AUTH_RATE_LIMITS,
     }),
   );
+  app.use('/api', createCatalogRouter(prisma));
   app.use('/api', createProtectedExamplesRouter(prisma));
 
   app.use(notFoundHandler);

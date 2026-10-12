@@ -28,7 +28,9 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'npm run db:deploy -w @kinemax/api && node apps/api/dist/server.js',
+      // Migrations, then a fresh demo catalog in kinemax_test (scripts/e2e-catalog.ts).
+      command:
+        'npm run db:deploy -w @kinemax/api && npm run e2e:catalog -w @kinemax/api && node apps/api/dist/server.js',
       url: `http://127.0.0.1:${String(API_PORT)}/api/health`,
       env: {
         NODE_ENV: 'test',

@@ -643,3 +643,47 @@
   font-size: var(--text-caption);
   text-align: center;
 }
+
+/* Page parts and home demos */
+.shellDemo {
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.shellDemo footer {
+  margin-top: 0;
+}
+
+.locationDemo {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(16rem, 100%), 1fr));
+  gap: var(--space-4);
+  margin: 0 0 var(--space-6);
+  padding: 0;
+  list-style: none;
+}
+
+/* The hero is designed to sit under the page header; in a frame it starts at the top. */
+.heroFrame {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  --header-height: 0px;
+}
+
+.heroFrame > section {
+  min-height: 0;
+}
+
+.railDemo {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.dialogExtra {
+  margin-top: var(--space-4);
+}

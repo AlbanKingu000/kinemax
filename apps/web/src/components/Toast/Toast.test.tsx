@@ -1,6 +1,8 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useState } from 'react';
 import { I18nProvider } from '../../i18n/I18nProvider';
+import { Modal } from '../Modal/Modal';
 import { useToast, type ToastOptions } from './toast-context';
 import { ToastProvider } from './ToastProvider';
 
@@ -110,5 +112,45 @@ describe('ToastProvider', () => {
     expect(() => render(<Trigger options={{ title: 'x' }} />)).toThrow(
       'useToast must be used inside <ToastProvider>',
     );
+  });
+});
+
+describe('toasts and dialogs', () => {
+  function DialogHarness() {
+    const toast = useToast();
+    const [open, setOpen] = useState(true);
+    return (
+      <Modal
+        open={open}
+        onClose={() => {
+          setOpen(false);
+        }}
+        title="Booking"
+      >
+        <button
+          type="button"
+          onClick={() => {
+            toast.show({ title: 'Saved' });
+          }}
+        >
+          toast
+        </button>
+      </Modal>
+    );
+  }
+
+  it('waits until the dialog closes instead of covering it', () => {
+    render(
+      <I18nProvider locale="en">
+        <ToastProvider>
+          <DialogHarness />
+        </ToastProvider>
+      </I18nProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'toast' }));
+    expect(screen.queryByText('Saved')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.getByText('Saved')).toBeInTheDocument();
   });
 });

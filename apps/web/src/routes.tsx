@@ -1,4 +1,6 @@
 import type { RouteObject } from 'react-router';
+import { AppShell } from './components/AppShell/AppShell';
+import { ComingSoonPage } from './pages/ComingSoonPage';
 import { HomePage } from './pages/HomePage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
@@ -16,8 +18,21 @@ const devRoutes: RouteObject[] = import.meta.env.DEV
     ]
   : [];
 
+// Paths are English and language-neutral; the UI language comes from the SQ/EN switch.
 export const routes: RouteObject[] = [
-  { path: '/', element: <HomePage /> },
+  {
+    element: <AppShell />,
+    children: [
+      { index: true, element: <HomePage /> },
+      { path: 'movies', element: <ComingSoonPage page="movies" /> },
+      { path: 'movies/:slug', element: <ComingSoonPage page="movie" /> },
+      { path: 'schedule', element: <ComingSoonPage page="schedule" /> },
+      { path: 'experiences', element: <ComingSoonPage page="experiences" /> },
+      { path: 'locations', element: <ComingSoonPage page="locations" /> },
+      { path: 'food', element: <ComingSoonPage page="food" /> },
+      { path: 'login', element: <ComingSoonPage page="login" /> },
+      { path: '*', element: <NotFoundPage /> },
+    ],
+  },
   ...devRoutes,
-  { path: '*', element: <NotFoundPage /> },
 ];

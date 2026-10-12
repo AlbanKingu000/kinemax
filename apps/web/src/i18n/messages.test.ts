@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defaultLocale, locales, messages } from './messages';
+import { defaultLocale, formatReleaseDate, locales, messages, pickText } from './messages';
 import { styleguideMessages } from './styleguide-messages';
 
 function keyPaths(value: object, prefix = ''): string[] {
@@ -40,5 +40,18 @@ describe('messages', () => {
     expect(messages.en.common.remove('VIP')).toBe('Remove VIP');
     expect(styleguideMessages.sq.logo.sizeLabel(16)).toBe('16 px');
     expect(styleguideMessages.en.layout.cell(2)).toBe('Column 2');
+  });
+});
+
+describe('catalog text helpers', () => {
+  it('formats release dates with our own month names', () => {
+    expect(formatReleaseDate('sq', '2026-11-13')).toBe('13 nëntor 2026');
+    expect(formatReleaseDate('en', '2026-01-04')).toBe('4 January 2026');
+  });
+
+  it('picks English when there is an English text, otherwise Albanian', () => {
+    expect(pickText('en', 'Shqip', 'English')).toBe('English');
+    expect(pickText('en', 'Shqip', null)).toBe('Shqip');
+    expect(pickText('sq', 'Shqip', 'English')).toBe('Shqip');
   });
 });

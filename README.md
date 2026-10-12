@@ -5,10 +5,12 @@ locations in several cities. The look will be a luxury dark theme in black and r
 
 So far there is the project foundation, the full database model with realistic demo data
 (locations, halls with 3D seat layouts, movies, showtimes, prices, menus, users) and the visual
-identity with a design system (see [Design system](#design-system)). The web app still shows a
-placeholder home page with the API and database health; the booking flow, accounts, the
-admin panel and demo payments come in later tasks. The site will be in Albanian (default) and
-English, with prices in EUR. See [docs/data-model.md](docs/data-model.md) for the data model.
+identity with a design system (see [Design system](#design-system)). The web app has the site shell
+(header, mobile menu, footer, cinema picker) and the home page with the featured movie, now
+showing and coming soon, fed by the public read API (`GET /api/locations`, `/api/movies`,
+`/api/featured`); the other pages show "coming soon". The booking flow, accounts, the admin panel
+and demo payments come in later tasks (see [docs/roadmap.md](docs/roadmap.md)). The site will be
+in Albanian (default) and English, with prices in EUR. See [docs/data-model.md](docs/data-model.md) for the data model.
 
 ## Stack
 

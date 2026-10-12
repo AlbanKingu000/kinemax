@@ -2,6 +2,7 @@ import { Link } from 'react-router';
 import { useMessages } from '../../i18n/use-messages';
 import { AgeBadge, FormatBadge, LanguageBadge } from '../Badge/Badge';
 import type { AgeRating, LanguageVersion, MovieFormat } from '../Badge/movie-labels';
+import { Icon } from '../Icon/Icon';
 import { Logo } from '../Logo/Logo';
 import styles from './MovieCard.module.css';
 
@@ -15,6 +16,8 @@ export interface MovieCardProps {
   languageVersion?: LanguageVersion;
   durationMinutes?: number;
   genres?: readonly string[];
+  /** Already formatted release line for coming-soon movies, e.g. "In cinemas from 6 November". */
+  releaseLabel?: string;
   headingLevel?: 'h2' | 'h3' | 'h4';
 }
 
@@ -27,6 +30,7 @@ export function MovieCard({
   languageVersion,
   durationMinutes,
   genres = [],
+  releaseLabel,
   headingLevel: Heading = 'h3',
 }: MovieCardProps) {
   const t = useMessages();
@@ -61,6 +65,12 @@ export function MovieCard({
             {title}
           </Link>
         </Heading>
+        {releaseLabel && (
+          <p className={styles.release}>
+            <Icon name="calendar" size={16} />
+            {releaseLabel}
+          </p>
+        )}
         {meta && <p className={styles.meta}>{meta}</p>}
         {(formats.length > 0 || languageVersion) && (
           <div className={styles.badges}>

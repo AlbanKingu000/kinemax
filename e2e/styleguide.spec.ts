@@ -39,7 +39,8 @@ test('the styleguide has no axe violations in Albanian and English', async ({ pa
   await expect(page.locator('html')).toHaveAttribute('lang', 'sq');
   await expectNoAxeViolations(page);
 
-  await page.getByRole('button', { name: 'EN (English)' }).click();
+  // The page header switch (the shell demos have their own).
+  await page.getByRole('banner').getByRole('button', { name: 'EN (English)' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Style guide' })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await expectNoAxeViolations(page);

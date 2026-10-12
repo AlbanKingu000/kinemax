@@ -23,6 +23,8 @@ const sq = {
     icons: 'Ikonat',
     layout: 'Kontejneri dhe rrjeti',
     hero: 'Sfondi kinematografik',
+    shell: 'Pjesët e faqes',
+    home: 'Faqja kryesore',
   },
   logo: {
     full: 'Logoja e plotë',
@@ -237,6 +239,32 @@ const sq = {
     gridNote: 'Kolonat rregullohen vetë sipas gjerësisë së disponueshme.',
     cell: (n: number) => `Kolona ${n}`,
   },
+  shell: {
+    header: 'Koka e faqes',
+    headerNote:
+      'Ngjitet lart; transparente mbi hero-n e faqes kryesore dhe e plotë sapo faqja lëviz. Nën 1280 px navigimi, kinemaja, gjuha dhe hyrja kalojnë në menynë anësore.',
+    drawerNote:
+      'Menyja anësore: fokusi mbetet brenda, Esc e mbyll, faqja prapa bëhet joaktive dhe fokusi kthehet te butoni.',
+    picker: 'Zgjedhja e kinemasë',
+    pickerNote: 'Hapet vetë në vizitën e parë. Kartat: e zakonshme dhe e zgjedhur.',
+    openPicker: 'Hap zgjedhjen e kinemasë',
+    buttonLinks: 'Lidhje në formë butoni',
+    emptyStates: 'Gjendjet bosh, gabimet dhe faqet që vijnë',
+    emptyBody: 'Në këtë kinema nuk ka shfaqje në dy javët e ardhshme.',
+    footer: 'Fundi i faqes',
+    toastInDialog: 'Njoftim gjatë dialogut',
+    toastQueued: 'Njoftimi priti derisa dialogu u zhduk',
+  },
+  home: {
+    hero: 'Filmi kryesor',
+    heroLoading: 'Filmi kryesor duke u ngarkuar',
+    heroError: 'Filmi kryesor me gabim',
+    heroNone: 'Pa film kryesor',
+    rails: 'Listat e filmave',
+    railLoading: 'Lista duke u ngarkuar',
+    railError: 'Lista me gabim',
+    railEmpty: 'Lista bosh',
+  },
   hero: {
     eyebrow: 'Tani në kinema',
     title: 'Drita e projektorit, vetëm për ty',
@@ -268,6 +296,8 @@ const en: StyleguideMessages = {
     icons: 'Icons',
     layout: 'Container and grid',
     hero: 'Cinematic background',
+    shell: 'Page parts',
+    home: 'Home page',
   },
   logo: {
     full: 'Full logo',
@@ -480,6 +510,32 @@ const en: StyleguideMessages = {
     containerNote: 'Maximum width 1280 px with side gutters that grow with the screen.',
     gridNote: 'Columns adapt to the available width on their own.',
     cell: (n: number) => `Column ${n}`,
+  },
+  shell: {
+    header: 'Site header',
+    headerNote:
+      'Sticky; transparent over the home hero and solid as soon as the page scrolls. Below 1280 px the navigation, cinema, language and sign-in move into the drawer.',
+    drawerNote:
+      'The drawer keeps focus inside, closes with Esc, makes the page behind it inert and returns focus to its button.',
+    picker: 'Cinema picker',
+    pickerNote: 'Opens by itself on the first visit. Cards: default and selected.',
+    openPicker: 'Open the cinema picker',
+    buttonLinks: 'Links that look like buttons',
+    emptyStates: 'Empty states, errors and upcoming pages',
+    emptyBody: 'There are no showtimes at this cinema in the next two weeks.',
+    footer: 'Site footer',
+    toastInDialog: 'Toast during the dialog',
+    toastQueued: 'The toast waited for the dialog',
+  },
+  home: {
+    hero: 'Featured movie',
+    heroLoading: 'Featured movie loading',
+    heroError: 'Featured movie with an error',
+    heroNone: 'No featured movie',
+    rails: 'Movie lists',
+    railLoading: 'List loading',
+    railError: 'List with an error',
+    railEmpty: 'Empty list',
   },
   hero: {
     eyebrow: 'Now showing',

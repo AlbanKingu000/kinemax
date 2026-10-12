@@ -3,6 +3,8 @@ import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '../components/Toast/ToastProvider';
 import { I18nProvider } from '../i18n/I18nProvider';
+import { LocationProvider } from '../location/LocationProvider';
+import { stubCatalog } from '../test/catalog';
 import { CONTRAST_PAIRS } from '../styles/contrast';
 import { StyleguidePage } from './StyleguidePage';
 
@@ -10,9 +12,11 @@ function renderPage() {
   return render(
     <I18nProvider>
       <ToastProvider>
-        <MemoryRouter initialEntries={['/styleguide']}>
-          <StyleguidePage />
-        </MemoryRouter>
+        <LocationProvider>
+          <MemoryRouter initialEntries={['/styleguide']}>
+            <StyleguidePage />
+          </MemoryRouter>
+        </LocationProvider>
       </ToastProvider>
     </I18nProvider>,
   );
@@ -21,6 +25,9 @@ function renderPage() {
 beforeEach(() => {
   // jsdom has no canvas; the hero simply skips the dust without a context.
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+  stubCatalog();
+  // No automatic cinema picker over the page in these tests.
+  window.sessionStorage.setItem('kinemax.location-picker-dismissed', '1');
 });
 
 // The page is large: role queries over the whole document are slow in jsdom, especially with
@@ -37,15 +44,22 @@ describe('StyleguidePage', { timeout: 30_000 }, () => {
     expect(
       screen.getByRole('heading', { level: 1, name: 'Udhëzuesi i stilit' }),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole('heading', { level: 2 })).toHaveLength(13);
     const toc = screen.getByRole('navigation', { name: 'Përmbajtja' });
-    expect(within(toc).getAllByRole('link')).toHaveLength(13);
+    const links = within(toc).getAllByRole('link');
+    expect(links).toHaveLength(15);
+    // Every entry leads to its section, titled like the entry (demos add more h2 elements).
+    for (const link of links) {
+      const section = document.getElementById(link.getAttribute('href')?.slice(1) ?? '');
+      expect(section?.querySelector('h2')?.textContent).toBe(link.textContent);
+    }
+    expect(screen.getByRole('heading', { level: 2, name: 'Pjesët e faqes' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Faqja kryesore' })).toBeInTheDocument();
     expect(screen.getAllByRole('img', { name: 'Kinemax' }).length).toBeGreaterThanOrEqual(4);
   });
 
   it('switches all text to English', () => {
     renderPage();
-    fireEvent.click(screen.getByRole('button', { name: 'EN (English)' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'EN (English)' })[0] as HTMLElement);
     expect(screen.getByRole('heading', { level: 1, name: 'Style guide' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'Colors' })).toBeInTheDocument();
     expect(document.documentElement.lang).toBe('en');
