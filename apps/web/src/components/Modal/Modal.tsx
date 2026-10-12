@@ -23,8 +23,8 @@ interface ModalProps {
   initialFocusRef?: RefObject<HTMLElement | null>;
   /** `lg` for wide content (cinema cards, video). */
   size?: 'md' | 'lg';
-  /** `drawer`: a full-height panel sliding in from the right (mobile menu). */
-  variant?: 'dialog' | 'drawer';
+  /** `drawer`: a full-height panel from the right (mobile menu); `sheet`: a bottom sheet. */
+  variant?: 'dialog' | 'drawer' | 'sheet';
 }
 
 const FOCUSABLE =

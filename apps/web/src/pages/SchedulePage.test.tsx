@@ -177,3 +177,42 @@ describe('SchedulePage', () => {
     expect(requests(fetchMock)).toEqual([]);
   });
 });
+
+describe('SchedulePage: filter sheet (phones)', () => {
+  it('puts the day tabs above the filters and applies sheet changes only with "Apliko"', async () => {
+    stubCatalog({ showtimes: (url) => showtimesAnswer(url) });
+    const { router } = renderApp('/schedule?format=2D');
+    const tablist = await screen.findByRole('tablist');
+    const firstFilterGroup = screen.getAllByRole('group', { name: 'Filtrat' })[0] as HTMLElement;
+    // Tabs come before the filters in the page order.
+    expect(
+      tablist.compareDocumentPosition(firstFilterGroup) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filtrat (1)' }));
+    const sheet = screen.getByRole('dialog', { name: 'Filtrat' });
+    expect(within(sheet).getByRole('button', { name: '2D' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    fireEvent.click(within(sheet).getByRole('button', { name: '3D' }));
+    // Nothing changes before "Apliko".
+    expect(search(router)).toEqual({ format: '2D' });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Apliko' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(search(router)).toEqual({ format: '2D,3D' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filtrat (2)' }));
+    const again = screen.getByRole('dialog', { name: 'Filtrat' });
+    fireEvent.click(within(again).getByRole('button', { name: 'Pastro' }));
+    fireEvent.click(within(again).getByRole('button', { name: 'Apliko' }));
+    expect(search(router)).toEqual({});
+
+    // Escape closes without applying.
+    fireEvent.click(screen.getByRole('button', { name: 'Filtrat' }));
+    const third = screen.getByRole('dialog', { name: 'Filtrat' });
+    fireEvent.click(within(third).getByRole('button', { name: 'Dublim shqip' }));
+    fireEvent.keyDown(third, { key: 'Escape' });
+    expect(search(router)).toEqual({});
+  });
+});

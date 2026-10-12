@@ -260,3 +260,70 @@ export const showtimeDetailResponseSchema = z.object({
   }),
 });
 export type ShowtimeDetailResponse = z.infer<typeof showtimeDetailResponseSchema>;
+
+// ---------------------------------------------------------------------------------------------
+// Seat map (/api/showtimes/:id/seatmap)
+// ---------------------------------------------------------------------------------------------
+
+export const seatTypeSchema = z.enum(['STANDARD', 'VIP', 'COUPLE', 'WHEELCHAIR', 'COMPANION']);
+export type SeatType = z.infer<typeof seatTypeSchema>;
+
+/** Live status only: never who holds a seat. Expired holds count as free. */
+export const seatStatusSchema = z.enum(['AVAILABLE', 'TAKEN']);
+export type SeatStatus = z.infer<typeof seatStatusSchema>;
+
+export const seatMapSeatSchema = z.object({
+  id: z.uuid(),
+  row: z.string(),
+  number: z.number().int(),
+  type: seatTypeSchema,
+  /** Meters: x left/right of the center line, y distance from the screen wall, z tier height. */
+  x: z.number(),
+  y: z.number(),
+  z: z.number(),
+  rotationDeg: z.number(),
+  widthUnits: z.number().int().positive(),
+  status: seatStatusSchema,
+});
+export type SeatMapSeat = z.infer<typeof seatMapSeatSchema>;
+
+export const seatMapResponseSchema = z.object({
+  showtime: z.object({
+    id: z.uuid(),
+    startsAt: z.iso.datetime(),
+    date: isoDateSchema,
+    startTime: z.string(),
+    format: movieFormatSchema,
+    languageVersion: languageVersionSchema,
+  }),
+  movie: scheduleMovieSchema.extend({ backdropPath: z.string().nullable() }),
+  location: z.object({
+    slug: slugSchema,
+    name: z.string(),
+    city: z.string(),
+    timeZone: z.string(),
+  }),
+  hall: z.object({
+    name: z.string(),
+    hallType: z.object({ code: z.string(), nameSq: z.string(), nameEn: z.string().nullable() }),
+    wholeHallOnly: z.boolean(),
+    screen: z.object({
+      widthM: z.number(),
+      heightM: z.number(),
+      x: z.number(),
+      y: z.number(),
+      z: z.number(),
+    }),
+  }),
+  seats: z.array(seatMapSeatSchema),
+  /**
+   * Estimated ADULT price per seat type present in the hall (a COUPLE sofa: two ADULT tickets plus
+   * the sofa surcharge). The final price is calculated when the seats are held.
+   */
+  prices: z.partialRecord(seatTypeSchema, z.number().int().nonnegative()),
+  /** Suites only: the price of the whole suite and whether it is taken. */
+  wholeHall: z
+    .object({ priceCents: z.number().int().nonnegative().nullable(), taken: z.boolean() })
+    .nullable(),
+});
+export type SeatMapResponse = z.infer<typeof seatMapResponseSchema>;

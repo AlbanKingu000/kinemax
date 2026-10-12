@@ -70,6 +70,8 @@ export interface CatalogStub {
   showtimes?: (url: URL) => Answer;
   /** /api/showtimes/:id by id. */
   showtime?: Record<string, Answer>;
+  /** /api/showtimes/:id/seatmap by id: a body, or a function called on every request. */
+  seatmap?: Record<string, unknown>;
 }
 
 const isStatus = (value: unknown): value is { status: number; body: unknown } =>
@@ -102,6 +104,11 @@ export function stubCatalog(stub: CatalogStub = {}) {
       return answer(stub.movieDetail?.[decodeURIComponent(url.pathname.slice(12))]);
     }
     if (url.pathname === '/api/showtimes') return answer(stub.showtimes?.(url));
+    const seatmapMatch = /^\/api\/showtimes\/([^/]+)\/seatmap$/.exec(url.pathname);
+    if (seatmapMatch) {
+      const answer2 = stub.seatmap?.[decodeURIComponent(seatmapMatch[1] ?? '')];
+      return answer(typeof answer2 === 'function' ? (answer2 as () => Answer)() : answer2);
+    }
     if (url.pathname.startsWith('/api/showtimes/')) {
       return answer(stub.showtime?.[decodeURIComponent(url.pathname.slice(15))]);
     }

@@ -1,7 +1,7 @@
 import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
-// Movie page, schedule and booking placeholder against the production build and the demo catalog
+// Movie page, schedule and the way into seat selection against the production build and the demo catalog
 // in kinemax_test (apps/api/scripts/e2e-catalog.ts: every show is available, prices are seeded).
 
 const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
@@ -9,7 +9,9 @@ const WCAG_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 function collectProblems(page: Page): string[] {
   const problems: string[] = [];
   page.on('console', (message) => {
-    if (message.type() === 'error' || message.type() === 'warning') {
+    // Headless Chromium's own WebGL driver diagnostics (the 3D hall): see e2e/booking.spec.ts.
+    const browserGl = message.text().includes('GL Driver Message');
+    if ((message.type() === 'error' || message.type() === 'warning') && !browserGl) {
       problems.push(`${message.type()}: ${message.text()}`);
     }
   });
@@ -38,7 +40,7 @@ async function openWithPrizren(page: Page, path: string) {
 
 const timeLink = /^\d{2}:\d{2}, /;
 
-test('home → movie → day → time → booking placeholder', async ({ page }) => {
+test('home → movie → day → time → seat selection', async ({ page }) => {
   const problems = collectProblems(page);
   await page.goto('/');
   await page
@@ -65,21 +67,19 @@ test('home → movie → day → time → booking placeholder', async ({ page })
   await time.click();
 
   await expect(page).toHaveURL(/\/booking\/[0-9a-f-]{36}$/);
-  await expect(page.getByRole('heading', { level: 1, name: 'Rezervimi' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
   const main = page.getByRole('main');
-  await expect(main.getByText(title, { exact: true })).toBeVisible();
-  await expect(main.getByText('Kinemax Prizren')).toBeVisible();
-  await expect(main.getByText(new RegExp(`^${label.slice(0, 5)}–\\d{2}:\\d{2}$`))).toBeVisible();
-  await expect(
-    page.getByRole('heading', { level: 2, name: 'Zgjedhja e ulëseve vjen së shpejti' }),
-  ).toBeVisible();
+  await expect(main.getByText(/^Kinemax Prizren · /)).toContainText(label.slice(0, 5));
+  await expect(page.getByRole('heading', { level: 2, name: 'Zgjidh ulëset' })).toBeVisible();
   expect(problems).toEqual([]);
 });
 
 test('schedule filters live in the URL: share, reload and back keep them', async ({
   page,
   context,
+  isMobile,
 }) => {
+  test.skip(isMobile, 'Below 768px the filters live in a bottom sheet: see the phone test below.');
   await openWithPrizren(page, '/schedule');
   await expect(page.getByRole('heading', { level: 1, name: 'Orari' })).toBeVisible();
   await expect(page.getByRole('article').first()).toBeVisible();
@@ -135,7 +135,8 @@ test('schedule filters live in the URL: share, reload and back keep them', async
   await expect(page.getByRole('article').first()).toBeVisible();
 });
 
-test('day tabs and filter chips work with the keyboard', async ({ page }) => {
+test('day tabs and filter chips work with the keyboard', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'Below 768px the filters live in a bottom sheet: see the phone test below.');
   await openWithPrizren(page, '/schedule');
   const today = page.getByRole('tab').first();
   await expect(today).toHaveAttribute('aria-selected', 'true');
@@ -154,6 +155,60 @@ test('day tabs and filter chips work with the keyboard', async ({ page }) => {
   await expect(page).toHaveURL(/format=2D/);
   await page.keyboard.press('Enter');
   await expect(chip).toHaveAttribute('aria-pressed', 'false');
+});
+
+test('phones: the filters open in a bottom sheet and live in the URL', async ({
+  page,
+  context,
+  isMobile,
+}) => {
+  test.skip(!isMobile, 'Below 768px only (wider screens show the filters inline).');
+  await openWithPrizren(page, '/schedule');
+  await expect(page.getByRole('article').first()).toBeVisible();
+  await page.getByRole('tab', { name: /^Nesër/ }).click();
+
+  // Esc closes without applying and gives focus back.
+  const open = page.getByRole('button', { name: 'Filtrat', exact: true });
+  await open.click();
+  const sheet = page.getByRole('dialog', { name: 'Filtrat' });
+  await sheet.getByRole('button', { name: 'Standard', exact: true }).click();
+  await page.keyboard.press('Escape');
+  await expect(sheet).toBeHidden();
+  await expect(page).not.toHaveURL(/hallType=/);
+  await expect(open).toBeFocused();
+
+  // Chips work with the keyboard; "Apliko" writes the filters into the URL.
+  await open.click();
+  const chip = sheet.getByRole('button', { name: 'Standard', exact: true });
+  await expect(chip).toHaveAttribute('aria-pressed', 'false');
+  await chip.focus();
+  await page.keyboard.press('Space');
+  await expect(chip).toHaveAttribute('aria-pressed', 'true');
+  await sheet.getByRole('button', { name: 'Titra shqip' }).click();
+  await sheet.getByRole('button', { name: 'Apliko' }).click();
+  await expect(sheet).toBeHidden();
+  await expect(page).toHaveURL(/hallType=STANDARD/);
+  await expect(page).toHaveURL(/language=ORIGINAL_SQ_SUBTITLES/);
+  await expect(page).toHaveURL(/date=\d{4}-\d{2}-\d{2}/);
+  const filtered = page.getByRole('button', { name: 'Filtrat (2)' });
+  await expect(filtered).toBeVisible();
+  const groups = page.getByRole('article').first().getByRole('heading', { level: 3 });
+  await expect(groups.first()).toHaveText('Standard');
+
+  // A shared link and a reload keep them.
+  const other = await context.newPage();
+  await other.goto(page.url());
+  await expect(other.getByRole('button', { name: 'Filtrat (2)' })).toBeVisible();
+  await other.close();
+  await page.reload();
+  await expect(filtered).toBeVisible();
+
+  // "Pastro" + "Apliko" removes them.
+  await filtered.click();
+  await sheet.getByRole('button', { name: 'Pastro', exact: true }).click();
+  await sheet.getByRole('button', { name: 'Apliko' }).click();
+  await expect(page).not.toHaveURL(/hallType=|language=/);
+  await expect(open).toBeVisible();
 });
 
 test('the movie and schedule pages pass axe and fit the screen', async ({ page, request }) => {

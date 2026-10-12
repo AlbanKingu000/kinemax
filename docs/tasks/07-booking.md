@@ -47,23 +47,36 @@ owner's message. Decision 10 was taken after that and still needs confirmation; 
     0.182 API we use is the same. Audit unchanged (only the documented Prisma CLI exceptions).
 11. **B9, e2e console filter.** In the booking e2e, Chromium's own GL driver diagnostics ("GL Driver
     Message … GPU stall due to ReadPixels", printed by the headless software renderer) are ignored
-    by the console check; every other warning or error still fails the test.
+    by the console check; every other warning or error still fails the test. The same filter is
+    now in `e2e/movie-schedule.spec.ts`, whose journey ends on the booking page.
+12. **B3/B6, suites in 3D.** The suite page showed only the "Rezervo gjithë suitën" card, so the
+    Suite 3D view and view-from-seat could not exist. Suites now show the 3D room too (3D/2D
+    toggle; 2D shows only the card, no seat map). It is for looking only: the view-from-seat
+    overlay has no "Zgjidh këtë ulëse" for suites; booking stays whole-hall.
+13. **B8/B9, schedule filter e2e on phones.** The two existing desktop tests for the inline filter
+    chips (URL/share/reload/back, keyboard) cannot run below 768px, where the chips now live in the
+    bottom sheet. They are skipped on the mobile project only, and a new phone test covers the same
+    ground through the sheet (Esc without applying + focus return, keyboard chips, Apliko → URL,
+    shared link, reload, Pastro). The old small sheet test in booking.spec moved into it.
+14. **Part B Chrome check method.** The Claude-in-Chrome window kept reporting
+    `visibilityState: hidden` (rAF paused), so FPS could not be measured there. The interactive
+    check (3D, click seat → view from seat → select in overlay → panel) was done with Claude in
+    Chrome; screenshots, FPS and draw calls were taken by a Playwright script driving the installed
+    Google Chrome (`channel: 'chrome'`, headed, GPU) against the dev server.
 
 ## Progress (keep up to date)
 
 - Part A: done, committed `df22271`.
-- Part B: B1 done and tested (API, `apps/api/test/seatmap.db.test.ts`). B2-B8 (booking page, 3D
-  hall, view from seat, 2D map, selection rules, Vazhdo → login, mobile filter sheet) written
-  (typecheck + lint clean) but not yet tested or checked in Chrome. The 2 old booking-placeholder
-  tests in `BookingPage.test.tsx` fail because that page was replaced. B9 started: a test-only
-  e2e account script (`apps/api/scripts/e2e-account.ts`) and `e2e/booking.spec.ts`, both
-  unfinished. Nothing of Part B is committed yet.
-- Part B remaining, in order: (a) rewrite `BookingPage.test.tsx` + tests for selection rules,
-  sessionStorage restore, polling pause, 2D/WebGL fallback; (b) fixed test-only account in the
-  e2e catalog script (kinemax_test only, behind the `_test` guard) so e2e specs log in instead of
-  registering (register rate limit unchanged); (c) finish `e2e/booking.spec.ts`; (d) the
-  selected-seat colour pair in `CONTRAST_PAIRS`; (e) verify, Chrome check (FPS + draw calls),
-  screenshots, roadmap, commit.
+- Part B: done, committed as "feat: 3D and 2D seat selection with view from seat" (hash in
+  docs/roadmap.md). verify green (e2e 50 passed, 4 project-specific skips). Chrome check found
+  and fixed: Grand's curved screen sat behind the front wall (only its edges showed); the 3D
+  overview cropped the screen and was too dark; "Salla Salla 1 në 3D" label; the wheelchair marker
+  was a blue system emoji (now a `wheelchair` design-system icon); suites had no 3D (decision
+  12); the 2D seat map and the `sheet` Modal variant were missing from /styleguide (added).
+  Measured in Chrome: 56-58 FPS during camera flights, draw calls Standard 36, VIP 52, Grand 40,
+  Suite 26; 3D chunk 917 kB (247 kB gzip); console clean; no horizontal overflow at 390 px.
+  Screenshots: `booking-3d-*-desktop.png`, `booking-view-from-seat-*-desktop.png`,
+  `booking-2d-mobile-390*.png`, `schedule-filter-sheet-mobile-390.png`.
 - Part C: not started.
 
 ## Checklist
@@ -90,13 +103,13 @@ owner's message. Decision 10 was taken after that and still needs confirmation; 
 - [x] B6 Client rules (max 10, suites, wheelchair note, sessionStorage)
 - [x] B7 "Vazhdo" (login redirect keeps the selection)
 - [x] B8 Schedule page mobile filter sheet
-- [ ] B9 Tests (API, web, e2e, axe)
+- [x] B9 Tests (API, web, e2e, axe)
   - [x] B9.0 API seatmap tests
-  - [ ] B9a Web tests (BookingPage rewrite, rules, sessionStorage, polling pause, WebGL fallback)
-  - [ ] B9b Fixed test-only e2e account (kinemax_test only)
-  - [ ] B9c Booking e2e spec
-  - [ ] B9d Selected-seat contrast pair
-- [ ] Part B: verify + Chrome check + screenshots + commit
+  - [x] B9a Web tests (BookingPage rewrite, rules, sessionStorage, polling pause, WebGL fallback)
+  - [x] B9b Fixed test-only e2e account (kinemax_test only)
+  - [x] B9c Booking e2e spec
+  - [x] B9d Selected-seat contrast pair
+- [x] Part B: verify + Chrome check + screenshots + commit
 
 ### Part C: Seat holds (10 min), ticket categories, server-side prices
 

@@ -3,6 +3,8 @@ import type {
   FeaturedMovie,
   LocationSummary,
   MovieSummary,
+  SeatMapResponse,
+  SeatMapSeat,
   ShowtimeGroup,
   ShowtimeSlot,
 } from '@kinemax/shared';
@@ -133,3 +135,68 @@ export const DEMO_SHOWTIME_GROUPS: ShowtimeGroup[] = [
     showtimes: [slot(4, '14:15', 'AVAILABLE'), slot(5, '17:45', 'SOLD_OUT')],
   },
 ];
+
+const demoSeat = (
+  row: string,
+  number: number,
+  x: number,
+  extra: Partial<SeatMapSeat> = {},
+): SeatMapSeat => ({
+  id: `demo-${row}${String(number)}`,
+  row,
+  number,
+  type: 'STANDARD',
+  x,
+  y: row.charCodeAt(0) - 61,
+  z: 0,
+  rotationDeg: 0,
+  widthUnits: 1,
+  status: 'AVAILABLE',
+  ...extra,
+});
+
+/** A small hall with every seat type and state, for the 2D seat map demo. */
+export const DEMO_SEATMAP: SeatMapResponse = {
+  showtime: {
+    id: 'demo-showtime',
+    startsAt: '2026-10-13T18:30:00.000Z',
+    date: '2026-10-13',
+    startTime: '20:30',
+    format: '2D',
+    languageVersion: 'ORIGINAL_SQ_SUBTITLES',
+  },
+  movie: {
+    slug: 'demo',
+    titleSq: 'Demo',
+    titleEn: null,
+    ageRating: 'AGE_12',
+    durationMinutes: 120,
+    genres: [],
+    posterPath: null,
+    backdropPath: null,
+  },
+  location: {
+    slug: 'prizren',
+    name: 'Kinemax Prizren',
+    city: 'Prizren',
+    timeZone: 'Europe/Belgrade',
+  },
+  hall: {
+    name: 'Salla Demo',
+    hallType: { code: 'STANDARD', nameSq: 'Standard', nameEn: null },
+    wholeHallOnly: false,
+    screen: { widthM: 8, heightM: 3.5, x: 0, y: 0, z: 3 },
+  },
+  seats: [
+    demoSeat('A', 1, -3, { type: 'WHEELCHAIR' }),
+    demoSeat('A', 2, -2, { type: 'COMPANION' }),
+    ...[3, 4, 5, 6].map((n) => demoSeat('A', n, n - 4)),
+    ...[1, 2, 3, 4, 5, 6].map((n) =>
+      demoSeat('B', n, n - 4, n === 3 || n === 4 ? { status: 'TAKEN' } : {}),
+    ),
+    ...[1, 2, 3, 4, 5, 6].map((n) => demoSeat('C', n, n - 4, { type: 'VIP' })),
+    ...[1, 2, 3].map((n) => demoSeat('D', n, n * 2.5 - 5.5, { type: 'COUPLE', widthUnits: 2 })),
+  ],
+  prices: { STANDARD: 450, VIP: 650, COUPLE: 1100, WHEELCHAIR: 450, COMPANION: 450 },
+  wholeHall: null,
+};

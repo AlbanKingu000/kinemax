@@ -25,6 +25,7 @@ const sq = {
     hero: 'Sfondi kinematografik',
     shell: 'Pjesët e faqes',
     home: 'Faqja kryesore',
+    booking: 'Zgjedhja e ulëseve',
   },
   logo: {
     full: 'Logoja e plotë',
@@ -71,6 +72,7 @@ const sq = {
       deepPanel: 'Panele të kuqe të thella',
       toast: 'Njoftimet',
       badge: 'Etiketat',
+      seat: 'Ulëset në hartë',
     },
   },
   typography: {
@@ -213,6 +215,9 @@ const sq = {
   feedback: {
     dialog: 'Dialogu',
     openDialog: 'Hap dialogun',
+    sheet: 'Fleta nga poshtë (telefonat)',
+    openSheet: 'Hap fletën',
+    sheetBody: 'Në telefona, filtrat dhe zgjedhjet e tjera hapen nga poshtë ekranit.',
     dialogTitle: 'Konfirmo rezervimin',
     dialogBody: 'Ke zgjedhur 2 vende në Sallën 3 për shfaqjen e orës 20:30.',
     confirm: 'Konfirmo',
@@ -268,6 +273,11 @@ const sq = {
     showtimesNote: 'Ka vende, pak vende (nën 15% të lira) dhe shitur (jo e klikueshme).',
     chooseCinema: 'Pa kinema të zgjedhur',
   },
+  booking: {
+    map: 'Harta 2D e ulëseve',
+    mapNote:
+      'Të gjitha gjendjet: e lirë, VIP, divan për dy, hapësirë për karrige me rrota, ulëse shoqëruese, e zgjedhur dhe e zënë. Shigjetat lëvizin, Enter/Space zgjedh.',
+  },
   hero: {
     eyebrow: 'Tani në kinema',
     title: 'Drita e projektorit, vetëm për ty',
@@ -301,6 +311,7 @@ const en: StyleguideMessages = {
     hero: 'Cinematic background',
     shell: 'Page parts',
     home: 'Home page',
+    booking: 'Seat selection',
   },
   logo: {
     full: 'Full logo',
@@ -346,6 +357,7 @@ const en: StyleguideMessages = {
       deepPanel: 'Deep crimson panels',
       toast: 'Toasts',
       badge: 'Badges',
+      seat: 'Seat map',
     },
   },
   typography: {
@@ -488,6 +500,9 @@ const en: StyleguideMessages = {
   feedback: {
     dialog: 'Dialog',
     openDialog: 'Open the dialog',
+    sheet: 'Bottom sheet (phones)',
+    openSheet: 'Open the sheet',
+    sheetBody: 'On phones, filters and other choices open from the bottom of the screen.',
     dialogTitle: 'Confirm your booking',
     dialogBody: 'You have chosen 2 seats in Hall 3 for the 20:30 show.',
     confirm: 'Confirm',
@@ -542,6 +557,11 @@ const en: StyleguideMessages = {
     showtimes: 'Showtimes: days, groups and availability',
     showtimesNote: 'Available, few left (under 15% free) and sold out (not clickable).',
     chooseCinema: 'No cinema chosen',
+  },
+  booking: {
+    map: '2D seat map',
+    mapNote:
+      'Every state: available, VIP, couple sofa, wheelchair space, companion seat, selected and taken. Arrow keys move, Enter/Space selects.',
   },
   hero: {
     eyebrow: 'Now showing',

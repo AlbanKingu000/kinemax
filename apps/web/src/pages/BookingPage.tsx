@@ -1,149 +1,430 @@
-import { useParams } from 'react-router';
-import { ApiRequestError, fetchShowtime } from '../api/catalog';
+import type { SeatMapResponse, SeatMapSeat } from '@kinemax/shared';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router';
+import { ApiRequestError } from '../api/http';
+import { useAuth } from '../auth/auth-context';
+import { loginPath } from '../auth/next-path';
+import {
+  keepAvailable,
+  readSelection,
+  storeSelection,
+  ticketCount,
+  toggleSeat,
+  MAX_TICKETS,
+} from '../booking/selection';
+import { SeatMap2D } from '../booking/SeatMap2D';
+import { canRender3D, useSeatMap } from '../booking/use-seat-map';
 import { AgeBadge, FormatBadge, LanguageBadge } from '../components/Badge/Badge';
 import { Button, ButtonLink } from '../components/Button/Button';
 import { EmptyState } from '../components/EmptyState/EmptyState';
 import { Container } from '../components/Layout/Layout';
 import { Skeleton } from '../components/Skeleton/Skeleton';
-import { useAsync } from '../hooks/use-async';
 import { usePageMeta } from '../hooks/use-page-meta';
-import { formatLongDate } from '../i18n/format';
+import { usePrefersReducedMotion } from '../hooks/use-prefers-reduced-motion';
+import { formatLongDate, formatPrice } from '../i18n/format';
 import { pickText } from '../i18n/messages';
 import { useLocale, useMessages } from '../i18n/use-messages';
 import styles from './BookingPage.module.css';
 
-/** Placeholder for the booking flow: a summary of the chosen show. Seat selection comes next. */
+// The 3D hall is a separate chunk: three.js only loads on this page, and only when 3D is shown.
+const Hall3D = lazy(() => import('../booking/Hall3D'));
+
+/** Seat selection for one show: 3D hall or 2D map, a summary panel and "Vazhdo". */
 export function BookingPage() {
   const t = useMessages();
-  const { locale } = useLocale();
   const { showtimeId = '' } = useParams();
-  const show = useAsync((signal) => fetchShowtime(showtimeId, signal), `showtime:${showtimeId}`);
-  usePageMeta(`${t.booking.title} · ${t.meta.titleSuffix}`, t.booking.seatsSoonBody);
+  const seatMap = useSeatMap(showtimeId);
+  usePageMeta(`${t.seats.title} · ${t.meta.titleSuffix}`, t.booking.seatsSoonBody);
 
-  if (show.status === 'loading') {
+  if (seatMap.status === 'loading') {
     return (
-      <Container narrow className={styles.page}>
+      <Container className={styles.page}>
         <div aria-busy="true">
           <p role="status" className="visually-hidden">
             {t.common.loading}
           </p>
-          <Skeleton shape="rect" height="20rem" />
+          <Skeleton shape="rect" height="24rem" />
         </div>
       </Container>
     );
   }
-  if (show.status === 'error') {
-    const missing =
-      show.error instanceof ApiRequestError &&
-      (show.error.status === 404 || show.error.status === 400);
+  if (seatMap.status === 'error') {
+    const error = seatMap.error instanceof ApiRequestError ? seatMap.error : undefined;
+    const started = error?.status === 410;
+    const missing = error?.status === 404 || error?.status === 400;
     return (
       <Container narrow className={styles.page}>
         <EmptyState
-          icon={missing ? 'search' : 'warning'}
-          tone={missing ? 'neutral' : 'error'}
-          title={missing ? t.booking.notFoundTitle : t.booking.loadError}
+          icon={started ? 'clock' : missing ? 'search' : 'warning'}
+          tone={started || missing ? 'neutral' : 'error'}
           headingLevel="h1"
+          title={
+            started ? t.seats.startedTitle : missing ? t.booking.notFoundTitle : t.seats.loadError
+          }
           action={
-            missing ? (
+            started || missing ? (
               <ButtonLink to="/schedule" icon="calendar">
                 {t.booking.backToSchedule}
               </ButtonLink>
             ) : (
-              <Button variant="secondary" onClick={show.retry}>
+              <Button variant="secondary" onClick={seatMap.refresh}>
                 {t.common.retry}
               </Button>
             )
           }
         >
-          {missing && <p>{t.booking.notFoundBody}</p>}
+          <p>{started ? t.booking.startedBody : missing ? t.booking.notFoundBody : null}</p>
         </EmptyState>
       </Container>
     );
+  }
+  return <SeatSelection map={seatMap.data} />;
+}
+
+function SeatSelection({ map }: { map: SeatMapResponse }) {
+  const t = useMessages();
+  const { locale } = useLocale();
+  const { status } = useAuth();
+  const navigate = useNavigate();
+  const reducedMotion = usePrefersReducedMotion();
+  const showtimeId = map.showtime.id;
+  const seatsById = useMemo(() => new Map(map.seats.map((s) => [s.id, s])), [map.seats]);
+  const supports3D = useMemo(() => canRender3D(), []);
+  const [mode, setMode] = useState<'3d' | '2d'>(() =>
+    supports3D && window.matchMedia('(min-width: 1024px)').matches ? '3d' : '2d',
+  );
+  const [selection, setSelection] = useState(() => readSelection(showtimeId));
+  const [notice, setNotice] = useState('');
+  const [viewSeat, setViewSeat] = useState<SeatMapSeat | null>(null);
+  const [resetSignal, setResetSignal] = useState(0);
+
+  // On load and after every refresh: drop chosen seats that were taken in the meantime.
+  const [checkedMap, setCheckedMap] = useState<SeatMapResponse | null>(null);
+  if (checkedMap !== map) {
+    setCheckedMap(map);
+    const { kept, dropped } = keepAvailable(selection.seatIds, seatsById);
+    const suiteGone = selection.wholeHall && (map.wholeHall?.taken ?? true);
+    if (dropped.length > 0 || suiteGone) {
+      setSelection({ seatIds: kept, wholeHall: selection.wholeHall && !suiteGone });
+      setNotice(t.seats.droppedTaken(dropped.length || 1));
+    }
+  }
+  useEffect(() => {
+    storeSelection(showtimeId, selection);
+  }, [showtimeId, selection]);
+
+  const chosen = selection.seatIds.map((id) => seatsById.get(id)).filter((s) => s !== undefined);
+  const total = map.hall.wholeHallOnly
+    ? selection.wholeHall
+      ? (map.wholeHall?.priceCents ?? 0)
+      : 0
+    : chosen.reduce((sum, seat) => sum + (map.prices[seat.type] ?? 0), 0);
+  const tickets = ticketCount(chosen);
+  const title = pickText(locale, map.movie.titleSq, map.movie.titleEn);
+  const typeName = (seat: SeatMapSeat) => t.seats.types[seat.type];
+
+  function toggle(seat: SeatMapSeat) {
+    const result = toggleSeat(selection.seatIds, seat, seatsById);
+    if (!result.ok) {
+      setNotice(result.reason === 'limit' ? t.seats.limit(MAX_TICKETS) : t.seats.droppedTaken(1));
+      return;
+    }
+    setSelection({ seatIds: result.selected, wholeHall: false });
+    const added = result.selected.length > selection.seatIds.length;
+    setNotice(added && seat.type === 'WHEELCHAIR' ? t.seats.wheelchairNote : '');
   }
 
-  const s = show.data;
-  const title = pickText(locale, s.movie.titleSq, s.movie.titleEn);
-  if (s.hasStarted) {
-    return (
-      <Container narrow className={styles.page}>
-        <EmptyState
-          icon="clock"
-          title={t.booking.startedTitle}
-          headingLevel="h1"
-          action={
-            <ButtonLink to={`/movies/${s.movie.slug}`} icon="calendar">
-              {t.booking.otherTimes}
-            </ButtonLink>
-          }
-        >
-          <p>{t.booking.startedBody}</p>
-        </EmptyState>
-      </Container>
-    );
+  function onContinue() {
+    if (status !== 'authenticated') {
+      storeSelection(showtimeId, selection);
+      void navigate(loginPath(`/booking/${showtimeId}`));
+      return;
+    }
+    setNotice(t.seats.nextStepSoon);
   }
+
+  const nothing = map.hall.wholeHallOnly ? !selection.wholeHall : chosen.length === 0;
+  const legend = (['STANDARD', 'VIP', 'COUPLE', 'WHEELCHAIR', 'COMPANION'] as const).filter(
+    (type) => map.seats.some((s) => s.type === type),
+  );
 
   return (
-    <Container narrow className={styles.page}>
-      <h1 className={styles.title}>{t.booking.title}</h1>
-      <section className={styles.summary} aria-labelledby="booking-summary">
-        <h2 id="booking-summary" className="visually-hidden">
-          {t.booking.summary}
-        </h2>
-        {s.movie.posterPath && (
+    <Container className={styles.page}>
+      <header className={styles.summary}>
+        {map.movie.posterPath && (
           <img
             className={styles.poster}
-            src={s.movie.posterPath}
-            alt={t.movie.poster(title)}
+            src={map.movie.posterPath}
+            alt=""
             width={600}
             height={900}
-            decoding="async"
           />
         )}
-        <div className={styles.details}>
-          <p className={styles.movieTitle}>{title}</p>
+        <div className={styles.summaryText}>
+          <h1 className={styles.title}>{title}</h1>
           <div className={styles.badges}>
-            <AgeBadge rating={s.movie.ageRating} />
-            <FormatBadge format={s.format} />
-            <LanguageBadge version={s.languageVersion} />
+            <AgeBadge rating={map.movie.ageRating} />
+            <FormatBadge format={map.showtime.format} />
+            <LanguageBadge version={map.showtime.languageVersion} />
           </div>
-          <dl className={styles.facts}>
-            <div>
-              <dt>{t.booking.cinema}</dt>
-              <dd>
-                {s.location.name}
-                <span className={styles.secondary}>{s.location.address}</span>
-              </dd>
-            </div>
-            <div>
-              <dt>{t.booking.hall}</dt>
-              <dd>
-                {s.hall.name}
-                <span className={styles.secondary}>
-                  {pickText(locale, s.hall.hallType.nameSq, s.hall.hallType.nameEn)}
-                </span>
-              </dd>
-            </div>
-            <div>
-              <dt>{t.booking.date}</dt>
-              <dd>{formatLongDate(locale, t, s.date)}</dd>
-            </div>
-            <div>
-              <dt>{t.booking.time}</dt>
-              <dd>
-                {s.startTime}–{s.endTime}
-              </dd>
-            </div>
-          </dl>
+          <p className={styles.meta}>
+            {map.location.name} · {map.hall.name} (
+            {pickText(locale, map.hall.hallType.nameSq, map.hall.hallType.nameEn)})
+            <br />
+            {formatLongDate(locale, t, map.showtime.date)} · {map.showtime.startTime}
+          </p>
         </div>
-      </section>
-      <EmptyState
-        icon="seat"
-        eyebrow={t.comingSoon.badge}
-        title={t.booking.seatsSoonTitle}
-        headingLevel="h2"
-      >
-        <p>{t.booking.seatsSoonBody}</p>
-      </EmptyState>
+      </header>
+
+      <div className={styles.layout}>
+        <section aria-labelledby="seats-title" className={styles.stage}>
+          <div className={styles.stageHeader}>
+            <h2 id="seats-title" className={styles.stageTitle}>
+              {map.hall.wholeHallOnly ? t.seats.suiteTitle : t.seats.title}
+            </h2>
+            {supports3D && (
+              <div role="group" aria-label={t.seats.viewMode} className={styles.toggle}>
+                {(['3d', '2d'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    aria-pressed={mode === m}
+                    onClick={() => {
+                      setMode(m);
+                      if (m === '2d') setViewSeat(null);
+                    }}
+                  >
+                    {m === '3d' ? t.seats.view3d : t.seats.view2d}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {!supports3D && <p className={styles.note}>{t.seats.no3d}</p>}
+
+          {/* Suites: the 3D room is for looking only; the suite is booked as a whole below. */}
+          {mode === '3d' ? (
+            <div className={styles.hall}>
+              <Suspense
+                fallback={
+                  <div aria-busy="true" className={styles.hallLoading}>
+                    <p role="status">{t.seats.loading3d}</p>
+                  </div>
+                }
+              >
+                <Hall3D
+                  map={map}
+                  selected={selection.seatIds}
+                  viewSeat={viewSeat}
+                  onView={setViewSeat}
+                  resetSignal={resetSignal}
+                  reducedMotion={reducedMotion}
+                  label={t.seats.hallLabel(map.hall.name)}
+                  tooltip={(seat) => {
+                    const price = map.prices[seat.type];
+                    return `${t.seats.rowSeat(seat.row, seat.number)} · ${typeName(seat)}${price !== undefined ? ` · ${formatPrice(locale, price)}` : ''}`;
+                  }}
+                />
+              </Suspense>
+              {viewSeat ? (
+                <div
+                  className={styles.overlay}
+                  role="dialog"
+                  aria-label={t.seats.overlay(viewSeat.row, viewSeat.number, typeName(viewSeat))}
+                >
+                  <p className={styles.overlayTitle}>
+                    {t.seats.overlay(viewSeat.row, viewSeat.number, typeName(viewSeat))}
+                  </p>
+                  <div className={styles.overlayActions}>
+                    {map.hall.wholeHallOnly ? null : viewSeat.status === 'AVAILABLE' ||
+                      selection.seatIds.includes(viewSeat.id) ? (
+                      <Button
+                        size="sm"
+                        variant={selection.seatIds.includes(viewSeat.id) ? 'secondary' : 'primary'}
+                        onClick={() => {
+                          toggle(viewSeat);
+                        }}
+                      >
+                        {selection.seatIds.includes(viewSeat.id)
+                          ? t.seats.removeThis
+                          : t.seats.selectThis}
+                      </Button>
+                    ) : (
+                      <p className={styles.note}>{t.seats.taken}</p>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setViewSeat(null);
+                      }}
+                    >
+                      {t.seats.backToHall}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className={styles.reset}
+                  onClick={() => {
+                    setResetSignal((n) => n + 1);
+                  }}
+                >
+                  {t.seats.resetView}
+                </Button>
+              )}
+            </div>
+          ) : map.hall.wholeHallOnly ? null : (
+            <>
+              <SeatMap2D
+                map={map}
+                selected={selection.seatIds}
+                onToggle={toggle}
+                onView={
+                  supports3D
+                    ? (seat) => {
+                        setMode('3d');
+                        setViewSeat(seat);
+                      }
+                    : undefined
+                }
+              />
+              {supports3D && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={styles.open3d}
+                  onClick={() => {
+                    setMode('3d');
+                  }}
+                >
+                  {t.seats.open3d}
+                </Button>
+              )}
+            </>
+          )}
+          {map.hall.wholeHallOnly && (
+            <SuiteCard
+              map={map}
+              selected={selection.wholeHall}
+              onToggle={() => {
+                setSelection({ seatIds: [], wholeHall: !selection.wholeHall });
+              }}
+            />
+          )}
+        </section>
+
+        <aside className={styles.panel} aria-labelledby="panel-title">
+          <h2 id="panel-title" className={styles.panelTitle}>
+            {t.seats.yourSeats}
+          </h2>
+          {map.hall.wholeHallOnly ? (
+            <p>{selection.wholeHall ? t.seats.suiteSelected : t.seats.noneSelected}</p>
+          ) : chosen.length === 0 ? (
+            <p className={styles.note}>{t.seats.noneSelected}</p>
+          ) : (
+            <ul className={styles.chosen}>
+              {chosen.map((seat) => (
+                <li key={seat.id}>
+                  <span>
+                    {t.seats.rowSeat(seat.row, seat.number)} · {typeName(seat)}
+                  </span>
+                  <span>
+                    {map.prices[seat.type] !== undefined
+                      ? formatPrice(locale, map.prices[seat.type] ?? 0)
+                      : ''}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className={styles.total}>
+            <span>
+              {t.seats.estimated}
+              {!map.hall.wholeHallOnly && tickets > 0 ? ` · ${t.seats.tickets(tickets)}` : ''}
+            </span>
+            <strong>{formatPrice(locale, total)}</strong>
+          </div>
+          <p className={styles.note}>{t.seats.finalNote}</p>
+          <p role="status" aria-live="polite" className={styles.notice}>
+            {notice}
+          </p>
+          <Button size="lg" className={styles.continue} disabled={nothing} onClick={onContinue}>
+            {t.seats.continue}
+          </Button>
+          {!map.hall.wholeHallOnly && (
+            <div className={styles.legend}>
+              <p className={styles.legendTitle}>{t.seats.legend}</p>
+              <ul>
+                {legend.map((type) => (
+                  <li key={type}>
+                    <span className={styles.swatch} data-type={type} aria-hidden="true" />
+                    {t.seats.types[type]}
+                    {map.prices[type] !== undefined
+                      ? ` · ${formatPrice(locale, map.prices[type] ?? 0)}`
+                      : ''}
+                  </li>
+                ))}
+                <li>
+                  <span className={styles.swatch} data-type="SELECTED" aria-hidden="true" />
+                  {t.seats.selected}
+                </li>
+                <li>
+                  <span className={styles.swatch} data-type="TAKEN" aria-hidden="true" />
+                  {t.seats.taken}
+                </li>
+              </ul>
+            </div>
+          )}
+        </aside>
+      </div>
+
+      {/* Phones: the essentials stay in reach at the bottom of the screen */}
+      <div className={styles.bottomBar}>
+        <span>
+          {formatPrice(locale, total)}
+          {tickets > 0 ? ` · ${t.seats.tickets(tickets)}` : ''}
+        </span>
+        <Button size="md" disabled={nothing} onClick={onContinue}>
+          {t.seats.continue}
+        </Button>
+      </div>
     </Container>
+  );
+}
+
+function SuiteCard({
+  map,
+  selected,
+  onToggle,
+}: {
+  map: SeatMapResponse;
+  selected: boolean;
+  onToggle: () => void;
+}) {
+  const t = useMessages();
+  const { locale } = useLocale();
+  const taken = map.wholeHall?.taken ?? true;
+  return (
+    <div className={styles.suite}>
+      <p>{t.seats.suiteBody}</p>
+      {map.wholeHall?.priceCents != null && (
+        <p className={styles.suitePrice}>{formatPrice(locale, map.wholeHall.priceCents)}</p>
+      )}
+      {taken ? (
+        <p className={styles.note}>{t.seats.suiteTaken}</p>
+      ) : (
+        <Button
+          size="lg"
+          variant={selected ? 'secondary' : 'primary'}
+          aria-pressed={selected}
+          onClick={onToggle}
+        >
+          {selected ? t.seats.suiteSelected : t.seats.bookSuite}
+        </Button>
+      )}
+    </div>
   );
 }

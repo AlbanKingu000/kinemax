@@ -1,7 +1,8 @@
 // Fills the TEST database (DATABASE_URL_TEST, name must end in "_test") with the demo catalog for
 // the Playwright e2e run: hall types, the 4 locations with their halls and seats, the 12 movies,
-// prices and 14 days of showtimes from the same deterministic plan as the dev seed. No users (e2e
-// creates its own) and no bookings, so every show is available. Wipes the test database first. Never touches DATABASE_URL.
+// prices and 14 days of showtimes from the same deterministic plan as the dev seed, plus one fixed
+// test customer (e2e-account.ts). No bookings, so every show is available. Wipes the test database first. Never touches DATABASE_URL.
+import { hashPassword } from '../src/auth/password.js';
 import { loadDotEnv, rootEnvPath } from '../src/config/load-dotenv.js';
 import { assertTestDatabaseUrl } from '../src/db/database-url.js';
 import { createPrismaClient } from '../src/db/prisma.js';
@@ -19,6 +20,7 @@ import {
   TIME_ZONE,
 } from '../prisma/seed/data.js';
 import { planShowtimes } from '../prisma/seed/schedule.js';
+import { E2E_ACCOUNT } from './e2e-account.js';
 
 const SCHEDULE_DAYS = 14;
 
@@ -33,6 +35,15 @@ try {
     "ComboComponent", "MenuItem", "Hall", "HallType", "Location", "Movie", "AppSettings",
     "User"`;
   await prisma.appSettings.create({ data: { id: 1 } });
+
+  // The fixed customer the e2e specs sign in with (see e2e-account.ts).
+  await prisma.user.create({
+    data: {
+      email: E2E_ACCOUNT.email,
+      name: E2E_ACCOUNT.name,
+      passwordHash: await hashPassword(E2E_ACCOUNT.password),
+    },
+  });
 
   const hallTypeIds = new Map<string, string>();
   for (const type of HALL_TYPES) {

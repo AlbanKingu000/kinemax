@@ -71,6 +71,23 @@ export function useScheduleParams(days: readonly string[]) {
     [update],
   );
 
+  /** Replaces all three filters at once (the mobile sheet's "Apliko"). */
+  const setFilters = useCallback(
+    (next: {
+      hallType: readonly string[];
+      format: readonly string[];
+      language: readonly string[];
+    }) => {
+      update((params) => {
+        for (const key of ['hallType', 'format', 'language'] as const) {
+          if (next[key].length > 0) params.set(key, next[key].join(','));
+          else params.delete(key);
+        }
+      });
+    },
+    [update],
+  );
+
   const clearFilters = useCallback(() => {
     update((next) => {
       for (const key of ['hallType', 'format', 'language']) next.delete(key);
@@ -79,5 +96,5 @@ export function useScheduleParams(days: readonly string[]) {
 
   const hasFilters =
     filters.hallType.length > 0 || filters.format.length > 0 || filters.language.length > 0;
-  return { date, filters, hasFilters, setDate, toggle, clearFilters };
+  return { date, filters, hasFilters, setDate, toggle, setFilters, clearFilters };
 }

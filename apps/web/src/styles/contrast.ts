@@ -54,7 +54,8 @@ export type ContrastUse =
   | 'primaryButton'
   | 'deepPanel'
   | 'toast'
-  | 'badge';
+  | 'badge'
+  | 'seat';
 
 export interface ContrastPair {
   foreground: string;
@@ -102,4 +103,6 @@ export const CONTRAST_PAIRS: readonly ContrastPair[] = [
   pair('color-border-control', 'color-badge-bg', 'badge', AA_NON_TEXT),
   pair('color-crimson-text', 'color-badge-bg', 'badge'),
   pair('color-text', 'color-badge-bg', 'badge'),
+  // Seat map: a selected seat is ivory with its number in page black.
+  pair('color-bg', 'color-text', 'seat'),
 ];

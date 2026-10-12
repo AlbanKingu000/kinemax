@@ -10,6 +10,8 @@ export const apiErrorCodeSchema = z.enum([
   /** Missing or stale CSRF token: fetch a new one from GET /api/auth/csrf and retry once. */
   'csrf_invalid',
   'not_found',
+  /** The resource existed but is over (e.g. a show that already started). */
+  'gone',
   'conflict',
   'payload_too_large',
   'unsupported_media_type',

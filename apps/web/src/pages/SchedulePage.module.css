@@ -167,3 +167,28 @@
 .chips > button {
   min-height: 2.75rem;
 }
+
+/* Filters inline from 768px; below, a "Filtrat (n)" button opens the bottom sheet */
+.inlineFilters {
+  display: none;
+}
+
+.sheetButton {
+  margin-bottom: var(--space-6);
+}
+
+@media (min-width: 768px) {
+  .inlineFilters {
+    display: block;
+    margin-bottom: var(--space-8);
+  }
+
+  .sheetButton {
+    display: none;
+  }
+}
+
+.results {
+  display: grid;
+  min-width: 0;
+}

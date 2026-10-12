@@ -49,7 +49,7 @@ describe('StyleguidePage', { timeout: 30_000 }, () => {
     ).toBeInTheDocument();
     const toc = screen.getByRole('navigation', { name: 'Përmbajtja' });
     const links = within(toc).getAllByRole('link');
-    expect(links).toHaveLength(15);
+    expect(links).toHaveLength(16);
     // Every entry leads to its section, titled like the entry (demos add more h2 elements).
     for (const link of links) {
       const section = document.getElementById(link.getAttribute('href')?.slice(1) ?? '');
@@ -58,6 +58,19 @@ describe('StyleguidePage', { timeout: 30_000 }, () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Pjesët e faqes' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'Faqja kryesore' })).toBeInTheDocument();
     expect(screen.getAllByRole('img', { name: 'Kinemax' }).length).toBeGreaterThanOrEqual(4);
+    // The seat map demo has every state; the bottom sheet opens.
+    const seats = screen.getByRole('group', { name: 'Ulëset në Salla Demo' });
+    expect(
+      within(seats).getByRole('button', { name: /^Rreshti B, ulësja 2, Standard, e zgjedhur/ }),
+    ).toBeInTheDocument();
+    expect(
+      within(seats).getByRole('button', { name: /^Rreshti B, ulësja 3, Standard, e zënë/ }),
+    ).toBeInTheDocument();
+    expect(
+      within(seats).getByRole('button', { name: /^Rreshti A, ulësja 1, Hapësirë/ }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Hap fletën' }));
+    expect(screen.getByRole('dialog', { name: 'Filtrat' })).toBeInTheDocument();
   });
 
   it('switches all text to English', () => {

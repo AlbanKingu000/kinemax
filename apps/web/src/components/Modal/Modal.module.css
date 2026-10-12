@@ -106,3 +106,23 @@
     transform: translateX(24px);
   }
 }
+
+/* Bottom sheet (phone filters) */
+.sheet {
+  place-items: end stretch;
+  padding: 0;
+}
+
+.sheet .panel {
+  width: 100%;
+  max-height: 85dvh;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  animation-name: sheet;
+}
+
+@keyframes sheet {
+  from {
+    opacity: 0;
+    transform: translateY(32px);
+  }
+}

@@ -1,5 +1,5 @@
 import type { LanguageVersion, ShowtimesResponse } from '@kinemax/shared';
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import { Link as RouterLink } from 'react-router';
 import { fetchShowtimes } from '../api/catalog';
 import { AgeBadge } from '../components/Badge/Badge';
@@ -9,6 +9,7 @@ import { Chip } from '../components/Chip/Chip';
 import { DayTabs } from '../components/DayTabs/DayTabs';
 import { EmptyState } from '../components/EmptyState/EmptyState';
 import { Container } from '../components/Layout/Layout';
+import { Modal } from '../components/Modal/Modal';
 import { ShowtimeGroups } from '../components/ShowtimeGroups/ShowtimeGroups';
 import { Skeleton } from '../components/Skeleton/Skeleton';
 import { useAsync } from '../hooks/use-async';
@@ -23,11 +24,11 @@ import styles from './SchedulePage.module.css';
 /** All showtimes of the chosen cinema for one day, filterable, grouped by movie. */
 export function SchedulePage() {
   const t = useMessages();
-  const { locale } = useLocale();
   usePageMeta(`${t.schedule.title} · ${t.meta.titleSuffix}`, t.schedule.description);
   const { selected, ready } = useLocationChoice();
   const days = selected ? scheduleDays(selected.timeZone) : [];
-  const { date, filters, hasFilters, setDate, toggle, clearFilters } = useScheduleParams(days);
+  const { date, filters, hasFilters, setDate, toggle, setFilters, clearFilters } =
+    useScheduleParams(days);
   const hallTypes = selected?.hallTypes ?? [];
   const filterKey = `${filters.hallType.join(',')}|${filters.format.join(',')}|${filters.language.join(',')}`;
   const showtimes = useAsync(
@@ -46,6 +47,9 @@ export function SchedulePage() {
     selected !== null && date !== undefined,
   );
 
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const activeCount = filters.hallType.length + filters.format.length + filters.language.length;
+
   return (
     <Container className={styles.page}>
       <header className={styles.heading}>
@@ -56,56 +60,41 @@ export function SchedulePage() {
       {!ready && <Skeleton shape="rect" height="10rem" />}
       {ready && (!selected || date === undefined) && <ChooseCinema />}
       {ready && selected && date !== undefined && (
-        <>
-          <div className={styles.filters} role="group" aria-label={t.schedule.filters}>
-            <FilterRow label={t.schedule.hallType}>
-              {hallTypes.map((type) => (
-                <Chip
-                  key={type.code}
-                  label={pickText(locale, type.nameSq, type.nameEn)}
-                  selected={filters.hallType.includes(type.code)}
-                  onToggle={() => {
-                    toggle(
-                      'hallType',
-                      type.code,
-                      hallTypes.map((h) => h.code),
-                    );
-                  }}
-                />
-              ))}
-            </FilterRow>
-            <FilterRow label={t.schedule.format}>
-              {FORMATS.map((format) => (
-                <Chip
-                  key={format}
-                  label={format}
-                  selected={filters.format.includes(format)}
-                  onToggle={() => {
-                    toggle('format', format, FORMATS);
-                  }}
-                />
-              ))}
-            </FilterRow>
-            <FilterRow label={t.schedule.language}>
-              {LANGUAGES.map((language: LanguageVersion) => (
-                <Chip
-                  key={language}
-                  label={t.movie.languageVersions[language]}
-                  selected={filters.language.includes(language)}
-                  onToggle={() => {
-                    toggle('language', language, LANGUAGES);
-                  }}
-                />
-              ))}
-            </FilterRow>
-            {hasFilters && (
-              <Button variant="ghost" size="sm" icon="close" onClick={clearFilters}>
-                {t.schedule.clearFilters}
-              </Button>
-            )}
+        <DayTabs days={days} selected={date} onSelect={setDate}>
+          {/* Wide screens: the filters inline. Phones: one button opening a bottom sheet. */}
+          <div className={styles.inlineFilters}>
+            <FilterControls
+              hallTypes={hallTypes}
+              filters={filters}
+              onToggle={toggle}
+              onClear={hasFilters ? clearFilters : undefined}
+            />
           </div>
-
-          <DayTabs days={days} selected={date} onSelect={setDate}>
+          <div className={styles.sheetButton}>
+            <Button
+              variant="secondary"
+              icon="plus"
+              aria-haspopup="dialog"
+              onClick={() => {
+                setSheetOpen(true);
+              }}
+            >
+              {t.schedule.openFilters(activeCount)}
+            </Button>
+          </div>
+          <FilterSheet
+            open={sheetOpen}
+            onClose={() => {
+              setSheetOpen(false);
+            }}
+            hallTypes={hallTypes}
+            filters={filters}
+            onApply={(next) => {
+              setFilters(next);
+              setSheetOpen(false);
+            }}
+          />
+          <div className={styles.results}>
             {showtimes.status === 'loading' && (
               <div aria-busy="true" className={styles.list}>
                 <p role="status" className="visually-hidden">
@@ -152,10 +141,140 @@ export function SchedulePage() {
                 ))}
               </ul>
             )}
-          </DayTabs>
-        </>
+          </div>
+        </DayTabs>
       )}
     </Container>
+  );
+}
+
+type Filters = { hallType: string[]; format: string[]; language: string[] };
+type FilterKey = keyof Filters;
+
+/** The three chip rows (hall type, format, language), multi-select within each row. */
+function FilterControls({
+  hallTypes,
+  filters,
+  onToggle,
+  onClear,
+}: {
+  hallTypes: readonly { code: string; nameSq: string; nameEn: string | null }[];
+  filters: Filters;
+  onToggle: (key: FilterKey, value: string, order: readonly string[]) => void;
+  onClear?: (() => void) | undefined;
+}) {
+  const t = useMessages();
+  const { locale } = useLocale();
+  return (
+    <div className={styles.filters} role="group" aria-label={t.schedule.filters}>
+      <FilterRow label={t.schedule.hallType}>
+        {hallTypes.map((type) => (
+          <Chip
+            key={type.code}
+            label={pickText(locale, type.nameSq, type.nameEn)}
+            selected={filters.hallType.includes(type.code)}
+            onToggle={() => {
+              onToggle(
+                'hallType',
+                type.code,
+                hallTypes.map((h) => h.code),
+              );
+            }}
+          />
+        ))}
+      </FilterRow>
+      <FilterRow label={t.schedule.format}>
+        {FORMATS.map((format) => (
+          <Chip
+            key={format}
+            label={format}
+            selected={filters.format.includes(format)}
+            onToggle={() => {
+              onToggle('format', format, FORMATS);
+            }}
+          />
+        ))}
+      </FilterRow>
+      <FilterRow label={t.schedule.language}>
+        {LANGUAGES.map((language: LanguageVersion) => (
+          <Chip
+            key={language}
+            label={t.movie.languageVersions[language]}
+            selected={filters.language.includes(language)}
+            onToggle={() => {
+              onToggle('language', language, LANGUAGES);
+            }}
+          />
+        ))}
+      </FilterRow>
+      {onClear && (
+        <Button variant="ghost" size="sm" icon="close" onClick={onClear}>
+          {t.schedule.clearFilters}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+/** Phones: the filters in a bottom sheet; changes apply only with "Apliko". */
+function FilterSheet({
+  open,
+  onClose,
+  hallTypes,
+  filters,
+  onApply,
+}: {
+  open: boolean;
+  onClose: () => void;
+  hallTypes: readonly { code: string; nameSq: string; nameEn: string | null }[];
+  filters: Filters;
+  onApply: (next: Filters) => void;
+}) {
+  const t = useMessages();
+  const [pending, setPending] = useState<Filters>(filters);
+  const [openedWith, setOpenedWith] = useState<Filters | null>(null);
+  // Every time the sheet opens it starts from the filters in the URL.
+  if (open && openedWith === null) {
+    setOpenedWith(filters);
+    setPending(filters);
+  } else if (!open && openedWith !== null) {
+    setOpenedWith(null);
+  }
+  const toggle = (key: FilterKey, value: string, order: readonly string[]) => {
+    setPending((current) => {
+      const has = current[key].includes(value);
+      const wanted = has ? current[key].filter((v) => v !== value) : [...current[key], value];
+      return { ...current, [key]: order.filter((v) => wanted.includes(v)) };
+    });
+  };
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={t.schedule.filters}
+      variant="sheet"
+      footer={
+        <>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setPending({ hallType: [], format: [], language: [] });
+            }}
+          >
+            {t.schedule.clear}
+          </Button>
+          <Button
+            onClick={() => {
+              onApply(pending);
+            }}
+          >
+            {t.schedule.apply}
+          </Button>
+        </>
+      }
+    >
+      <FilterControls hallTypes={hallTypes} filters={pending} onToggle={toggle} />
+    </Modal>
   );
 }
 

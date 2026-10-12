@@ -1,5 +1,5 @@
 // Development-only living styleguide (routes.tsx only registers it when import.meta.env.DEV).
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import monogramOnCrimson from '../assets/brand/monogram-on-crimson.svg';
 import {
   AgeBadge,
@@ -31,6 +31,8 @@ import { Link } from '../components/Link/Link';
 import { LocationCard } from '../components/LocationPicker/LocationPicker';
 import { Logo } from '../components/Logo/Logo';
 import { Modal } from '../components/Modal/Modal';
+import { SeatMap2D } from '../booking/SeatMap2D';
+import { toggleSeat } from '../booking/selection';
 import { MovieCard } from '../components/MovieCard/MovieCard';
 import { MovieRail } from '../components/MovieRail/MovieRail';
 import { PasswordInput } from '../components/PasswordInput/PasswordInput';
@@ -52,6 +54,7 @@ import {
   DEMO_FEATURED,
   DEMO_LOCATIONS,
   DEMO_MOVIES,
+  DEMO_SEATMAP,
   DEMO_SHOWTIME_GROUPS,
 } from './styleguide-demo-data';
 import styles from './StyleguidePage.module.css';
@@ -80,6 +83,7 @@ const SECTION_IDS = [
   'layout',
   'shell',
   'home',
+  'booking',
 ] as const;
 
 const SWATCH_GROUPS = {
@@ -172,6 +176,12 @@ export function StyleguidePage() {
   const t = messages[locale];
   const { openPicker } = useLocationChoice();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [demoSeats, setDemoSeats] = useState<string[]>(['demo-B2', 'demo-C3']);
+  const demoSeatsById = useMemo(
+    () => new Map(DEMO_SEATMAP.seats.map((seat) => [seat.id, seat])),
+    [],
+  );
   const [demoLocation, setDemoLocation] = useState('prizren');
   const [demoDay, setDemoDay] = useState(DEMO_DAYS[0] ?? '');
   const [seatType, setSeatType] = useState<'standard' | 'vip' | 'couple'>('vip');
@@ -938,6 +948,35 @@ export function StyleguidePage() {
                   </p>
                 </Modal>
               </Sub>
+              <Sub title={s.feedback.sheet}>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setSheetOpen(true);
+                  }}
+                >
+                  {s.feedback.openSheet}
+                </Button>
+                <Modal
+                  open={sheetOpen}
+                  variant="sheet"
+                  onClose={() => {
+                    setSheetOpen(false);
+                  }}
+                  title={t.schedule.filters}
+                  footer={
+                    <Button
+                      onClick={() => {
+                        setSheetOpen(false);
+                      }}
+                    >
+                      {t.schedule.apply}
+                    </Button>
+                  }
+                >
+                  <p>{s.feedback.sheetBody}</p>
+                </Modal>
+              </Sub>
               <Sub title={s.feedback.toasts}>
                 <div className={styles.row}>
                   {TOAST_TONES.map((tone) => (
@@ -1149,6 +1188,19 @@ export function StyleguidePage() {
                     empty={<EmptyState title={t.home.noMoviesTitle} />}
                   />
                 </div>
+              </Sub>
+            </Section>
+
+            <Section id="booking" title={s.sections.booking}>
+              <Sub title={s.booking.map} note={s.booking.mapNote}>
+                <SeatMap2D
+                  map={DEMO_SEATMAP}
+                  selected={demoSeats}
+                  onToggle={(seat) => {
+                    const result = toggleSeat(demoSeats, seat, demoSeatsById);
+                    if (result.ok) setDemoSeats(result.selected);
+                  }}
+                />
               </Sub>
             </Section>
           </div>
