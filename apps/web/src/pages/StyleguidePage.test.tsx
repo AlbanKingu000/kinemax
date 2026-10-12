@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '../components/Toast/ToastProvider';
+import { AuthProvider } from '../auth/AuthProvider';
 import { I18nProvider } from '../i18n/I18nProvider';
 import { LocationProvider } from '../location/LocationProvider';
 import { stubCatalog } from '../test/catalog';
@@ -12,11 +13,13 @@ function renderPage() {
   return render(
     <I18nProvider>
       <ToastProvider>
-        <LocationProvider>
-          <MemoryRouter initialEntries={['/styleguide']}>
-            <StyleguidePage />
-          </MemoryRouter>
-        </LocationProvider>
+        <AuthProvider>
+          <LocationProvider>
+            <MemoryRouter initialEntries={['/styleguide']}>
+              <StyleguidePage />
+            </MemoryRouter>
+          </LocationProvider>
+        </AuthProvider>
       </ToastProvider>
     </I18nProvider>,
   );
@@ -95,7 +98,9 @@ describe('StyleguidePage', { timeout: 30_000 }, () => {
     for (const tone of ['Sukses', 'Gabim', 'Paralajmërim', 'Info']) {
       fireEvent.click(button(tone));
     }
-    expect(screen.getByRole('alert')).toHaveTextContent('Pagesa nuk u krye');
+    // The error summary demo is an alert too; the toast is in the notification region.
+    const toasts = within(screen.getByRole('region', { name: 'Njoftimet' }));
+    expect(toasts.getByRole('alert')).toHaveTextContent('Pagesa nuk u krye');
     expect(screen.getByText('U shtua një shfaqje e re')).toBeInTheDocument();
   });
 

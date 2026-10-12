@@ -4,6 +4,7 @@ import type { FeaturedMovie, LocationSummary, MovieSummary } from '@kinemax/shar
 import { render } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { vi } from 'vitest';
+import { AuthProvider } from '../auth/AuthProvider';
 import { ToastProvider } from '../components/Toast/ToastProvider';
 import { I18nProvider } from '../i18n/I18nProvider';
 import type { Locale } from '../i18n/messages';
@@ -119,9 +120,11 @@ export function renderApp(path = '/', options: { locale?: Locale } = {}) {
   const result = render(
     <I18nProvider {...(options.locale ? { locale: options.locale } : {})}>
       <ToastProvider>
-        <LocationProvider>
-          <RouterProvider router={router} />
-        </LocationProvider>
+        <AuthProvider>
+          <LocationProvider>
+            <RouterProvider router={router} />
+          </LocationProvider>
+        </AuthProvider>
       </ToastProvider>
     </I18nProvider>,
   );

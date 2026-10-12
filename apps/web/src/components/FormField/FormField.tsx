@@ -20,6 +20,8 @@ interface FormFieldProps {
   /** Adds "(optional)" to the label. */
   optional?: boolean;
   className?: string;
+  /** Id of the control (default: generated), e.g. for links from an error summary. */
+  id?: string;
   children: (control: FieldControlProps) => ReactNode;
 }
 
@@ -34,10 +36,12 @@ export function FormField({
   required,
   optional,
   className,
+  id: givenId,
   children,
 }: FormFieldProps) {
   const t = useMessages();
-  const id = useId();
+  const generatedId = useId();
+  const id = givenId ?? generatedId;
   const hintId = hint ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
   const describedBy = [errorId, hintId].filter(Boolean).join(' ') || undefined;

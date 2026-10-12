@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { AuthProvider } from './auth/AuthProvider';
 import { ToastProvider } from './components/Toast/ToastProvider';
 import { I18nProvider } from './i18n/I18nProvider';
 import { LocationProvider } from './location/LocationProvider';
@@ -23,7 +24,6 @@ describe('routes', () => {
     ['/experiences', 'Përvojat'],
     ['/locations', 'Lokacionet'],
     ['/food', 'Ushqimi'],
-    ['/login', 'Hyr'],
   ])('%s is a translated "coming soon" page with its own title', (path, title) => {
     renderApp(path);
     const main = screen.getByRole('main');
@@ -88,9 +88,11 @@ describe('routes', () => {
       render(
         <I18nProvider>
           <ToastProvider>
-            <LocationProvider>
-              <RouterProvider router={router} />
-            </LocationProvider>
+            <AuthProvider>
+              <LocationProvider>
+                <RouterProvider router={router} />
+              </LocationProvider>
+            </AuthProvider>
           </ToastProvider>
         </I18nProvider>,
       );

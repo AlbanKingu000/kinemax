@@ -132,7 +132,13 @@ export function csrfProtection(options: {
         ip: req.ip,
         ...(req.auth ? { userId: req.auth.user.id } : {}),
       });
-      next(new HttpError(403, 'forbidden', 'The request was blocked.'));
+      // A missing or stale token gets its own code, so a client can fetch a new token and retry
+      // once; it reveals nothing a caller without a valid token does not already know.
+      next(
+        reason === 'token'
+          ? new HttpError(403, 'csrf_invalid', 'The request was blocked.')
+          : new HttpError(403, 'forbidden', 'The request was blocked.'),
+      );
       return;
     }
     next();

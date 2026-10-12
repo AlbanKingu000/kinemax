@@ -422,7 +422,7 @@ describe('CSRF and origin checks', () => {
 
     const missing = await patch().expect(403);
     expect(missing.body).toEqual({
-      error: { code: 'forbidden', message: 'The request was blocked.' },
+      error: { code: 'csrf_invalid', message: 'The request was blocked.' },
     });
     await patch().set(CSRF_HEADER, 'abc.def').expect(403);
     await patch().set(CSRF_HEADER, `${client.token}x`).expect(403);
@@ -442,7 +442,9 @@ describe('CSRF and origin checks', () => {
     const patch = () =>
       client.agent.patch('/api/auth/me').set(CSRF_HEADER, client.token).send({ name: 'X' });
 
-    await patch().set('Origin', 'https://evil.example').expect(403);
+    const foreign = await patch().set('Origin', 'https://evil.example').expect(403);
+    // Origin failures are plain forbidden: a client must not retry them.
+    expect((foreign.body as { error: { code: string } }).error.code).toBe('forbidden');
     await patch().set('Origin', 'null').expect(403);
     await patch().expect(403);
     await patch().set('Referer', 'https://evil.example/page').expect(403);
@@ -672,5 +674,20 @@ describe('responses never contain secrets', () => {
     for (const secret of [PASSWORD, 'brand-new-passphrase', token, 'ana@kinemax.test']) {
       expect(logs).not.toContain(secret);
     }
+  });
+});
+
+describe('GET /api/auth/session', () => {
+  it('answers 200 with the user or with null, never 401', async () => {
+    await createUser();
+    const { app } = makeTestApp();
+    const client = await browserClient(app);
+    const anonymous = await client.get('/api/auth/session').expect(200);
+    expect(anonymous.body).toEqual({ user: null });
+    expect(anonymous.headers['cache-control']).toBe('no-store');
+    await login(client);
+    const signedIn = await client.get('/api/auth/session').expect(200);
+    expect((signedIn.body as { user: { email: string } }).user.email).toBe('ana@kinemax.test');
+    expect(JSON.stringify(signedIn.body)).not.toContain('passwordHash');
   });
 });

@@ -191,6 +191,11 @@ export function createAuthRouter(deps: AuthRouterDeps): Router {
     res.status(204).end();
   });
 
+  // For the web app on every page load: signed out is a normal state here, not an error.
+  router.get('/session', async (req, res) => {
+    res.json({ user: req.auth ? await loadAuthUser(prisma, req.auth.user.id) : null });
+  });
+
   router.get('/me', requireAuth, async (req, res) => {
     res.json({ user: await loadAuthUser(prisma, req.auth?.user.id ?? '') });
   });

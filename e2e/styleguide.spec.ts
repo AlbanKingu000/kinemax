@@ -33,6 +33,9 @@ async function expectNoAxeViolations(page: Page, include?: string) {
 }
 
 test('the styleguide has no axe violations in Albanian and English', async ({ page }) => {
+  // Two full scans of the whole styleguide (every component and page part, now including the shell,
+  // home, showtimes and auth demos) under parallel load: the real work exceeds the default 30 s.
+  test.setTimeout(60_000);
   const problems = collectProblems(page);
   await page.goto('/styleguide');
   await expect(page.getByRole('heading', { level: 1, name: 'Udhëzuesi i stilit' })).toBeVisible();

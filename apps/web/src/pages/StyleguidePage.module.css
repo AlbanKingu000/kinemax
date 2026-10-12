@@ -687,3 +687,9 @@
 .dialogExtra {
   margin-top: var(--space-4);
 }
+
+.authDemo {
+  display: grid;
+  gap: var(--space-5);
+  max-width: 28rem;
+}

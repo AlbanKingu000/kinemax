@@ -14,6 +14,7 @@ request/response schemas in `packages/shared/src/auth.ts`.
 | POST   | `/login`           | -       | email, password; signs in (new session)                                     |
 | POST   | `/logout`          | -       | deletes the current session (idempotent)                                    |
 | POST   | `/logout-all`      | session | deletes every session of the user                                           |
+| GET    | `/session`         | -       | `{ user }` or `{ user: null }` (200 either way; the web app uses it)        |
 | GET    | `/me`              | session | id, name, email, role, preferredLocale, managedLocationIds (never the hash) |
 | PATCH  | `/me`              | session | name and/or preferredLocale only                                            |
 | POST   | `/change-password` | session | currentPassword, newPassword; rotates this session, revokes all others      |
@@ -48,8 +49,10 @@ Example protected routes: `GET /api/admin/ping` (SUPER_ADMIN) and
 
 ## CSRF
 
-Every POST/PUT/PATCH/DELETE under `/api` needs both checks; otherwise 403 `forbidden`
-("The request was blocked."):
+Every POST/PUT/PATCH/DELETE under `/api` needs both checks; otherwise 403 ("The request was
+blocked."): `forbidden` for a failed Origin check, `csrf_invalid` for a missing, stale or forged
+token. Only `csrf_invalid` may be retried, once, after fetching a new token from `GET /api/auth/csrf`
+(the web app does this in its one fetch wrapper, `apps/web/src/api/http.ts`):
 
 1. **Origin**: the `Origin` header (or the `Referer`'s origin when Origin is missing) must be
    `APP_ORIGIN` or one of `CORS_ALLOWED_ORIGINS`. Missing, `null` or foreign origins fail.

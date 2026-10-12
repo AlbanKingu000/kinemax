@@ -121,6 +121,7 @@ const sq = {
     next: 'Më tej',
   },
   forms: {
+    passwordAndErrors: 'Fjalëkalimi dhe përmbledhja e gabimeve',
     email: 'Email-i',
     emailHint: 'Biletat do të dërgohen në këtë adresë.',
     emailPlaceholder: 'emri@shembull.test',
@@ -395,6 +396,7 @@ const en: StyleguideMessages = {
     next: 'Next',
   },
   forms: {
+    passwordAndErrors: 'Password and error summary',
     email: 'Email',
     emailHint: 'Your tickets will be sent to this address.',
     emailPlaceholder: 'name@example.test',

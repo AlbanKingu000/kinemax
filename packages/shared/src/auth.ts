@@ -83,6 +83,10 @@ export const authSessionResponseSchema = z
 export type AuthSessionResponse = z.infer<typeof authSessionResponseSchema>;
 
 export const meResponseSchema = z.object({ user: authUserSchema }).strict();
+
+/** `GET /api/auth/session`: like /me, but 200 with `user: null` when signed out (no 401 noise). */
+export const sessionResponseSchema = z.object({ user: authUserSchema.nullable() }).strict();
+export type SessionResponse = z.infer<typeof sessionResponseSchema>;
 export type MeResponse = z.infer<typeof meResponseSchema>;
 
 /** Header carrying the CSRF token on every state-changing request. */

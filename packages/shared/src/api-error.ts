@@ -7,6 +7,8 @@ export const apiErrorCodeSchema = z.enum([
   'unauthorized',
   'invalid_credentials',
   'forbidden',
+  /** Missing or stale CSRF token: fetch a new one from GET /api/auth/csrf and retry once. */
+  'csrf_invalid',
   'not_found',
   'conflict',
   'payload_too_large',

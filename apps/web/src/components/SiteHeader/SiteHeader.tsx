@@ -7,6 +7,10 @@ import { Container } from '../Layout/Layout';
 import { LocationButton } from '../LocationPicker/LocationButton';
 import { Logo } from '../Logo/Logo';
 import { Modal } from '../Modal/Modal';
+import { useAuth } from '../../auth/auth-context';
+import { firstName } from '../../auth/helpers';
+import { useSignOut } from '../../auth/use-sign-out';
+import { AccountMenu } from './AccountMenu';
 import { BUY_TICKET_PATH, NAV_ITEMS } from './nav-items';
 import styles from './SiteHeader.module.css';
 
@@ -61,9 +65,7 @@ export function SiteHeader({ transparentAtTop = false }: SiteHeaderProps) {
           <div className={styles.desktopOnly}>
             <LocationButton />
             <LanguageSwitch />
-            <NavLink to="/login" className={styles.login}>
-              {t.nav.login}
-            </NavLink>
+            <AccountMenu />
           </div>
           <ButtonLink to={BUY_TICKET_PATH} icon="ticket" size="sm" className={styles.cta}>
             {t.nav.buyTicket}
@@ -97,9 +99,7 @@ export function SiteHeader({ transparentAtTop = false }: SiteHeaderProps) {
           <div className={styles.drawerControls}>
             <LocationButton block />
             <LanguageSwitch />
-            <NavLink to="/login" className={styles.login} onClick={closeMenu}>
-              {t.nav.login}
-            </NavLink>
+            <DrawerAccount onDone={closeMenu} />
             <ButtonLink to={BUY_TICKET_PATH} icon="ticket" onClick={closeMenu}>
               {t.nav.buyTicket}
             </ButtonLink>
@@ -107,5 +107,37 @@ export function SiteHeader({ transparentAtTop = false }: SiteHeaderProps) {
         </div>
       </Modal>
     </header>
+  );
+}
+
+/** Account links inside the drawer: "Hyr", or "Llogaria ime" and "Dil" with the first name. */
+function DrawerAccount({ onDone }: { onDone: () => void }) {
+  const t = useMessages();
+  const { status, user } = useAuth();
+  const signOut = useSignOut();
+  if (status !== 'authenticated' || !user) {
+    return (
+      <NavLink to="/login" className={styles.login} onClick={onDone}>
+        {t.nav.login}
+      </NavLink>
+    );
+  }
+  return (
+    <div className={styles.drawerAccount}>
+      <NavLink to="/account" className={styles.login} onClick={onDone}>
+        {t.account.myAccount} · {firstName(user.name)}
+      </NavLink>
+      <Button
+        variant="ghost"
+        size="sm"
+        icon="logout"
+        onClick={() => {
+          onDone();
+          void signOut();
+        }}
+      >
+        {t.account.logout}
+      </Button>
+    </div>
   );
 }

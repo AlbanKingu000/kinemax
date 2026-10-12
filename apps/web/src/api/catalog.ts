@@ -14,23 +14,12 @@ import {
   type ShowtimesResponse,
 } from '@kinemax/shared';
 import type { ZodType } from 'zod';
+import { apiRequest } from './http';
 
-/** Thrown for non-2xx answers; the UI shows a generic, translated error. */
-export class ApiRequestError extends Error {
-  override name = 'ApiRequestError';
-  constructor(readonly status: number) {
-    super(`API request failed with status ${String(status)}`);
-  }
-}
+export { ApiRequestError } from './http';
 
-async function getJson<T>(path: string, schema: ZodType<T>, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(path, {
-    headers: { Accept: 'application/json' },
-    ...(signal ? { signal } : {}),
-  });
-  if (!response.ok) throw new ApiRequestError(response.status);
-  return schema.parse(await response.json());
-}
+const getJson = <T>(path: string, schema: ZodType<T>, signal?: AbortSignal): Promise<T> =>
+  apiRequest(path, { schema, ...(signal ? { signal } : {}) });
 
 const withLocation = (params: Record<string, string>, location?: string) =>
   new URLSearchParams(location ? { ...params, location } : params).toString();

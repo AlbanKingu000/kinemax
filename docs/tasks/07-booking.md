@@ -7,19 +7,36 @@ tick items as they are finished.
 
 (Decisions taken without asking, with the safest reasonable option. Newest last.)
 
+1. **A1, CSRF error code.** The API answered every CSRF failure with 403 `forbidden`, so the client
+   could not tell a stale token from a real "not allowed". A failed token check now answers 403
+   `csrf_invalid` (a failed Origin check stays `forbidden`). The client retries once only on
+   `csrf_invalid`. It reveals nothing a caller without a valid token does not already know.
+2. **A1, session endpoint.** `GET /api/auth/me` answers 401 for visitors, and browsers log every
+   401 as a console error on each page load. The web app now loads the user from a new
+   `GET /api/auth/session` (200 with `{ user }` or `{ user: null }`, `no-store`). `/me` keeps its
+   401 contract. It returns exactly what /me returns for the same session.
+3. **A2, password field.** The show/hide toggle is a separate button with `aria-pressed`; the field
+   turns off autocapitalize/autocorrect/spellcheck. Pasting stays allowed.
+4. **A6, language saving.** Changes are saved 800 ms after the last click (one PATCH for several
+   clicks); failures are silent, the UI keeps the chosen language.
+5. **A8, e2e timeouts.** The full auth journey (register, 3 logins, password change: argon2 on
+   every step, plus 3 axe scans) and the styleguide axe test (the styleguide grew a lot) get 60 s
+   instead of 30 s, each with a comment. To stay under the register rate limit (5 per hour per IP
+   for the whole run), the foreign `?next=` checks run inside the same journey.
+
 ## Checklist
 
 ### Part A: Login, register and account UI
 
-- [ ] A1 Auth client (provider, shared fetch wrapper with CSRF, retry once on CSRF 403, 429)
-- [ ] A2 /login and /register forms
-- [ ] A3 Safe `?next=` handling
-- [ ] A4 /account (protected)
-- [ ] A5 Header and drawer account menu
-- [ ] A6 preferredLocale after login, save SQ/EN changes (debounced, silent)
-- [ ] A7 Accessibility (error summary, aria-describedby, aria-live, no double submit)
-- [ ] A8 Tests (unit + e2e + axe)
-- [ ] Part A: verify + Chrome check + screenshots + commit
+- [x] A1 Auth client (provider, shared fetch wrapper with CSRF, retry once on CSRF 403, 429)
+- [x] A2 /login and /register forms
+- [x] A3 Safe `?next=` handling
+- [x] A4 /account (protected)
+- [x] A5 Header and drawer account menu
+- [x] A6 preferredLocale after login, save SQ/EN changes (debounced, silent)
+- [x] A7 Accessibility (error summary, aria-describedby, aria-live, no double submit)
+- [x] A8 Tests (unit + e2e + axe)
+- [x] Part A: verify + Chrome check + screenshots + commit
 
 ### Part B: 3D + 2D seat selection with "view from this seat"
 

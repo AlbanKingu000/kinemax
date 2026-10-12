@@ -16,6 +16,7 @@ import { RadioGroup } from '../components/Choice/Radio';
 import { Switch } from '../components/Choice/Switch';
 import { ChooseCinema } from '../components/ChooseCinema/ChooseCinema';
 import { Chip } from '../components/Chip/Chip';
+import { ErrorSummary } from '../components/ErrorSummary/ErrorSummary';
 import { DayTabs } from '../components/DayTabs/DayTabs';
 import { EmptyState } from '../components/EmptyState/EmptyState';
 import { FeaturedHero } from '../components/FeaturedHero/FeaturedHero';
@@ -32,6 +33,7 @@ import { Logo } from '../components/Logo/Logo';
 import { Modal } from '../components/Modal/Modal';
 import { MovieCard } from '../components/MovieCard/MovieCard';
 import { MovieRail } from '../components/MovieRail/MovieRail';
+import { PasswordInput } from '../components/PasswordInput/PasswordInput';
 import { Select } from '../components/Select/Select';
 import { ShowtimeGroups } from '../components/ShowtimeGroups/ShowtimeGroups';
 import { SiteFooter } from '../components/SiteFooter/SiteFooter';
@@ -713,6 +715,33 @@ export function StyleguidePage() {
                   </div>
                 </Sub>
               </div>
+              <Sub title={s.forms.passwordAndErrors}>
+                <div className={styles.authDemo}>
+                  <ErrorSummary
+                    title={t.auth.errorSummary}
+                    errors={[
+                      { fieldId: 'demo-password', message: t.auth.errors.tooShort(10) },
+                      { message: t.auth.errors.invalidCredentials },
+                    ]}
+                    attempt={0}
+                  />
+                  <FormField
+                    label={t.auth.password}
+                    id="demo-password"
+                    hint={t.auth.passwordHint(10)}
+                    error={t.auth.errors.tooShort(10)}
+                    required
+                  >
+                    {(control) => (
+                      <PasswordInput
+                        {...control}
+                        autoComplete="new-password"
+                        defaultValue="kinemax"
+                      />
+                    )}
+                  </FormField>
+                </div>
+              </Sub>
             </Section>
 
             <Section id="navigation" title={s.sections.navigation}>

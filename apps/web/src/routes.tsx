@@ -1,5 +1,9 @@
 import type { RouteObject } from 'react-router';
+import { RequireAuth } from './auth/RequireAuth';
 import { AppShell } from './components/AppShell/AppShell';
+import { AccountPage } from './pages/AccountPage';
+import { LoginPage } from './pages/auth/LoginPage';
+import { RegisterPage } from './pages/auth/RegisterPage';
 import { ComingSoonPage } from './pages/ComingSoonPage';
 import { BookingPage } from './pages/BookingPage';
 import { HomePage } from './pages/HomePage';
@@ -34,7 +38,16 @@ export const routes: RouteObject[] = [
       { path: 'experiences', element: <ComingSoonPage page="experiences" /> },
       { path: 'locations', element: <ComingSoonPage page="locations" /> },
       { path: 'food', element: <ComingSoonPage page="food" /> },
-      { path: 'login', element: <ComingSoonPage page="login" /> },
+      { path: 'login', element: <LoginPage /> },
+      { path: 'register', element: <RegisterPage /> },
+      {
+        path: 'account',
+        element: (
+          <RequireAuth>
+            <AccountPage />
+          </RequireAuth>
+        ),
+      },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
