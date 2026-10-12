@@ -31,11 +31,6 @@ task is finished, move it to DONE with its commit hash.
 
 ## Known open points
 
-- Flaky e2e `e2e/styleguide.spec.ts` "no axe violations": two full axe scans take 16-25 s
-  against the 30 s test timeout, and `page.reload` sometimes fails with `net::ERR_ABORTED`
-  (likely a Vite dev-server reload). It makes `npm run verify` fail intermittently; fix it as its
-  own task before task 1.
-
 - Stale HELD bookings need an automatic cleanup (task 3).
 - Showtime deactivation with sold tickets (task 7).
 - Rate limits need a shared store with multiple API instances (production).

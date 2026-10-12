@@ -19,7 +19,11 @@ function collectProblems(page: Page): string[] {
 }
 
 async function expectNoAxeViolations(page: Page, include?: string) {
-  const builder = new AxeBuilder({ page }).withTags(WCAG_TAGS);
+  // Legacy mode runs axe.run() in the page itself. The default mode opens an extra blank page per
+  // scan for axe.finishRun(), and starting that renderer process alone sometimes takes ~4 s on
+  // Windows, which pushed this spec past its timeout. Same rules and tags; the only difference is
+  // that cross-origin iframes are not scanned, and the app has none.
+  const builder = new AxeBuilder({ page }).withTags(WCAG_TAGS).setLegacyMode();
   if (include) builder.include(include);
   const { violations } = await builder.analyze();
   const summary = violations.map(
