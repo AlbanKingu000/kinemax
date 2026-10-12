@@ -6,7 +6,9 @@ tick items as they are finished.
 ## DECISIONS TO CONFIRM
 
 (Decisions taken without asking, with the safest reasonable option. Newest last. "Confirmed" =
-accepted by the owner on 12 Oct 2026.)
+accepted by the owner on 12 Oct 2026: decisions 1, 2, 5, 6, 7, 8 and 9 below, numbered 1-7 in the
+owner's message. Decision 10 was taken after that and still needs confirmation; it keeps
+`@types/three` 0.186.0 but replaces the confirmed runtime version of decision 6.)
 
 1. **A1, CSRF error code. Confirmed.** The API answered every CSRF failure with 403 `forbidden`,
    so the client could not tell a stale token from a real "not allowed". A failed token check now
@@ -36,12 +38,32 @@ accepted by the owner on 12 Oct 2026.)
    choosing or removing it happens in the overlay ("Zgjidh këtë ulëse" / "Hiqe"), so orbiting the
    hall can never select a seat by accident.
 9. **B1, 410 code. Confirmed.** A new API error code `gone` (410) for shows that already started.
+10. **B3, three.js runtime 0.182.0 (replaces the version part of decision 6).** three r183+
+    prints a console warning ("THREE.Clock … deprecated") because @react-three/fiber 9.8.1 (the
+    latest) still uses `THREE.Clock`, which breaks the clean-console rule. three is therefore
+    0.182.0, forced as the only copy with a root `package.json` `overrides` entry (drei's
+    dependencies had pulled in 0.186 and stats-gl even 0.170: several three runtimes in one bundle
+    would break the 3D view). `@types/three` stays 0.186.0, the single copy maath requires; the
+    0.182 API we use is the same. Audit unchanged (only the documented Prisma CLI exceptions).
+11. **B9, e2e console filter.** In the booking e2e, Chromium's own GL driver diagnostics ("GL Driver
+    Message … GPU stall due to ReadPixels", printed by the headless software renderer) are ignored
+    by the console check; every other warning or error still fails the test.
 
 ## Progress (keep up to date)
 
 - Part A: done, committed `df22271`.
-- Part B: B1 done and tested (API). B2-B8 written (typecheck + lint clean) but not yet tested
-  or checked in Chrome; B9 not done. Nothing of Part B is committed yet.
+- Part B: B1 done and tested (API, `apps/api/test/seatmap.db.test.ts`). B2-B8 (booking page, 3D
+  hall, view from seat, 2D map, selection rules, Vazhdo → login, mobile filter sheet) written
+  (typecheck + lint clean) but not yet tested or checked in Chrome. The 2 old booking-placeholder
+  tests in `BookingPage.test.tsx` fail because that page was replaced. B9 started: a test-only
+  e2e account script (`apps/api/scripts/e2e-account.ts`) and `e2e/booking.spec.ts`, both
+  unfinished. Nothing of Part B is committed yet.
+- Part B remaining, in order: (a) rewrite `BookingPage.test.tsx` + tests for selection rules,
+  sessionStorage restore, polling pause, 2D/WebGL fallback; (b) fixed test-only account in the
+  e2e catalog script (kinemax_test only, behind the `_test` guard) so e2e specs log in instead of
+  registering (register rate limit unchanged); (c) finish `e2e/booking.spec.ts`; (d) the
+  selected-seat colour pair in `CONTRAST_PAIRS`; (e) verify, Chrome check (FPS + draw calls),
+  screenshots, roadmap, commit.
 - Part C: not started.
 
 ## Checklist
@@ -61,14 +83,19 @@ accepted by the owner on 12 Oct 2026.)
 ### Part B: 3D + 2D seat selection with "view from this seat"
 
 - [x] B1 API GET /api/showtimes/:id/seatmap
-- [ ] B2 /booking/:showtimeId layout (summary, 3D/2D toggle, side panel / bottom sheet, polling)
-- [ ] B3 3D hall (three.js, @react-three/fiber, @react-three/drei, lazy chunk)
-- [ ] B4 View from this seat
-- [ ] B5 2D SVG map (keyboard + screen reader)
-- [ ] B6 Client rules (max 10, suites, wheelchair note, sessionStorage)
-- [ ] B7 "Vazhdo" (login redirect keeps the selection)
-- [ ] B8 Schedule page mobile filter sheet
+- [x] B2 /booking/:showtimeId layout (summary, 3D/2D toggle, side panel / bottom sheet, polling)
+- [x] B3 3D hall (three.js, @react-three/fiber, @react-three/drei, lazy chunk)
+- [x] B4 View from this seat
+- [x] B5 2D SVG map (keyboard + screen reader)
+- [x] B6 Client rules (max 10, suites, wheelchair note, sessionStorage)
+- [x] B7 "Vazhdo" (login redirect keeps the selection)
+- [x] B8 Schedule page mobile filter sheet
 - [ ] B9 Tests (API, web, e2e, axe)
+  - [x] B9.0 API seatmap tests
+  - [ ] B9a Web tests (BookingPage rewrite, rules, sessionStorage, polling pause, WebGL fallback)
+  - [ ] B9b Fixed test-only e2e account (kinemax_test only)
+  - [ ] B9c Booking e2e spec
+  - [ ] B9d Selected-seat contrast pair
 - [ ] Part B: verify + Chrome check + screenshots + commit
 
 ### Part C: Seat holds (10 min), ticket categories, server-side prices
