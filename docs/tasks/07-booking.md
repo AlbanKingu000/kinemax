@@ -5,24 +5,44 @@ tick items as they are finished.
 
 ## DECISIONS TO CONFIRM
 
-(Decisions taken without asking, with the safest reasonable option. Newest last.)
+(Decisions taken without asking, with the safest reasonable option. Newest last. "Confirmed" =
+accepted by the owner on 12 Oct 2026.)
 
-1. **A1, CSRF error code.** The API answered every CSRF failure with 403 `forbidden`, so the client
-   could not tell a stale token from a real "not allowed". A failed token check now answers 403
-   `csrf_invalid` (a failed Origin check stays `forbidden`). The client retries once only on
-   `csrf_invalid`. It reveals nothing a caller without a valid token does not already know.
-2. **A1, session endpoint.** `GET /api/auth/me` answers 401 for visitors, and browsers log every
-   401 as a console error on each page load. The web app now loads the user from a new
+1. **A1, CSRF error code. Confirmed.** The API answered every CSRF failure with 403 `forbidden`,
+   so the client could not tell a stale token from a real "not allowed". A failed token check now
+   answers 403 `csrf_invalid` (a failed Origin check stays `forbidden`). The client retries once
+   only on `csrf_invalid`. It reveals nothing a caller without a valid token does not already know.
+2. **A1, session endpoint. Confirmed.** `GET /api/auth/me` answers 401 for visitors, and browsers
+   log every 401 as a console error on each page load. The web app now loads the user from a new
    `GET /api/auth/session` (200 with `{ user }` or `{ user: null }`, `no-store`). `/me` keeps its
    401 contract. It returns exactly what /me returns for the same session.
-3. **A2, password field.** The show/hide toggle is a separate button with `aria-pressed`; the field
-   turns off autocapitalize/autocorrect/spellcheck. Pasting stays allowed.
-4. **A6, language saving.** Changes are saved 800 ms after the last click (one PATCH for several
-   clicks); failures are silent, the UI keeps the chosen language.
-5. **A8, e2e timeouts.** The full auth journey (register, 3 logins, password change: argon2 on
-   every step, plus 3 axe scans) and the styleguide axe test (the styleguide grew a lot) get 60 s
-   instead of 30 s, each with a comment. To stay under the register rate limit (5 per hour per IP
-   for the whole run), the foreign `?next=` checks run inside the same journey.
+3. **A2, password field.** (Part of the reported Part A implementation, not listed separately.)
+   The show/hide toggle is a separate button with `aria-pressed`; the field turns off
+   autocapitalize/autocorrect/spellcheck. Pasting stays allowed.
+4. **A6, language saving.** (Part of the reported Part A implementation, not listed separately.)
+   Changes are saved 800 ms after the last click (one PATCH for several clicks); failures are
+   silent, the UI keeps the chosen language.
+5. **A8, e2e timeouts. Confirmed.** The full auth journey (register, 3 logins, password change:
+   argon2 on every step, plus 3 axe scans) and the styleguide axe test (the styleguide grew a lot)
+   get 60 s instead of 30 s, each with a comment. To stay under the register rate limit (5 per
+   hour per IP for the whole run), the foreign `?next=` checks run inside the same journey.
+6. **B3, three.js version. Confirmed.** three 0.186.0 instead of 0.180, so that only one copy of
+   `@types/three` is installed: drei's dependency `maath` ships `@types/three@0.186.0` as a real
+   dependency, and two copies broke the types.
+7. **B5, 2D map markup. Confirmed.** The 2D map is real HTML buttons placed on a scaled top-down
+   layout (with a CSS screen arc) instead of SVG shapes: native focus, Enter/Space and screen
+   reader behaviour without ARIA workarounds. The layout comes from the same x/y.
+8. **B3/B4, clicking in 3D. Confirmed.** A click on a seat in 3D opens the view from that seat;
+   choosing or removing it happens in the overlay ("Zgjidh këtë ulëse" / "Hiqe"), so orbiting the
+   hall can never select a seat by accident.
+9. **B1, 410 code. Confirmed.** A new API error code `gone` (410) for shows that already started.
+
+## Progress (keep up to date)
+
+- Part A: done, committed `df22271`.
+- Part B: B1 done and tested (API). B2-B8 written (typecheck + lint clean) but not yet tested
+  or checked in Chrome; B9 not done. Nothing of Part B is committed yet.
+- Part C: not started.
 
 ## Checklist
 
@@ -40,7 +60,7 @@ tick items as they are finished.
 
 ### Part B: 3D + 2D seat selection with "view from this seat"
 
-- [ ] B1 API GET /api/showtimes/:id/seatmap
+- [x] B1 API GET /api/showtimes/:id/seatmap
 - [ ] B2 /booking/:showtimeId layout (summary, 3D/2D toggle, side panel / bottom sheet, polling)
 - [ ] B3 3D hall (three.js, @react-three/fiber, @react-three/drei, lazy chunk)
 - [ ] B4 View from this seat
