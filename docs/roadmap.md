@@ -5,20 +5,20 @@ task is finished, move it to DONE with its commit hash.
 
 ## Done
 
-| Task                                                                 | Commit(s)                                             |
-| -------------------------------------------------------------------- | ----------------------------------------------------- |
-| Project foundation (monorepo, native PostgreSQL 18, tooling, verify) | `fbaeb40`                                             |
-| npm audit gate + install-script policy                               | `eda21e6`, `9e0348e`                                  |
-| Domain data model + demo seed (DB-level guarantees G0-G12)           | `711bd5e`                                             |
-| Couple sofas = 2 tickets + 1 surcharge                               | `8febc2b`                                             |
-| Session auth + roles + CSRF + rate limits + error mapping            | `a2d9c58`                                             |
-| Stable KX SQLSTATEs for trigger errors                               | `07ad010`                                             |
-| Brand (logo C, KX monogram) + design system + /styleguide            | `d57fe80`                                             |
-| App shell + location picker + home page + public read API            | `9bce45f`                                             |
-| Movie detail page + schedule page + booking placeholder              | `3b42f27`                                             |
-| Login, register and account UI (task 07 part A)                      | `df22271`                                             |
-| 3D + 2D seat selection with view from seat (task 07 part B)          | `d82cf0c`                                             |
-| Seat holds, ticket categories, server-side prices (task 07 part C)   | `feat: seat holds, ticket categories …` (this commit) |
+| Task                                                                 | Commit(s)            |
+| -------------------------------------------------------------------- | -------------------- |
+| Project foundation (monorepo, native PostgreSQL 18, tooling, verify) | `fbaeb40`            |
+| npm audit gate + install-script policy                               | `eda21e6`, `9e0348e` |
+| Domain data model + demo seed (DB-level guarantees G0-G12)           | `711bd5e`            |
+| Couple sofas = 2 tickets + 1 surcharge                               | `8febc2b`            |
+| Session auth + roles + CSRF + rate limits + error mapping            | `a2d9c58`            |
+| Stable KX SQLSTATEs for trigger errors                               | `07ad010`            |
+| Brand (logo C, KX monogram) + design system + /styleguide            | `d57fe80`            |
+| App shell + location picker + home page + public read API            | `9bce45f`            |
+| Movie detail page + schedule page + booking placeholder              | `3b42f27`            |
+| Login, register and account UI (task 07 part A)                      | `df22271`            |
+| 3D + 2D seat selection with view from seat (task 07 part B)          | `d82cf0c`            |
+| Seat holds, ticket categories, server-side prices (task 07 part C)   | `c7ecc24`            |
 
 ## Next (in this order)
 
