@@ -1,12 +1,12 @@
 import type { PricingRules } from '../domain/pricing.js';
-import type { PrismaClient } from '../generated/prisma/client.js';
+import type { Prisma, PrismaClient } from '../generated/prisma/client.js';
 
 /**
  * Loads the active price rules the pricing function needs for some halls of one location.
  * Validity windows (validFrom/validTo) are applied by the pricing function itself, at `pricedAt`.
  */
 export async function loadPricingRules(
-  prisma: PrismaClient,
+  prisma: PrismaClient | Prisma.TransactionClient,
   scope: { locationId: string; hallIds: readonly string[]; ticketCategoryIds: readonly string[] },
 ): Promise<PricingRules> {
   const locationRule = { OR: [{ locationId: null }, { locationId: scope.locationId }] };

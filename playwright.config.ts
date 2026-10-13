@@ -8,11 +8,15 @@ loadDotEnv(rootEnvPath);
 const testDatabaseUrl = assertTestDatabaseUrl(process.env.DATABASE_URL_TEST);
 
 const isCI = Boolean(process.env.CI);
+const EXPIRY_SPEC = /booking-expiry.spec.ts$/;
 
 export default defineConfig({
   testDir: 'e2e',
   fullyParallel: true,
   forbidOnly: isCI,
+  // Production builds, software WebGL and argon2 logins run in parallel workers: under that load
+  // a UI step can take longer than the default 5 s.
+  expect: { timeout: 10_000 },
   retries: isCI ? 2 : 0,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
@@ -20,10 +24,22 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   projects: [
-    { name: 'desktop-chromium', use: { ...devices['Desktop Chrome'] } },
+    {
+      name: 'desktop-chromium',
+      testIgnore: EXPIRY_SPEC,
+      use: { ...devices['Desktop Chrome'] },
+    },
     {
       name: 'mobile-chromium',
+      testIgnore: EXPIRY_SPEC,
       use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 }, isMobile: true },
+    },
+    {
+      // Shortens the hold time for the whole test database, so it runs alone after the others.
+      name: 'hold-expiry',
+      testMatch: EXPIRY_SPEC,
+      dependencies: ['desktop-chromium', 'mobile-chromium'],
+      use: { ...devices['Desktop Chrome'] },
     },
   ],
   webServer: [

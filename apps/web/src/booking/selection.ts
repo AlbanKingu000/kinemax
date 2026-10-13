@@ -1,8 +1,8 @@
 // Seat selection rules in the browser (the server re-checks everything when the seats are held).
-import type { SeatMapSeat } from '@kinemax/shared';
+import { MAX_TICKETS_PER_BOOKING, type SeatMapSeat } from '@kinemax/shared';
 
-/** At most this many tickets per booking; a COUPLE sofa counts as two. */
-export const MAX_TICKETS = 10;
+/** At most this many tickets per booking; a COUPLE sofa counts as two (the server's limit). */
+export const MAX_TICKETS = MAX_TICKETS_PER_BOOKING;
 
 export const ticketsOf = (seat: Pick<SeatMapSeat, 'type'>): number =>
   seat.type === 'COUPLE' ? 2 : 1;

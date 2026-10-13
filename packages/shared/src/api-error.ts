@@ -37,6 +37,8 @@ export const apiErrorResponseSchema = z.object({
     code: apiErrorCodeSchema,
     message: z.string(),
     fields: z.array(apiFieldIssueSchema).optional(),
+    /** Seat hold conflicts (409): the requested seats someone else holds now. */
+    takenSeatIds: z.array(z.uuid()).optional(),
   }),
 });
 

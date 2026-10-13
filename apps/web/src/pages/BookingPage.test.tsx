@@ -5,7 +5,14 @@ import { SEATMAP_REFRESH_MS } from '../booking/use-seat-map';
 import { LOCATION_STORAGE_KEY } from '../location/location-storage';
 import { stubAuth, testUser } from '../test/auth';
 import { renderApp } from '../test/catalog';
-import { seat, SHOWTIME_ID, standardMap, SUITE_SHOWTIME_ID, suiteMap } from '../test/seatmap';
+import {
+  heldBooking,
+  seat,
+  SHOWTIME_ID,
+  standardMap,
+  SUITE_SHOWTIME_ID,
+  suiteMap,
+} from '../test/seatmap';
 
 // three.js does not run in jsdom: a stand-in that shows which seat the camera looks from.
 vi.mock('../booking/Hall3D', () => ({
@@ -39,6 +46,8 @@ function withWebGL(desktop: boolean) {
   );
 }
 
+// Opening the tickets step waits for the session, the seat map and the hold (slow under coverage).
+const STEP_WAIT = { timeout: 5_000 };
 const seatButton = (name: RegExp) => screen.getByRole('button', { name });
 const map = () => screen.getByRole('group', { name: 'Ulëset në Salla 1' });
 
@@ -138,20 +147,38 @@ describe('BookingPage: seat map', () => {
       ...first,
       seats: first.seats.map((s) => (s.id === a2?.id ? { ...s, status: 'TAKEN' as const } : s)),
     };
-    stubAuth(testUser(), { seatmap: { [SHOWTIME_ID]: later } });
-    renderApp(`/booking/${SHOWTIME_ID}`);
+    let held = false;
+    const fake = stubAuth(testUser(), {
+      seatmap: { [SHOWTIME_ID]: later },
+      bookings: ({ method, path }) => {
+        const booking = heldBooking(later, [a1?.id ?? '']);
+        if (method === 'POST' && path === '/api/bookings/hold') {
+          held = true;
+          return { status: 201, body: { booking } };
+        }
+        return { booking: held ? booking : null };
+      },
+    });
+    const app = renderApp(`/booking/${SHOWTIME_ID}`);
     expect(await screen.findByRole('button', { name: /^Rreshti A, ulësja 1,/ })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
     expect(seatButton(/^Rreshti A, ulësja 2,/)).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByText(/u zu ndërkohë dhe u hoq/)).toBeInTheDocument();
-    expect(a1).toBeDefined();
-    // Signed in: Vazhdo explains the next step (part C).
+    // Signed in: Vazhdo holds the remaining seat on the server and opens the tickets step.
     fireEvent.click(
       within(screen.getByRole('complementary')).getByRole('button', { name: 'Vazhdo' }),
     );
-    expect(screen.getByText(/Hapi tjetër/)).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Biletat' }, STEP_WAIT),
+    ).toBeInTheDocument();
+    expect(app.router.state.location.pathname).toBe(`/booking/${SHOWTIME_ID}/tickets`);
+    expect(fake.requests).toContainEqual({
+      method: 'POST',
+      path: '/api/bookings/hold',
+      body: { showtimeId: SHOWTIME_ID, seatIds: [a1?.id] },
+    });
   });
 
   it('refreshes every 20 s while visible, pauses when hidden, and unselects seats taken meanwhile', async () => {

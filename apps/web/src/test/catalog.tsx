@@ -72,23 +72,29 @@ export interface CatalogStub {
   showtime?: Record<string, Answer>;
   /** /api/showtimes/:id/seatmap by id: a body, or a function called on every request. */
   seatmap?: Record<string, unknown>;
+  /** /api/bookings/*: answers by method and path (needs stubAuth, which sees the method). */
+  bookings?: (request: { method: string; path: string; body: unknown }) => Answer;
 }
 
 const isStatus = (value: unknown): value is { status: number; body: unknown } =>
   typeof value === 'object' && value !== null && 'status' in value && 'body' in value;
 
+/** A fetch Response for an Answer (undefined = 404, 204 = empty). */
+export function respond(value: Answer): Promise<Response> {
+  if (value instanceof Error) return Promise.reject(value);
+  const { status, body } = isStatus(value) ? value : { status: 200, body: value };
+  if (status === 204) return Promise.resolve(new Response(null, { status }));
+  return Promise.resolve(
+    new Response(JSON.stringify(body ?? { error: { code: 'not_found', message: 'x' } }), {
+      status: body === undefined ? 404 : status,
+      headers: { 'Content-Type': 'application/json' },
+    }),
+  );
+}
+
 /** Stubs fetch for the public catalog API. Unknown URLs answer 404. */
 export function stubCatalog(stub: CatalogStub = {}) {
-  const answer = (value: Answer) => {
-    if (value instanceof Error) return Promise.reject(value);
-    const { status, body } = isStatus(value) ? value : { status: 200, body: value };
-    return Promise.resolve(
-      new Response(JSON.stringify(body ?? { error: { code: 'not_found', message: 'x' } }), {
-        status: body === undefined ? 404 : status,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    );
-  };
+  const answer = respond;
   const fetchMock = vi.fn((input: RequestInfo | URL) => {
     const url = new URL(urlOf(input), 'http://localhost');
     const slug = url.searchParams.get('location') ?? '';

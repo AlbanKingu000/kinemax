@@ -91,7 +91,9 @@ test('register → header → logout → login → account edits → password �
   await page.getByLabel(/^Current password/).fill(PASSWORD);
   await page.getByLabel(/^New password/).fill(NEW_PASSWORD);
   await page.getByRole('button', { name: 'Change password' }).click();
-  await expect(page.getByText(/Your password was changed/)).toBeVisible();
+  // Verifies the old and hashes the new password (argon2) while other workers render WebGL in
+  // software: under full e2e load this can take longer than the default 5 s.
+  await expect(page.getByText(/Your password was changed/)).toBeVisible({ timeout: 15_000 });
 
   await page.getByRole('button', { name: 'Sign out on all devices' }).click();
   await expect(page).toHaveURL(/\/$/);

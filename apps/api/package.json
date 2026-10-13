@@ -18,7 +18,8 @@
     "db:studio": "prisma studio",
     "db:reset": "tsx scripts/db-reset.ts",
     "db:seed": "prisma db seed",
-    "e2e:catalog": "tsx scripts/e2e-catalog.ts"
+    "e2e:catalog": "tsx scripts/e2e-catalog.ts",
+    "e2e:hold-minutes": "tsx scripts/e2e-hold-minutes.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.0",

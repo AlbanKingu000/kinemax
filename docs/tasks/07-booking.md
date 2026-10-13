@@ -63,6 +63,35 @@ owner's message. Decision 10 was taken after that and still needs confirmation; 
     check (3D, click seat → view from seat → select in overlay → panel) was done with Claude in
     Chrome; screenshots, FPS and draw calls were taken by a Playwright script driving the installed
     Google Chrome (`channel: 'chrome'`, headed, GPU) against the dev server.
+15. **C1, hold conflicts.** A 409 for taken seats carries `takenSeatIds` (new optional field of
+    the shared error body; only ids the caller asked for, never who holds them). A lost race
+    (unique violation at insert) answers the same way. A failed hold rolls back completely, so the
+    user's previous hold stays. A new hold releases the user's previous hold on any show. Holds are
+    rate limited to 30 per user and 120 per IP per 10 minutes (in memory, like the auth limits).
+16. **C2/C7, resume endpoint.** Resuming a hold needs to find it: `GET /api/bookings/current`
+    (200 with the user's live hold or `{ booking: null }`), so nothing lives in browser storage.
+    The step is the route `/booking/:showtimeId/tickets` (signed in only). Bookings carry
+    `serverNow`, so the countdown follows the server clock, not the device clock.
+17. **C3, status codes.** Changing tickets of an expired hold (or a show that started) answers 410
+    `gone`; of a cancelled/confirmed booking 409 `conflict`; a wrong ticket set (a sofa with one
+    ticket, unknown seats or categories) 422; unknown fields such as prices 400 (strict schemas).
+18. **C6, age confirmation.** Stored only for 15+/18+ films (false otherwise), sent with the
+    ticket categories (also for suites, which have no tickets). The UI blocks "Vazhdo" without it;
+    the payment step (task 3) must refuse an unconfirmed 15+/18+ booking on the server.
+19. **C8, e2e accounts and expiry.** One fixed test account per Playwright project (a user has one
+    hold, so parallel projects must not share). The expiry test runs in its own project
+    (`hold-expiry`) after the others, sets `AppSettings.seatHoldMinutes` to 1 (the database minimum,
+    G7 unchanged) with the test-only script `e2e-hold-minutes.ts` (kinemax_test guard) and restores
+    10 afterwards; it waits about a minute.
+20. **C8, auth-ui e2e timeout.** With the new booking specs the e2e run is heavier (software WebGL
+    - more argon2 logins) and the password change in the Part A journey once needed more than the
+      default 5 s; that one assertion now waits up to 15 s (comment in the test). A later verify run
+      also timed out once on a login and on the cold Vite compile of /styleguide, so the Playwright
+      per-assertion timeout is now 10 s for the whole run (`expect.timeout` in
+      `playwright.config.ts`, with a comment). No assertion was removed or loosened otherwise.
+21. **C7, styleguide.** The "Biletat" step is a page step built only from existing styleguide
+    components (FormField, Select, Checkbox, Button, EmptyState), so it is not added to
+    /styleguide; its states are covered by unit tests and screenshots.
 
 ## Progress (keep up to date)
 
@@ -77,7 +106,14 @@ owner's message. Decision 10 was taken after that and still needs confirmation; 
   Suite 26; 3D chunk 917 kB (247 kB gzip); console clean; no horizontal overflow at 390 px.
   Screenshots: `booking-3d-*-desktop.png`, `booking-view-from-seat-*-desktop.png`,
   `booking-2d-mobile-390*.png`, `schedule-filter-sheet-mobile-390.png`.
-- Part C: not started.
+- Part B commit: `d82cf0c`.
+- Part C: API (hold/current/get/tickets/release + stale-hold cleanup job, 16 integration tests incl.
+  a 5-way race), "Biletat" step (countdown on server time, categories, live server totals, age
+  confirmation, resume, change seats, expiry), web tests and e2e (journey on desktop + 390 px,
+  1-minute expiry project). Chrome check against the dev server (seed customer): desktop + 390 px,
+  console clean, no overflow; screenshots `booking-tickets-desktop.png`,
+  `booking-tickets-mobile-390.png`. Committed as "feat: seat holds, ticket categories and
+  server-side pricing" (hash in docs/roadmap.md).
 
 ## Checklist
 
@@ -113,19 +149,19 @@ owner's message. Decision 10 was taken after that and still needs confirmation; 
 
 ### Part C: Seat holds (10 min), ticket categories, server-side prices
 
-- [ ] C1 POST /api/bookings/hold
-- [ ] C2 GET /api/bookings/:id
-- [ ] C3 PUT /api/bookings/:id/tickets
-- [ ] C4 DELETE /api/bookings/:id/hold
-- [ ] C5 Background cleanup of stale holds
-- [ ] C6 Age confirmation
-- [ ] C7 UI step "Biletat" (countdown, categories, totals, resume)
-- [ ] C8 Tests (concurrency, ownership, prices, expiry, e2e)
-- [ ] Part C: verify + Chrome check + screenshots + commit
+- [x] C1 POST /api/bookings/hold
+- [x] C2 GET /api/bookings/:id
+- [x] C3 PUT /api/bookings/:id/tickets
+- [x] C4 DELETE /api/bookings/:id/hold
+- [x] C5 Background cleanup of stale holds
+- [x] C6 Age confirmation
+- [x] C7 UI step "Biletat" (countdown, categories, totals, resume)
+- [x] C8 Tests (concurrency, ownership, prices, expiry, e2e)
+- [x] Part C: verify + Chrome check + screenshots + commit
 
 ### Final
 
-- [ ] Roadmap updated (DONE with hashes; next: food & drinks, then demo payment), all boxes ticked,
+- [x] Roadmap updated (DONE with hashes; next: food & drinks, then demo payment), all boxes ticked,
       final report
 
 ## The task (as given)

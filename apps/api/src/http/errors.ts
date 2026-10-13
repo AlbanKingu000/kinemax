@@ -17,7 +17,11 @@ export class HttpError extends Error {
     readonly status: number,
     readonly code: ApiErrorCode,
     message: string,
-    readonly options: { fields?: ApiFieldIssue[]; headers?: Record<string, string> } = {},
+    readonly options: {
+      fields?: ApiFieldIssue[];
+      headers?: Record<string, string>;
+      takenSeatIds?: string[];
+    } = {},
   ) {
     super(message);
   }
@@ -30,8 +34,16 @@ export function errorBody(
   code: ApiErrorCode,
   message: string,
   fields?: ApiFieldIssue[],
+  takenSeatIds?: string[],
 ): ApiErrorResponse {
-  return { error: { code, message, ...(fields ? { fields } : {}) } };
+  return {
+    error: {
+      code,
+      message,
+      ...(fields ? { fields } : {}),
+      ...(takenSeatIds ? { takenSeatIds } : {}),
+    },
+  };
 }
 
 /**
@@ -68,7 +80,11 @@ export function createErrorHandler(logger: Logger): ErrorRequestHandler {
 
     if (error instanceof HttpError) {
       for (const [name, value] of Object.entries(error.options.headers ?? {})) res.set(name, value);
-      res.status(error.status).json(errorBody(error.code, error.message, error.options.fields));
+      res
+        .status(error.status)
+        .json(
+          errorBody(error.code, error.message, error.options.fields, error.options.takenSeatIds),
+        );
       return;
     }
 

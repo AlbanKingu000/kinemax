@@ -1,8 +1,14 @@
-import type { SeatMapResponse, SeatMapSeat } from '@kinemax/shared';
+import {
+  bookingResponseSchema,
+  currentBookingResponseSchema,
+  type SeatMapResponse,
+  type SeatMapSeat,
+} from '@kinemax/shared';
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { ApiRequestError } from '../api/http';
+import { ApiRequestError, apiRequest } from '../api/http';
 import { useAuth } from '../auth/auth-context';
+import { authErrorMessage } from '../auth/auth-errors';
 import { loginPath } from '../auth/next-path';
 import {
   keepAvailable,
@@ -13,6 +19,7 @@ import {
   MAX_TICKETS,
 } from '../booking/selection';
 import { SeatMap2D } from '../booking/SeatMap2D';
+import { TicketsStep } from '../booking/TicketsStep';
 import { canRender3D, useSeatMap } from '../booking/use-seat-map';
 import { AgeBadge, FormatBadge, LanguageBadge } from '../components/Badge/Badge';
 import { Button, ButtonLink } from '../components/Button/Button';
@@ -29,14 +36,51 @@ import styles from './BookingPage.module.css';
 // The 3D hall is a separate chunk: three.js only loads on this page, and only when 3D is shown.
 const Hall3D = lazy(() => import('../booking/Hall3D'));
 
-/** Seat selection for one show: 3D hall or 2D map, a summary panel and "Vazhdo". */
-export function BookingPage() {
+/**
+ * Booking one show. Step "seats": 3D hall or 2D map, a summary panel and "Vazhdo". Step "tickets":
+ * the held seats with ticket categories and server prices (signed in only).
+ */
+export function BookingPage({ step = 'seats' }: { step?: 'seats' | 'tickets' }) {
   const t = useMessages();
   const { showtimeId = '' } = useParams();
+  const { status } = useAuth();
+  const navigate = useNavigate();
   const seatMap = useSeatMap(showtimeId);
-  usePageMeta(`${t.seats.title} · ${t.meta.titleSuffix}`, t.booking.seatsSoonBody);
+  usePageMeta(
+    `${step === 'tickets' ? t.tickets.title : t.seats.title} · ${t.meta.titleSuffix}`,
+    t.booking.seatsSoonBody,
+  );
 
-  if (seatMap.status === 'loading') {
+  // Signed in with a live hold for this show: resume it instead of showing the map (the map would
+  // show the user's own held seats as taken).
+  const [resumeChecked, setResumeChecked] = useState<string | null>(null);
+  useEffect(() => {
+    if (step !== 'seats' || status !== 'authenticated') return;
+    const controller = new AbortController();
+    apiRequest('/api/bookings/current', {
+      schema: currentBookingResponseSchema,
+      signal: controller.signal,
+    }).then(
+      ({ booking }) => {
+        if (booking?.showtimeId === showtimeId) {
+          void navigate(`/booking/${showtimeId}/tickets`, { replace: true });
+        } else {
+          setResumeChecked(showtimeId);
+        }
+      },
+      () => {
+        if (!controller.signal.aborted) setResumeChecked(showtimeId);
+      },
+    );
+    return () => {
+      controller.abort();
+    };
+  }, [step, status, showtimeId, navigate]);
+  const checking =
+    step === 'seats' &&
+    (status === 'loading' || (status === 'authenticated' && resumeChecked !== showtimeId));
+
+  if (seatMap.status === 'loading' || (seatMap.status === 'ready' && checking)) {
     return (
       <Container className={styles.page}>
         <div aria-busy="true">
@@ -78,10 +122,45 @@ export function BookingPage() {
       </Container>
     );
   }
-  return <SeatSelection map={seatMap.data} />;
+  return (
+    <Container className={styles.page}>
+      <ShowSummary map={seatMap.data} />
+      {step === 'tickets' ? (
+        <TicketsStep map={seatMap.data} />
+      ) : (
+        <SeatSelection map={seatMap.data} onRefresh={seatMap.refresh} />
+      )}
+    </Container>
+  );
 }
 
-function SeatSelection({ map }: { map: SeatMapResponse }) {
+function ShowSummary({ map }: { map: SeatMapResponse }) {
+  const t = useMessages();
+  const { locale } = useLocale();
+  return (
+    <header className={styles.summary}>
+      {map.movie.posterPath && (
+        <img className={styles.poster} src={map.movie.posterPath} alt="" width={600} height={900} />
+      )}
+      <div className={styles.summaryText}>
+        <h1 className={styles.title}>{pickText(locale, map.movie.titleSq, map.movie.titleEn)}</h1>
+        <div className={styles.badges}>
+          <AgeBadge rating={map.movie.ageRating} />
+          <FormatBadge format={map.showtime.format} />
+          <LanguageBadge version={map.showtime.languageVersion} />
+        </div>
+        <p className={styles.meta}>
+          {map.location.name} · {map.hall.name} (
+          {pickText(locale, map.hall.hallType.nameSq, map.hall.hallType.nameEn)})
+          <br />
+          {formatLongDate(locale, t, map.showtime.date)} · {map.showtime.startTime}
+        </p>
+      </div>
+    </header>
+  );
+}
+
+function SeatSelection({ map, onRefresh }: { map: SeatMapResponse; onRefresh: () => void }) {
   const t = useMessages();
   const { locale } = useLocale();
   const { status } = useAuth();
@@ -97,6 +176,7 @@ function SeatSelection({ map }: { map: SeatMapResponse }) {
   const [notice, setNotice] = useState('');
   const [viewSeat, setViewSeat] = useState<SeatMapSeat | null>(null);
   const [resetSignal, setResetSignal] = useState(0);
+  const [holding, setHolding] = useState(false);
 
   // On load and after every refresh: drop chosen seats that were taken in the meantime.
   const [checkedMap, setCheckedMap] = useState<SeatMapResponse | null>(null);
@@ -120,7 +200,6 @@ function SeatSelection({ map }: { map: SeatMapResponse }) {
       : 0
     : chosen.reduce((sum, seat) => sum + (map.prices[seat.type] ?? 0), 0);
   const tickets = ticketCount(chosen);
-  const title = pickText(locale, map.movie.titleSq, map.movie.titleEn);
   const typeName = (seat: SeatMapSeat) => t.seats.types[seat.type];
 
   function toggle(seat: SeatMapSeat) {
@@ -134,13 +213,40 @@ function SeatSelection({ map }: { map: SeatMapResponse }) {
     setNotice(added && seat.type === 'WHEELCHAIR' ? t.seats.wheelchairNote : '');
   }
 
-  function onContinue() {
+  async function onContinue() {
     if (status !== 'authenticated') {
       storeSelection(showtimeId, selection);
       void navigate(loginPath(`/booking/${showtimeId}`));
       return;
     }
-    setNotice(t.seats.nextStepSoon);
+    // The server holds the seats for a few minutes; prices and availability are decided there.
+    setHolding(true);
+    setNotice(t.tickets.holding);
+    try {
+      await apiRequest('/api/bookings/hold', {
+        method: 'POST',
+        body: map.hall.wholeHallOnly
+          ? { showtimeId, wholeHall: true }
+          : { showtimeId, seatIds: selection.seatIds },
+        schema: bookingResponseSchema,
+      });
+      void navigate(`/booking/${showtimeId}/tickets`);
+    } catch (error) {
+      setHolding(false);
+      if (error instanceof ApiRequestError && error.status === 409) {
+        const taken = new Set(error.takenSeatIds);
+        setSelection({
+          seatIds: selection.seatIds.filter((id) => !taken.has(id)),
+          wholeHall: false,
+        });
+        setNotice(map.hall.wholeHallOnly ? t.tickets.suiteTaken : t.tickets.seatsTaken);
+        onRefresh();
+      } else if (error instanceof ApiRequestError && error.status === 410) {
+        setNotice(t.seats.startedTitle);
+      } else {
+        setNotice(authErrorMessage(t, error));
+      }
+    }
   }
 
   const nothing = map.hall.wholeHallOnly ? !selection.wholeHall : chosen.length === 0;
@@ -149,33 +255,7 @@ function SeatSelection({ map }: { map: SeatMapResponse }) {
   );
 
   return (
-    <Container className={styles.page}>
-      <header className={styles.summary}>
-        {map.movie.posterPath && (
-          <img
-            className={styles.poster}
-            src={map.movie.posterPath}
-            alt=""
-            width={600}
-            height={900}
-          />
-        )}
-        <div className={styles.summaryText}>
-          <h1 className={styles.title}>{title}</h1>
-          <div className={styles.badges}>
-            <AgeBadge rating={map.movie.ageRating} />
-            <FormatBadge format={map.showtime.format} />
-            <LanguageBadge version={map.showtime.languageVersion} />
-          </div>
-          <p className={styles.meta}>
-            {map.location.name} · {map.hall.name} (
-            {pickText(locale, map.hall.hallType.nameSq, map.hall.hallType.nameEn)})
-            <br />
-            {formatLongDate(locale, t, map.showtime.date)} · {map.showtime.startTime}
-          </p>
-        </div>
-      </header>
-
+    <>
       <div className={styles.layout}>
         <section aria-labelledby="seats-title" className={styles.stage}>
           <div className={styles.stageHeader}>
@@ -351,7 +431,12 @@ function SeatSelection({ map }: { map: SeatMapResponse }) {
           <p role="status" aria-live="polite" className={styles.notice}>
             {notice}
           </p>
-          <Button size="lg" className={styles.continue} disabled={nothing} onClick={onContinue}>
+          <Button
+            size="lg"
+            className={styles.continue}
+            disabled={nothing || holding}
+            onClick={() => void onContinue()}
+          >
             {t.seats.continue}
           </Button>
           {!map.hall.wholeHallOnly && (
@@ -387,11 +472,11 @@ function SeatSelection({ map }: { map: SeatMapResponse }) {
           {formatPrice(locale, total)}
           {tickets > 0 ? ` · ${t.seats.tickets(tickets)}` : ''}
         </span>
-        <Button size="md" disabled={nothing} onClick={onContinue}>
+        <Button size="md" disabled={nothing || holding} onClick={() => void onContinue()}>
           {t.seats.continue}
         </Button>
       </div>
-    </Container>
+    </>
   );
 }
 

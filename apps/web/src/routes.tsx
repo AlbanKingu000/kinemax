@@ -34,7 +34,16 @@ export const routes: RouteObject[] = [
       { path: 'movies', element: <ComingSoonPage page="movies" /> },
       { path: 'movies/:slug', element: <MovieDetailPage /> },
       { path: 'schedule', element: <SchedulePage /> },
-      { path: 'booking/:showtimeId', element: <BookingPage /> },
+      // Keys: switching between the steps remounts the page, so the seat map is loaded fresh.
+      { path: 'booking/:showtimeId', element: <BookingPage key="seats" /> },
+      {
+        path: 'booking/:showtimeId/tickets',
+        element: (
+          <RequireAuth>
+            <BookingPage key="tickets" step="tickets" />
+          </RequireAuth>
+        ),
+      },
       { path: 'experiences', element: <ComingSoonPage page="experiences" /> },
       { path: 'locations', element: <ComingSoonPage page="locations" /> },
       { path: 'food', element: <ComingSoonPage page="food" /> },

@@ -1,7 +1,7 @@
 // A small fake of /api/auth for web tests: accounts in memory, real request shapes.
 import type { AuthUser } from '@kinemax/shared';
 import { vi } from 'vitest';
-import { stubCatalog, urlOf, type CatalogStub } from './catalog';
+import { respond, stubCatalog, urlOf, type CatalogStub } from './catalog';
 
 export interface FakeAuth {
   user: AuthUser | null;
@@ -33,10 +33,14 @@ export function stubAuth(initial: AuthUser | null = null, catalog: CatalogStub =
   const mock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(urlOf(input), 'http://localhost');
     const method = init?.method ?? 'GET';
+    const body: unknown = typeof init?.body === 'string' ? JSON.parse(init.body) : undefined;
+    if (url.pathname.startsWith('/api/bookings') && catalog.bookings) {
+      state.requests.push({ method, path: url.pathname, body });
+      return respond(catalog.bookings({ method, path: url.pathname, body }));
+    }
     if (!url.pathname.startsWith('/api/auth/')) {
       return catalogFetch ? catalogFetch(input) : json({}, 404);
     }
-    const body: unknown = typeof init?.body === 'string' ? JSON.parse(init.body) : undefined;
     state.requests.push({ method, path: url.pathname, body });
     const fail = state.fail;
     if (fail && fail.path === url.pathname) {

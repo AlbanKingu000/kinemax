@@ -90,12 +90,14 @@ become invalid after an API restart, the client fetches a new one).
 - **Rate limits** (in-memory, fixed window, per API process; production with several instances
   needs a shared store such as Redis), all answering 429 `rate_limited` with `Retry-After`:
 
-  | Limit                       | Value             | Notes                               |
-  | --------------------------- | ----------------- | ----------------------------------- |
-  | login per email + IP        | 5 per 15 minutes  | reset after a successful login      |
-  | login per IP (all accounts) | 20 per 15 minutes | stops password spraying from one IP |
-  | register per IP             | 5 per hour        |                                     |
-  | change-password per user    | 5 per 15 minutes  |                                     |
+  | Limit                       | Value              | Notes                               |
+  | --------------------------- | ------------------ | ----------------------------------- |
+  | login per email + IP        | 5 per 15 minutes   | reset after a successful login      |
+  | login per IP (all accounts) | 20 per 15 minutes  | stops password spraying from one IP |
+  | register per IP             | 5 per hour         |                                     |
+  | change-password per user    | 5 per 15 minutes   |                                     |
+  | seat hold per user          | 30 per 10 minutes  | `POST /api/bookings/hold`           |
+  | seat hold per IP            | 120 per 10 minutes | `POST /api/bookings/hold`           |
 
   Behind a reverse proxy set `TRUST_PROXY` to the number of proxies, or every client shares the
   proxy's IP.
@@ -129,7 +131,8 @@ Resource ownership checks (e.g. "this booking belongs to the user") belong in ea
 ## Error mapping
 
 The central error handler (`apps/api/src/http/errors.ts`) sends a generic `{ error: { code,
-message, fields? } }` and logs details server-side. Throw `HttpError` for expected failures and
+message, fields?, takenSeatIds? } }` (`takenSeatIds`: the requested seats someone else holds, on a
+409 from `POST /api/bookings/hold`) and logs details server-side. Throw `HttpError` for expected failures and
 use `parseInput(schema, req.body)` for validation (400 `validation_failed` with field paths and
 codes, never values). Database errors are recognized in both Prisma shapes (statement errors as
 `PrismaClientKnownRequestError`, COMMIT-time errors of interactive transactions as a raw

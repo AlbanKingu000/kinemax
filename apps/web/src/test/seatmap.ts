@@ -1,5 +1,5 @@
 // Sample /api/showtimes/:id/seatmap answers for web tests.
-import type { SeatMapResponse, SeatMapSeat } from '@kinemax/shared';
+import type { Booking, SeatMapResponse, SeatMapSeat } from '@kinemax/shared';
 
 export const SHOWTIME_ID = '0190f0a0-0000-7000-8000-0000000000b1';
 export const SUITE_SHOWTIME_ID = '0190f0a0-0000-7000-8000-0000000000b2';
@@ -89,3 +89,65 @@ export function suiteMap(taken = false): SeatMapResponse {
     wholeHall: { priceCents: 11_000, taken },
   };
 }
+
+/** A HELD booking of `seatIds` in `map` (ADULT tickets at 4,50 €, sofa surcharge 2,00 €). */
+export function heldBooking(
+  map: SeatMapResponse,
+  seatIds: string[],
+  extra: Partial<Booking> = {},
+): Booking {
+  const now = Date.now();
+  const seats = seatIds.map((id) => {
+    const seat = map.seats.find((s) => s.id === id);
+    if (!seat) throw new Error(`no seat ${id}`);
+    const count = seat.type === 'COUPLE' ? 2 : 1;
+    const surchargeCents = seat.type === 'COUPLE' ? 200 : 0;
+    return {
+      seatId: seat.id,
+      row: seat.row,
+      number: seat.number,
+      type: seat.type,
+      tickets: Array.from({ length: count }, (_, i) => ({
+        occupant: i + 1,
+        category: 'ADULT',
+        priceCents: 450,
+      })),
+      surchargeCents,
+      totalCents: count * 450 + surchargeCents,
+    };
+  });
+  return {
+    id: BOOKING_ID,
+    status: 'HELD',
+    showtimeId: map.showtime.id,
+    holdExpiresAt: new Date(now + 10 * 60_000).toISOString(),
+    serverNow: new Date(now).toISOString(),
+    isWholeHall: false,
+    ageRating: map.movie.ageRating,
+    ageConfirmationRequired: false,
+    ageRatingConfirmed: false,
+    seats,
+    wholeHallPriceCents: null,
+    totalCents: seats.reduce((sum, s) => sum + s.totalCents, 0),
+    currency: 'EUR',
+    categories: [
+      {
+        code: 'ADULT',
+        nameSq: 'I rritur',
+        nameEn: 'Adult',
+        descriptionSq: null,
+        descriptionEn: null,
+      },
+      {
+        code: 'STUDENT',
+        nameSq: 'Student',
+        nameEn: 'Student',
+        descriptionSq: 'Me kartë studenti të vlefshme.',
+        descriptionEn: 'With a valid student card.',
+      },
+    ],
+    ...extra,
+  };
+}
+
+export const BOOKING_ID = '0190f0a0-0000-7000-8000-0000000000c1';

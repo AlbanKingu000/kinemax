@@ -10,6 +10,7 @@ import { csrfProtection, loadSession } from './http/auth-middleware.js';
 import { createErrorHandler, notFoundHandler } from './http/errors.js';
 import type { Logger } from './logger.js';
 import { createAuthRouter } from './routes/auth.js';
+import { createBookingsRouter, type BookingRateLimits } from './routes/bookings.js';
 import { createCatalogRouter } from './routes/catalog.js';
 import { createHealthRouter } from './routes/health.js';
 import { createProtectedExamplesRouter } from './routes/protected-examples.js';
@@ -38,8 +39,10 @@ export interface AppDeps {
   /** Exact extra origins allowed to call the API cross-origin. Empty: same-origin only. */
   corsAllowedOrigins: readonly string[];
   auth: AuthOptions;
-  /** Clock for time-dependent public data (tests pin it). Default: the system clock. */
+  /** Clock for time-dependent data (tests pin it). Default: the system clock. */
   now?: () => Date;
+  /** Seat hold rate limits (default BOOKING_RATE_LIMITS). */
+  bookingRateLimits?: BookingRateLimits;
 }
 
 export function createApp({
@@ -49,6 +52,7 @@ export function createApp({
   corsAllowedOrigins,
   auth,
   now = () => new Date(),
+  bookingRateLimits,
 }: AppDeps): Express {
   const app = express();
   const cookies = cookieSettings(auth.cookieSecure);
@@ -93,6 +97,15 @@ export function createApp({
   app.use('/api', createCatalogRouter(prisma, now));
   app.use('/api', createSeatMapRouter(prisma, now));
   app.use('/api', createShowtimesRouter(prisma, now));
+  app.use(
+    '/api',
+    createBookingsRouter({
+      prisma,
+      logger,
+      now,
+      ...(bookingRateLimits ? { rateLimits: bookingRateLimits } : {}),
+    }),
+  );
   app.use('/api', createProtectedExamplesRouter(prisma));
 
   app.use(notFoundHandler);

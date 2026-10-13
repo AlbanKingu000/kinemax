@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { createApp } from './app.js';
 import { SESSION_CLEANUP_INTERVAL_MS } from './auth/auth-config.js';
 import { createSessionService, startSessionCleanup } from './auth/sessions.js';
+import { HOLD_CLEANUP_INTERVAL_MS, startHoldCleanup } from './db/holds.js';
 import { EnvError, readEnv } from './config/env.js';
 import { loadDotEnv, rootEnvPath } from './config/load-dotenv.js';
 import { createDatabaseCheck, createPrismaClient } from './db/prisma.js';
@@ -44,6 +45,7 @@ const app = createApp({
   },
 });
 const stopSessionCleanup = startSessionCleanup(sessions, logger, SESSION_CLEANUP_INTERVAL_MS);
+const stopHoldCleanup = startHoldCleanup(prisma, logger, HOLD_CLEANUP_INTERVAL_MS);
 
 const server = app.listen(env.PORT, env.HOST, (error?: Error) => {
   if (error) {
@@ -60,6 +62,7 @@ const server = app.listen(env.PORT, env.HOST, (error?: Error) => {
 function shutdown(signal: string): void {
   logger.info(`Received ${signal}, shutting down`);
   stopSessionCleanup();
+  stopHoldCleanup();
   server.close(() => {
     void prisma.$disconnect().finally(() => process.exit(0));
   });

@@ -326,8 +326,6 @@ const sq = {
     finalNote: 'çmimi final llogaritet në hapin tjetër',
     legend: 'Legjenda',
     continue: 'Vazhdo',
-    nextStepSoon:
-      'Hapi tjetër (mbajtja e ulëseve për 10 minuta dhe zgjedhja e biletave) vjen së shpejti.',
     limit: (max: number) =>
       `Mund të zgjedhësh deri në ${String(max)} bileta për rezervim (një divan për dy numërohet 2).`,
     wheelchairNote:
@@ -343,6 +341,29 @@ const sq = {
     suiteTaken: 'Kjo suitë është e rezervuar për këtë shfaqje.',
     startedTitle: 'Kjo shfaqje ka filluar',
     loadError: 'Ulëset nuk u ngarkuan.',
+  },
+  tickets: {
+    title: 'Biletat',
+    timeLeft: 'Koha e mbetur',
+    holdNote: 'Ulëset janë të mbajtura vetëm për ty derisa të mbarojë koha.',
+    fiveMinutesLeft: 'Kanë mbetur 5 minuta për të përfunduar rezervimin.',
+    oneMinuteLeft: 'Ka mbetur 1 minutë për të përfunduar rezervimin.',
+    category: 'Kategoria e biletës',
+    personCategory: (n: number) => `Kategoria e biletës, personi ${String(n)}`,
+    sofaSurcharge: 'Shtesa për divanin (një herë)',
+    suitePrice: 'Çmimi i suitës',
+    total: 'Totali',
+    saveError: 'Çmimet nuk u përditësuan. Provo përsëri.',
+    ageConfirm: 'Konfirmoj që të gjithë shikuesit i plotësojnë kufirin e moshës',
+    ageRequired: 'Konfirmo kufirin e moshës për të vazhduar.',
+    changeSeats: 'Ndrysho ulëset',
+    nextStepSoon: 'Hapi tjetër (ushqimi dhe pagesa demo) vjen së shpejti.',
+    expiredTitle: 'Koha e rezervimit mbaroi',
+    expiredBody: 'Ulëset u liruan. Zgjidhi përsëri për të vazhduar.',
+    backToSeats: 'Kthehu te ulëset',
+    holding: 'Duke mbajtur ulëset…',
+    seatsTaken: 'Disa ulëse sapo u zunë nga dikush tjetër dhe u hoqën. Zgjidh të tjera.',
+    suiteTaken: 'Suita sapo u rezervua nga dikush tjetër.',
   },
   footer: {
     locations: 'Kinematë',
@@ -673,8 +694,6 @@ const en: Messages = {
     finalNote: 'the final price is calculated in the next step',
     legend: 'Legend',
     continue: 'Continue',
-    nextStepSoon:
-      'The next step (holding the seats for 10 minutes and choosing tickets) is coming soon.',
     limit: (max: number) =>
       `You can choose up to ${String(max)} tickets per booking (a sofa for two counts as 2).`,
     wheelchairNote:
@@ -690,6 +709,30 @@ const en: Messages = {
     suiteTaken: 'This suite is booked for this show.',
     startedTitle: 'This show has started',
     loadError: 'The seats could not be loaded.',
+  },
+  tickets: {
+    title: 'Tickets',
+    timeLeft: 'Time left',
+    holdNote: 'Your seats are held for you only until the time runs out.',
+    fiveMinutesLeft: '5 minutes left to finish your booking.',
+    oneMinuteLeft: '1 minute left to finish your booking.',
+    category: 'Ticket category',
+    personCategory: (n: number) => `Ticket category, person ${String(n)}`,
+    sofaSurcharge: 'Sofa surcharge (once)',
+    suitePrice: 'Suite price',
+    total: 'Total',
+    saveError: 'The prices could not be updated. Please try again.',
+    ageConfirm: 'I confirm that every viewer meets the age rating',
+    ageRequired: 'Confirm the age rating to continue.',
+    changeSeats: 'Change seats',
+    nextStepSoon: 'The next step (food and demo payment) is coming soon.',
+    expiredTitle: 'Your hold has expired',
+    expiredBody: 'The seats were released. Choose them again to continue.',
+    backToSeats: 'Back to the seats',
+    holding: 'Holding your seats…',
+    seatsTaken:
+      'Some seats were just taken by someone else and were removed. Please choose others.',
+    suiteTaken: 'The suite was just booked by someone else.',
   },
   footer: {
     locations: 'Cinemas',

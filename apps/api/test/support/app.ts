@@ -6,6 +6,7 @@ import request from 'supertest';
 import { inject, vi, type Mock } from 'vitest';
 import { createApp, type AppDeps } from '../../src/app.js';
 import type { AuthRateLimits } from '../../src/auth/rate-limit.js';
+import type { BookingRateLimits } from '../../src/routes/bookings.js';
 import { createSessionService } from '../../src/auth/sessions.js';
 import { createPrismaClient } from '../../src/db/prisma.js';
 import type { Logger } from '../../src/logger.js';
@@ -38,6 +39,7 @@ export function makeTestApp(
     corsAllowedOrigins?: string[];
     cookieSecure?: boolean;
     rateLimits?: AuthRateLimits;
+    bookingRateLimits?: BookingRateLimits;
     now?: () => Date;
   } = {},
 ) {
@@ -57,6 +59,7 @@ export function makeTestApp(
       ...(options.rateLimits ? { rateLimits: options.rateLimits } : {}),
     },
     ...(options.now ? { now: options.now } : {}),
+    ...(options.bookingRateLimits ? { bookingRateLimits: options.bookingRateLimits } : {}),
   };
   return { app: createApp(deps), logger, prisma };
 }
@@ -79,6 +82,8 @@ export async function browserClient(app: ReturnType<typeof makeTestApp>['app']) 
     get: (path: string) => agent.get(path),
     post: (path: string, body?: object) => withHeaders(agent.post(path)).send(body ?? {}),
     patch: (path: string, body?: object) => withHeaders(agent.patch(path)).send(body ?? {}),
+    put: (path: string, body?: object) => withHeaders(agent.put(path)).send(body ?? {}),
+    delete: (path: string) => withHeaders(agent.delete(path)),
     /** Refreshes the CSRF token for the agent's current session. */
     async refreshToken() {
       const res = await agent.get('/api/auth/csrf').expect(200);

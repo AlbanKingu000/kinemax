@@ -19,6 +19,8 @@ export class ApiRequestError extends Error {
     readonly fields: readonly ApiFieldIssue[] = [],
     /** Seconds from Retry-After (429). */
     readonly retryAfterSeconds?: number,
+    /** Seat hold conflicts (409): the seats someone else holds now. */
+    readonly takenSeatIds: readonly string[] = [],
   ) {
     super(`API request failed: ${String(status)} ${code}`);
   }
@@ -55,6 +57,7 @@ async function toError(response: Response): Promise<ApiRequestError> {
     parsed.success ? parsed.data.error.code : 'unknown',
     parsed.success ? (parsed.data.error.fields ?? []) : [],
     Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined,
+    parsed.success ? (parsed.data.error.takenSeatIds ?? []) : [],
   );
 }
 
