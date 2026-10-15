@@ -187,7 +187,7 @@ verify` green (shared 24, api 285, web 363, scripts 10; coverage web 92.23% / 83
 
 ### Final
 
-- [ ] Roadmap (DONE; next: the admin panel; out of scope: emails, real payment providers, staff QR
+- [x] Roadmap (DONE; next: the admin panel; out of scope: emails, real payment providers, staff QR
       scanning), every box ticked, final report
 
 ## The task (as given)
