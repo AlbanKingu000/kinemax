@@ -80,8 +80,24 @@ export const ticketSchema = z.object({
   payment: z
     .object({ status: paymentStatusSchema, amountCents: z.int().min(0), reference: z.string() })
     .nullable(),
+  /**
+   * Confirmed and not over yet: whether it can still be cancelled (until `until`, the start minus
+   * the cancellation cutoff, decided by the server) and the refund. Otherwise null.
+   */
+  cancellation: z
+    .object({ allowed: z.boolean(), until: z.iso.datetime(), refundCents: z.int().min(0) })
+    .nullable(),
 });
 export type Ticket = z.infer<typeof ticketSchema>;
 
 export const ticketResponseSchema = z.object({ ticket: ticketSchema });
 export type TicketResponse = z.infer<typeof ticketResponseSchema>;
+
+/** GET /api/me/bookings: the signed-in user's paid bookings, soonest upcoming first. */
+export const myBookingsResponseSchema = z.object({
+  upcoming: z.array(ticketSchema),
+  past: z.array(ticketSchema),
+  /** Cancelled and refunded, newest first. */
+  cancelled: z.array(ticketSchema),
+});
+export type MyBookingsResponse = z.infer<typeof myBookingsResponseSchema>;

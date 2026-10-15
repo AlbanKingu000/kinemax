@@ -214,11 +214,11 @@ export function createCheckoutRouter({
   /** The ticket of a booking that was paid (confirmed, later maybe refunded). */
   router.get('/bookings/:id/ticket', requireAuth, async (req, res) => {
     const { id } = parseInput(idParams, req.params);
-    const ticket = await loadTicket(prisma, {
-      id,
-      userId: userId(req),
-      confirmedAt: { not: null },
-    });
+    const ticket = await loadTicket(
+      prisma,
+      { id, userId: userId(req), confirmedAt: { not: null } },
+      now(),
+    );
     if (!ticket) throw notFound();
     res.set('Cache-Control', 'no-store');
     res.json({ ticket });

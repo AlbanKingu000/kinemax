@@ -1,11 +1,18 @@
-import type { Booking, CheckoutResponse, Payment, Ticket } from '@kinemax/shared';
+import type { CheckoutResponse, Payment } from '@kinemax/shared';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setCsrfToken } from '../api/http';
 import { LOCATION_STORAGE_KEY } from '../location/location-storage';
 import { stubAuth, testUser } from '../test/auth';
 import { renderApp } from '../test/catalog';
-import { BOOKING_ID, heldBooking, SHOWTIME_ID, standardMap } from '../test/seatmap';
+import {
+  BOOKING_ID,
+  heldBooking,
+  paidTicket,
+  SHOWTIME_ID,
+  standardMap,
+  TICKET_CODE,
+} from '../test/seatmap';
 
 // The QR library draws paths; the stand-in shows what it would encode.
 vi.mock('qrcode.react', () => ({
@@ -29,61 +36,7 @@ const STEP_WAIT = { timeout: 5_000 };
 const PAY = `/booking/${SHOWTIME_ID}/pay`;
 const PAYMENT_A = '0190f0a0-0000-7000-8000-0000000000p1'.replace('p', 'a');
 const PAYMENT_B = '0190f0a0-0000-7000-8000-0000000000b9';
-const CODE = 'ABCD1234EFGH5678';
-
-function paidTicket(booking: Booking): Ticket {
-  return {
-    id: booking.id,
-    code: CODE,
-    status: 'CONFIRMED',
-    movie: {
-      slug: 'kodi',
-      titleSq: 'Kodi Orbital 9',
-      titleEn: null,
-      posterPath: '/seed/posters/kodi.svg',
-      ageRating: 'AGE_12',
-      durationMinutes: 131,
-    },
-    location: {
-      slug: 'prizren',
-      name: 'Kinemax Prizren',
-      address: 'Rruga e Shadërvanit 3',
-      timeZone: 'Europe/Belgrade',
-    },
-    hall: {
-      name: 'Salla 1',
-      hallTypeCode: 'VIP_RECLINER',
-      hallTypeNameSq: 'VIP',
-      hallTypeNameEn: null,
-    },
-    startsAt: '2026-10-20T18:30:00.000Z',
-    endsAt: '2026-10-20T21:00:00.000Z',
-    localDate: '2026-10-20',
-    localTime: '20:30',
-    isWholeHall: false,
-    seats: booking.seats,
-    food: [
-      {
-        menuItemId: '0190f0a0-0000-7000-8000-000000000301',
-        nameSq: 'Kombo klasike',
-        nameEn: null,
-        quantity: 1,
-        unitPriceCents: 500,
-        totalCents: 500,
-        fulfillment: 'DELIVER_TO_SEAT',
-        serveTiming: 'DURING_SHOW',
-      },
-    ],
-    ticketsCents: booking.ticketsCents,
-    foodCents: 500,
-    totalCents: booking.ticketsCents + 500,
-    currency: 'EUR',
-    confirmedAt: '2026-10-15T10:00:00.000Z',
-    cancelledAt: null,
-    categories: booking.categories,
-    payment: { status: 'SUCCEEDED', amountCents: booking.ticketsCents + 500, reference: 'DEMO-X' },
-  };
-}
+const CODE = TICKET_CODE;
 
 /** A hold, a demo provider that answers what the buyer simulates, and the paid ticket. */
 function withPayment(options: { checkoutStatus?: number } = {}) {
@@ -176,7 +129,10 @@ describe('Demo payment step', () => {
     expect(screen.getByText('ABCD 1234 EFGH 5678')).toBeInTheDocument();
     expect(screen.getByText(/Te ulësja, gjatë filmit/)).toBeInTheDocument();
     expect(screen.getByText('e martë, 20 tetor 2026 · 20:30')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Biletat e mia' })).toHaveAttribute('href', '/account');
+    expect(screen.getByRole('link', { name: 'Biletat e mia' })).toHaveAttribute(
+      'href',
+      '/account/tickets',
+    );
     // "Shto në kalendar" saves an .ics file.
     const create = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:ics');
     vi.spyOn(URL, 'revokeObjectURL').mockReturnValue(undefined);

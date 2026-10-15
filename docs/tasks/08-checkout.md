@@ -72,7 +72,33 @@ tick items (with the file-editing tool) as they are finished.
     from 127.0.0.1 within 15 minutes, so the last spec (hold expiry) got 429 "Shumë përpjekje".
     The limit stays as it is; instead the checkout journeys sign in once per project through the
     API (`/api/auth/csrf` + `/api/auth/login`, kept as Playwright storage state in the project's
-    output folder). Only the full journey signs in through the login page.
+    output folder). Only the full journey signs in through the login page. All checkout tests use
+    the same fixture (`signedIn`): a test with other worker fixtures gets a worker of its own and
+    ran beside the serial ones as the same user, so its new hold ended the other one (409).
+
+15. **C1, the lists.** `GET /api/me/bookings` lists only bookings that were ever confirmed (open
+    holds and expired holds are not tickets). Upcoming = CONFIRMED and not yet ended (`endsAt`, so
+    a film that is running stays upcoming); past = CONFIRMED and ended, newest first; cancelled =
+    CANCELLED/REFUNDED, by `cancelledAt` newest first. `GET /api/me/bookings/:code` answers 404
+    for a malformed code, an unknown one and another user's (same answer). Both `no-store`.
+
+16. **C3, cancellation rules.** `POST /api/bookings/:id/cancel` (owner, CSRF, no body): allowed
+    while the server clock is before `startsAt − AppSettings.cancellationCutoffMinutes` (120: at
+    exactly 120 minutes yes, at 119 no). After the cutoff 409 (the UI already disables the button
+    and says why); a booking that is not CONFIRMED 409; an already REFUNDED one answers 200 with
+    the same ticket (idempotent, one audit row even for parallel requests, the booking row is
+    locked). The full total (tickets + food) is refunded: payment SUCCEEDED → REFUNDED, booking →
+    REFUNDED (the trigger frees the seats), AuditLog `booking.refund` with the owner as actor.
+    Rate limit 10 per user / 60 per IP per 10 minutes (docs/auth.md).
+
+17. **C2, a cancelled ticket.** A refunded ticket keeps its page (status badge, refund line) but
+    shows no QR code, so it cannot be shown at the door. The cut-off time is shown in the
+    cinema's time zone. "Biletat e mia" is a new item in the account menu and the mobile drawer;
+    the account page links to it.
+
+18. **e2e show choice.** `findShowtime` skips shows that start within 30 minutes (one that starts
+    mid-journey ends the hold, 410), and the cancellation journey picks a show at least 3 hours
+    away so it is before the cutoff.
 
 ## Progress (keep up to date)
 
@@ -102,6 +128,23 @@ verify` green (shared 24, api 285, web 363, scripts 10; coverage web 92.23% / 83
   Screenshots (Playwright, installed Chrome, console clean): `checkout-pay-{desktop,mobile-390}.png`,
   `checkout-pay-declined-{desktop,mobile-390}.png`, `checkout-confirmation-{desktop,mobile-390}.png`.
   Committed as "feat: demo payment and booking confirmation" (hash in docs/roadmap.md).
+- Part C: done. New tests: API 9 integration (lists by tab, by code, the cutoff at exactly 120
+  and 119 minutes, another time zone and cutoff, parallel double cancel = one refund and one
+  audit row, the seat bookable again, 404/409/400/403/429); web 6 (tabs and cards, empty state,
+  large QR + brightness tip, cancel dialog with the refund first, disabled after the cutoff,
+  unknown code); e2e 1 journey × 2 projects (confirmation → "Biletat e mia" → ticket → cancel →
+  "Të anuluara", the seat AVAILABLE again). `npm run verify` green (shared 26, api 307, web 379,
+  scripts 10; coverage api 96.42% / 87.54%, web 92.13% / 82.70%; e2e 67 passed, 4 project skips;
+  audit passed) after the e2e worker fix in decision 14. Chrome check (Claude in Chrome, dev
+  server, seed customer): "Biletat e mia" with 3 upcoming → ticket (264 px QR, tip, "Mund ta
+  anulosh deri më …") → dialog "Do të rimbursohen 21,30 € (demo)" → refunded, no QR, listed
+  under "Të anuluara"; console clean. That window ignores resizing, so 390 px and the
+  screenshots come from the Playwright script in installed Chrome (console clean, no overflow):
+  `checkout-my-tickets-{desktop,mobile-390}.png`, `checkout-ticket-detail-{desktop,mobile-390}.png`,
+  `checkout-cancel-dialog-{desktop,mobile-390}.png`,
+  `checkout-ticket-refunded-{desktop,mobile-390}.png`,
+  `checkout-my-tickets-cancelled-{desktop,mobile-390}.png`. Committed as "feat: my tickets with
+  QR codes and cancellation" (hash in docs/roadmap.md).
 
 ## Checklist
 
@@ -133,13 +176,13 @@ verify` green (shared 24, api 285, web 363, scripts 10; coverage web 92.23% / 83
 
 ### Part C: My tickets, QR and cancellation
 
-- [ ] C1 GET /api/me/bookings and GET /api/me/bookings/:code
-- [ ] C2 /account/tickets ("Biletat e mia": tabs, cards, detail with large QR, brightness tip, .ics)
-- [ ] C3 POST /api/bookings/:id/cancel (cutoff on the server, refund, seats released, audit log,
+- [x] C1 GET /api/me/bookings and GET /api/me/bookings/:code
+- [x] C2 /account/tickets ("Biletat e mia": tabs, cards, detail with large QR, brightness tip, .ics)
+- [x] C3 POST /api/bookings/:id/cancel (cutoff on the server, refund, seats released, audit log,
       confirmation dialog, disabled after the cutoff)
-- [ ] C4 Tests (cutoff boundaries, time zone, double cancel, seats bookable again, ownership,
+- [x] C4 Tests (cutoff boundaries, time zone, double cancel, seats bookable again, ownership,
       audit; e2e confirmation → my tickets → cancel → "Të anuluara", seat free)
-- [ ] Part C: verify + Chrome check + screenshots + roadmap + commit "feat: my tickets with QR codes
+- [x] Part C: verify + Chrome check + screenshots + roadmap + commit "feat: my tickets with QR codes
       and cancellation"
 
 ### Final

@@ -8,14 +8,15 @@ interface Showtimes {
   days: string[];
   movies: {
     movie: { ageRating: string };
-    groups: { hallType: { code: string }; showtimes: { id: string }[] }[];
+    groups: { hallType: { code: string }; showtimes: { id: string; startsAt: string }[] }[];
   }[];
 }
 
 /**
  * A bookable show in a hall of the given type at Prizren (today or later). `skip` picks a later
  * match, so projects running in parallel never hold the same seats; `adultsOnly` wants a 15+/18+
- * film; `exclude` skips shows other specs use.
+ * film; `exclude` skips shows other specs use. Shows starting within `leadMinutes` are skipped:
+ * one that starts while a journey runs would end its hold (410) halfway.
  */
 export async function findShowtime(
   request: APIRequestContext,
@@ -24,7 +25,8 @@ export async function findShowtime(
     skip = 0,
     adultsOnly = false,
     exclude = [],
-  }: { skip?: number; adultsOnly?: boolean; exclude?: string[] } = {},
+    leadMinutes = 30,
+  }: { skip?: number; adultsOnly?: boolean; exclude?: string[]; leadMinutes?: number } = {},
 ): Promise<string> {
   const first = (await (await request.get('/api/showtimes?location=prizren')).json()) as Showtimes;
   let left = skip;
@@ -36,6 +38,7 @@ export async function findShowtime(
       if (adultsOnly && !['AGE_15', 'AGE_18'].includes(movie.ageRating)) continue;
       for (const show of groups.flatMap((g) => g.showtimes)) {
         if (exclude.includes(show.id)) continue;
+        if (Date.parse(show.startsAt) < Date.now() + leadMinutes * 60_000) continue;
         if (left === 0) return show.id;
         left -= 1;
       }

@@ -75,9 +75,15 @@ export function AccountMenu({ className }: { className?: string }) {
       {open && (
         <ul id={menuId} className={styles.menu}>
           <li>
-            <NavLink to="/account" className={styles.item}>
+            <NavLink to="/account" end className={styles.item}>
               <Icon name="user" size={18} />
               {t.account.myAccount}
+            </NavLink>
+          </li>
+          <li>
+            <NavLink to="/account/tickets" className={styles.item}>
+              <Icon name="ticket" size={18} />
+              {t.account.myTickets}
             </NavLink>
           </li>
           <li>

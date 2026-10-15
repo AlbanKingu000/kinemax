@@ -50,7 +50,7 @@ export function ConfirmationPage() {
           title={missing ? t.confirmation.notFound : t.confirmation.loadError}
           action={
             missing ? (
-              <ButtonLink to="/account" icon="ticket">
+              <ButtonLink to="/account/tickets" icon="ticket">
                 {t.ticket.myTickets}
               </ButtonLink>
             ) : (
@@ -72,7 +72,7 @@ export function ConfirmationPage() {
       <TicketView
         ticket={ticket.data.ticket}
         actions={
-          <ButtonLink to="/account" variant="ghost" size="sm" icon="ticket">
+          <ButtonLink to="/account/tickets" variant="ghost" size="sm" icon="ticket">
             {t.ticket.myTickets}
           </ButtonLink>
         }

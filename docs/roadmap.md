@@ -22,16 +22,18 @@ task is finished, move it to DONE with its commit hash.
 | Cinematic 3D hall + locked seat view (task 7d)                       | `a3e0401`            |
 | 3D fixes: auto-hiding seat panel, framing, flight path, VIP (7e)     | `3b886a8`            |
 | Food & drinks ordering (task 8 part A)                               | `e490b4e`            |
-| Demo payment + booking confirmation with QR (task 8 part B)          | (next commit)        |
+| Demo payment + booking confirmation with QR (task 8 part B)          | `0affa34`            |
+| My tickets with QR codes + cancellation with refund (task 8 part C)  | (next commit)        |
 
 ## Next (in this order)
 
-1. My account: my tickets with QR code, cancellation (until 2h before) (login, register and the
-   account page are done)
-2. Admin panel: super admin (prices, settings, users, all locations) + location managers (movies,
+1. Admin panel: super admin (prices, settings, users, all locations) + location managers (movies,
    showtimes, halls, bookings); deactivating a showtime must cancel/refund its bookings
-3. Security review + full e2e pass
-4. Push to a private GitHub repo (AlbanKingu000/kinemax)
+2. Security review + full e2e pass
+3. Push to a private GitHub repo (AlbanKingu000/kinemax)
+
+Out of scope for now (task 8): sending emails (confirmations, tickets), real payment providers
+(payments stay DEMO), and QR scanning by staff at the entrance.
 
 ## Known open points
 

@@ -208,56 +208,70 @@ export async function lockOpenHold(
 }
 
 const pad = (n: number) => String(n).padStart(2, '0');
+const MINUTE = 60_000;
 
-/**
- * A booking as a ticket (confirmation page, "Biletat e mia"); null when nothing matches. Callers
- * always include the owner in `where`.
- */
-export async function loadTicket(db: Db, where: Prisma.BookingWhereInput): Promise<Ticket | null> {
-  const booking = await db.booking.findFirst({
-    where,
-    include: {
-      seats: { include: { seat: true } },
-      foodItems: { include: { menuItem: { select: { nameEn: true } } }, orderBy: { id: 'asc' } },
-      payments: { orderBy: { createdAt: 'desc' }, take: 1 },
-      showtime: {
+const ticketInclude = {
+  seats: { include: { seat: true } },
+  foodItems: { include: { menuItem: { select: { nameEn: true } } }, orderBy: { id: 'asc' } },
+  payments: { orderBy: { createdAt: 'desc' }, take: 1 },
+  showtime: {
+    select: {
+      startsAt: true,
+      endsAt: true,
+      movie: {
         select: {
-          startsAt: true,
-          endsAt: true,
-          movie: {
-            select: {
-              slug: true,
-              titleSq: true,
-              titleEn: true,
-              posterPath: true,
-              ageRating: true,
-              durationMinutes: true,
-            },
-          },
-          hall: {
-            select: {
-              name: true,
-              hallType: { select: { code: true, nameSq: true, nameEn: true } },
-              location: { select: { slug: true, name: true, address: true, timeZone: true } },
-            },
-          },
+          slug: true,
+          titleSq: true,
+          titleEn: true,
+          posterPath: true,
+          ageRating: true,
+          durationMinutes: true,
+        },
+      },
+      hall: {
+        select: {
+          name: true,
+          hallType: { select: { code: true, nameSq: true, nameEn: true } },
+          location: { select: { slug: true, name: true, address: true, timeZone: true } },
         },
       },
     },
-  });
-  if (!booking) return null;
+  },
+} satisfies Prisma.BookingInclude;
+type TicketRow = Prisma.BookingGetPayload<{ include: typeof ticketInclude }>;
+
+/**
+ * When a confirmed booking can be cancelled: until the start minus the cutoff
+ * (AppSettings.cancellationCutoffMinutes), inclusive. Exactly at the cutoff it is still allowed.
+ */
+export function cancellationOf(
+  booking: { status: string; totalCents: number },
+  show: { startsAt: Date; endsAt: Date },
+  at: Date,
+  cutoffMinutes: number,
+): Ticket['cancellation'] {
+  if (booking.status !== 'CONFIRMED' || show.endsAt.getTime() <= at.getTime()) return null;
+  const until = new Date(show.startsAt.getTime() - cutoffMinutes * MINUTE);
+  return {
+    allowed: at.getTime() <= until.getTime(),
+    until: until.toISOString(),
+    refundCents: booking.totalCents,
+  };
+}
+
+function toTicket(
+  booking: TicketRow,
+  categories: Ticket['categories'],
+  at: Date,
+  cutoffMinutes: number,
+): Ticket {
   const { showtime } = booking;
   const { hall } = showtime;
   const seats = seatsOf(booking.seats);
   const food = foodOf(booking.foodItems);
   const local = toLocalDateTime(showtime.startsAt, hall.location.timeZone);
   const payment = booking.payments[0];
-  const codes = [...new Set(booking.seats.map((row) => row.ticketCategoryCode))];
-  const categories = await db.ticketCategory.findMany({
-    where: { code: { in: codes } },
-    orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }],
-    select: { code: true, nameSq: true, nameEn: true, descriptionSq: true, descriptionEn: true },
-  });
+  const codes = new Set(booking.seats.map((row) => row.ticketCategoryCode));
   return {
     id: booking.id,
     code: booking.code,
@@ -283,9 +297,43 @@ export async function loadTicket(db: Db, where: Prisma.BookingWhereInput): Promi
     currency: 'EUR',
     confirmedAt: booking.confirmedAt?.toISOString() ?? null,
     cancelledAt: booking.cancelledAt?.toISOString() ?? null,
-    categories,
+    categories: categories.filter((c) => codes.has(c.code)),
     payment: payment
       ? { status: payment.status, amountCents: payment.amountCents, reference: payment.reference }
       : null,
+    cancellation: cancellationOf(booking, showtime, at, cutoffMinutes),
   };
+}
+
+/**
+ * Bookings as tickets (confirmation page, "Biletat e mia"), soonest show first. Callers always
+ * include the owner in `where`.
+ */
+export async function loadTickets(
+  db: Db,
+  where: Prisma.BookingWhereInput,
+  at: Date,
+): Promise<Ticket[]> {
+  const [rows, settings, categories] = await Promise.all([
+    db.booking.findMany({
+      where,
+      include: ticketInclude,
+      orderBy: [{ showtime: { startsAt: 'asc' } }, { id: 'asc' }],
+    }),
+    db.appSettings.findUniqueOrThrow({ where: { id: 1 } }),
+    db.ticketCategory.findMany({
+      orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }],
+      select: { code: true, nameSq: true, nameEn: true, descriptionSq: true, descriptionEn: true },
+    }),
+  ]);
+  return rows.map((row) => toTicket(row, categories, at, settings.cancellationCutoffMinutes));
+}
+
+/** One booking as a ticket; null when nothing matches (the owner is part of `where`). */
+export async function loadTicket(
+  db: Db,
+  where: Prisma.BookingWhereInput,
+  at: Date,
+): Promise<Ticket | null> {
+  return (await loadTickets(db, where, at))[0] ?? null;
 }

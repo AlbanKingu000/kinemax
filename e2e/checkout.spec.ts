@@ -172,93 +172,96 @@ async function expectDemoPayment(page: Page) {
   return pay;
 }
 
-test('the whole journey: home → movie → time → seat → login → tickets → food → pay → QR ticket', async ({
-  page,
-  isMobile,
-}) => {
-  // Eight page loads, an argon2 login, two axe scans.
-  test.setTimeout(90_000);
-  const problems = watchConsole(page);
-  await page.goto('/');
-  const firstMovie = page.locator('#now-showing').getByRole('heading', { level: 3 }).first();
-  const title = (await firstMovie.textContent()) ?? '';
-  await firstMovie.getByRole('link').click();
-  await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
-  const showtimes = page.locator('section', {
-    has: page.getByRole('heading', { level: 2, name: 'Oraret' }),
-  });
-  // Two days ahead: shows the other specs (which take the earliest ones) do not book.
-  await showtimes
-    .getByRole('tab')
-    .nth(isMobile ? 3 : 2)
-    .click();
-  await showtimes
-    .getByRole('link', { name: /^\d{2}:\d{2}, / })
-    .first()
-    .click();
-  await expect(page).toHaveURL(/\/booking\/[0-9a-f-]{36}$/);
+// Declared with `signedIn` too: tests with other worker fixtures get a worker of their own and would
+// run beside the serial ones, holding seats as the same user. It signs in through the page.
+signedIn(
+  'the whole journey: home → movie → time → seat → login → tickets → food → pay → QR ticket',
+  async ({ page, isMobile }) => {
+    // Eight page loads, an argon2 login, two axe scans.
+    test.setTimeout(90_000);
+    await page.context().clearCookies();
+    const problems = watchConsole(page);
+    await page.goto('/');
+    const firstMovie = page.locator('#now-showing').getByRole('heading', { level: 3 }).first();
+    const title = (await firstMovie.textContent()) ?? '';
+    await firstMovie.getByRole('link').click();
+    await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
+    const showtimes = page.locator('section', {
+      has: page.getByRole('heading', { level: 2, name: 'Oraret' }),
+    });
+    // Two days ahead: shows the other specs (which take the earliest ones) do not book.
+    await showtimes
+      .getByRole('tab')
+      .nth(isMobile ? 3 : 2)
+      .click();
+    await showtimes
+      .getByRole('link', { name: /^\d{2}:\d{2}, / })
+      .first()
+      .click();
+    await expect(page).toHaveURL(/\/booking\/[0-9a-f-]{36}$/);
 
-  // A seat further along the first row (not the one the other specs pick), by keyboard.
-  const map = await open2D(page, isMobile);
-  await map.locator('button[tabindex="0"]').focus();
-  for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowRight');
-  await page.keyboard.press('Enter');
-  await page.getByRole('complementary').getByRole('button', { name: 'Vazhdo' }).click();
-  await signIn(page, e2eAccount(test.info().project.name, 'checkout'));
-  await expect(page).toHaveURL(/\/booking\/[0-9a-f-]{36}$/);
-  await page.getByRole('complementary').getByRole('button', { name: 'Vazhdo' }).click();
+    // A seat further along the first row (not the one the other specs pick), by keyboard.
+    const map = await open2D(page, isMobile);
+    await map.locator('button[tabindex="0"]').focus();
+    for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('Enter');
+    await page.getByRole('complementary').getByRole('button', { name: 'Vazhdo' }).click();
+    await signIn(page, e2eAccount(test.info().project.name, 'checkout'));
+    await expect(page).toHaveURL(/\/booking\/[0-9a-f-]{36}$/);
+    await page.getByRole('complementary').getByRole('button', { name: 'Vazhdo' }).click();
 
-  const tickets = page.getByRole('region', { name: 'Biletat' });
-  await expect(tickets.getByRole('timer')).toBeVisible();
-  const age = tickets.getByRole('checkbox', { name: /^Konfirmoj që të gjithë shikuesit/ });
-  if (await age.isVisible()) await age.check();
-  await tickets.getByRole('button', { name: 'Vazhdo' }).click();
+    const tickets = page.getByRole('region', { name: 'Biletat' });
+    await expect(tickets.getByRole('timer')).toBeVisible();
+    const age = tickets.getByRole('checkbox', { name: /^Konfirmoj që të gjithë shikuesit/ });
+    if (await age.isVisible()) await age.check();
+    await tickets.getByRole('button', { name: 'Vazhdo' }).click();
 
-  const food = page.getByRole('region', { name: 'Ushqimi & pijet' });
-  await food.getByRole('button', { name: 'Më shumë: Kokoshka mesatare' }).click();
-  await expect(food.getByText('1 × Kokoshka mesatare', { exact: true })).toBeVisible();
-  await food.getByRole('button', { name: 'Vazhdo' }).click();
+    const food = page.getByRole('region', { name: 'Ushqimi & pijet' });
+    await food.getByRole('button', { name: 'Më shumë: Kokoshka mesatare' }).click();
+    await expect(food.getByText('1 × Kokoshka mesatare', { exact: true })).toBeVisible();
+    await food.getByRole('button', { name: 'Vazhdo' }).click();
 
-  const pay = await expectDemoPayment(page);
-  await expect(pay.getByText('1 × Kokoshka mesatare', { exact: true })).toBeVisible();
-  await expectNoAxe(page);
-  await pay.getByRole('button', { name: /^Paguaj \(demo\)/ }).click();
+    const pay = await expectDemoPayment(page);
+    await expect(pay.getByText('1 × Kokoshka mesatare', { exact: true })).toBeVisible();
+    await expectNoAxe(page);
+    await pay.getByRole('button', { name: /^Paguaj \(demo\)/ }).click();
 
-  await expect(page).toHaveURL(/\/booking\/[0-9a-f-]{36}\/confirmed$/);
-  await expect(
-    page.getByRole('heading', { level: 1, name: 'Rezervimi u konfirmua' }),
-  ).toBeVisible();
-  const ticket = page.getByRole('article', { name: title });
-  const qr = ticket.getByRole('img', { name: /^Kodi QR i biletës [0-9A-Z]{16}$/ });
-  await expect(qr).toBeVisible();
-  const code = ((await qr.getAttribute('aria-label')) ?? '').slice(-16);
-  await expect(ticket.getByText(code.replace(/(.{4})(?=.)/g, '$1 '))).toBeVisible();
-  await expect(ticket.getByText(/^1 × Kokoshka mesatare · Merre në banak$/)).toBeVisible();
-  await expect(ticket.getByRole('link', { name: 'Biletat e mia' })).toBeVisible();
+    await expect(page).toHaveURL(/\/booking\/[0-9a-f-]{36}\/confirmed$/);
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Rezervimi u konfirmua' }),
+    ).toBeVisible();
+    const ticket = page.getByRole('article', { name: title });
+    const qr = ticket.getByRole('img', { name: /^Kodi QR i biletës [0-9A-Z]{16}$/ });
+    await expect(qr).toBeVisible();
+    const code = ((await qr.getAttribute('aria-label')) ?? '').slice(-16);
+    await expect(ticket.getByText(code.replace(/(.{4})(?=.)/g, '$1 '))).toBeVisible();
+    await expect(ticket.getByText(/^1 × Kokoshka mesatare · Merre në banak$/)).toBeVisible();
+    await expect(ticket.getByRole('link', { name: 'Biletat e mia' })).toBeVisible();
 
-  // The ticket on the server: confirmed, paid, the QR encodes only the code.
-  const bookingId = /\/booking\/([0-9a-f-]{36})\/confirmed$/.exec(page.url())?.[1] ?? '';
-  const body = (await (await page.request.get(`/api/bookings/${bookingId}/ticket`)).json()) as {
-    ticket: { code: string; status: string; payment: { status: string } };
-  };
-  expect([body.ticket.code, body.ticket.status, body.ticket.payment.status]).toEqual([
-    code,
-    'CONFIRMED',
-    'SUCCEEDED',
-  ]);
+    // The ticket on the server: confirmed, paid, the QR encodes only the code.
+    const bookingId = /\/booking\/([0-9a-f-]{36})\/confirmed$/.exec(page.url())?.[1] ?? '';
+    const body = (await (await page.request.get(`/api/bookings/${bookingId}/ticket`)).json()) as {
+      ticket: { code: string; status: string; payment: { status: string } };
+    };
+    expect([body.ticket.code, body.ticket.status, body.ticket.payment.status]).toEqual([
+      code,
+      'CONFIRMED',
+      'SUCCEEDED',
+    ]);
 
-  // "Shto në kalendar": an .ics file with the show.
-  const download = page.waitForEvent('download');
-  await ticket.getByRole('button', { name: 'Shto në kalendar' }).click();
-  const file = await download;
-  expect(file.suggestedFilename()).toBe(`kinemax-${code}.ics`);
-  const ics = await readFile(await file.path(), 'utf8');
-  expect(ics).toMatch(/^BEGIN:VCALENDAR\r\n/);
-  expect(ics).toContain(`UID:${code}@kinemax`);
-  expect(ics).toMatch(/\r\nDTSTART:\d{8}T\d{6}Z\r\n/);
-  await expectNoAxe(page);
-  expect(problems).toEqual([]);
-});
+    // "Shto në kalendar": an .ics file with the show.
+    const download = page.waitForEvent('download');
+    await ticket.getByRole('button', { name: 'Shto në kalendar' }).click();
+    const file = await download;
+    expect(file.suggestedFilename()).toBe(`kinemax-${code}.ics`);
+    const ics = await readFile(await file.path(), 'utf8');
+    expect(ics).toMatch(/^BEGIN:VCALENDAR\r\n/);
+    expect(ics).toContain(`UID:${code}@kinemax`);
+    expect(ics).toMatch(/\r\nDTSTART:\d{8}T\d{6}Z\r\n/);
+    await expectNoAxe(page);
+    expect(problems).toEqual([]);
+  },
+);
 
 signedIn(
   'a declined demo payment keeps the hold; paying again confirms it',
@@ -286,6 +289,80 @@ signedIn(
       page.getByRole('heading', { level: 1, name: 'Rezervimi u konfirmua' }),
     ).toBeVisible();
     await expect(page.getByRole('img', { name: /^Kodi QR i biletës / })).toBeVisible();
+    expect(problems).toEqual([]);
+  },
+);
+
+signedIn(
+  'my tickets: from the confirmation to "Biletat e mia", cancel with a refund, the seat is free again',
+  async ({ page, request, isMobile }) => {
+    test.setTimeout(90_000);
+    const problems = watchConsole(page);
+    // More than the 2-hour cancellation cutoff away, so the booking can still be cancelled.
+    const id = await findShowtime(request, 'STANDARD', {
+      skip: isMobile ? 5 : 4,
+      exclude: await othersShows(request),
+      leadMinutes: 180,
+    });
+    const food = await toFoodStep(page, id, isMobile);
+    await food.getByRole('button', { name: 'Kalo këtë hap' }).click();
+    const pay = await expectDemoPayment(page);
+    await pay.getByRole('button', { name: /^Paguaj \(demo\)/ }).click();
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Rezervimi u konfirmua' }),
+    ).toBeVisible();
+    const qr = page.getByRole('img', { name: /^Kodi QR i biletës [0-9A-Z]{16}$/ });
+    const code = ((await qr.getAttribute('aria-label')) ?? '').slice(-16);
+    const seat =
+      (await page
+        .getByText(/^Rreshti \w+, ulësja \d+ · /)
+        .first()
+        .textContent()) ?? '';
+    const [, row = '', number = ''] = /^Rreshti (\w+), ulësja (\d+)/.exec(seat) ?? [];
+
+    // "Biletat e mia" from the ticket, and in the account menu.
+    await page.getByRole('link', { name: 'Biletat e mia' }).click();
+    await expect(page).toHaveURL(/\/account\/tickets$/);
+    await expect(page.getByRole('heading', { level: 1, name: 'Biletat e mia' })).toBeVisible();
+    if (!isMobile) {
+      await page.getByRole('button', { name: /^Llogaria e / }).click();
+      await expect(page.getByRole('link', { name: 'Biletat e mia' }).first()).toBeVisible();
+      await page.keyboard.press('Escape');
+    }
+    const upcoming = page.getByRole('tabpanel', { name: /^Të ardhshme/ });
+    await expectNoAxe(page);
+    await upcoming.locator(`a[href="/account/tickets/${code}"]`).click();
+
+    // The ticket: a large QR, the brightness tip, then the cancellation with the refund first.
+    await expect(page).toHaveURL(new RegExp(`/account/tickets/${code}$`));
+    await expect(page.getByRole('img', { name: `Kodi QR i biletës ${code}` })).toBeVisible();
+    await expect(
+      page.getByText('Rrit ndriçimin e ekranit kur tregon kodin QR në hyrje.'),
+    ).toBeVisible();
+    await expect(page.getByText(/^Mund ta anulosh deri më /)).toBeVisible();
+    await page.getByRole('button', { name: 'Anulo rezervimin' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Ta anulojmë rezervimin?' });
+    await expect(dialog.getByText(/^Do të rimbursohen \d+,\d{2} € \(demo\)/)).toBeVisible();
+    await expectNoAxe(page);
+    await dialog.getByRole('button', { name: 'Po, anuloje' }).click();
+    await expect(page.getByText('Rezervimi u anulua dhe u rimbursua (demo).')).toBeVisible();
+    await expect(page.getByRole('img', { name: /^Kodi QR/ })).toHaveCount(0);
+
+    // Under "Të anuluara" now.
+    await page.getByRole('link', { name: 'Të gjitha biletat' }).click();
+    const tabs = page.getByRole('tablist', { name: 'Biletat sipas kohës' });
+    await tabs.getByRole('tab', { name: /^Të anuluara/ }).click();
+    const cancelled = page.getByRole('tabpanel', { name: /^Të anuluara/ });
+    await expect(cancelled.locator(`a[href="/account/tickets/${code}"]`)).toBeVisible();
+    await expect(cancelled.getByText('E rimbursuar').first()).toBeVisible();
+
+    // The seat is free for everyone again.
+    const map = (await (await request.get(`/api/showtimes/${id}/seatmap`)).json()) as {
+      seats: { row: string; number: number; status: string }[];
+    };
+    expect(map.seats.find((s) => s.row === row && s.number === Number(number))?.status).toBe(
+      'AVAILABLE',
+    );
     expect(problems).toEqual([]);
   },
 );

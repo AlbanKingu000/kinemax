@@ -9,6 +9,8 @@ import { BookingPage } from './pages/BookingPage';
 import { ConfirmationPage } from './pages/ConfirmationPage';
 import { HomePage } from './pages/HomePage';
 import { MovieDetailPage } from './pages/MovieDetailPage';
+import { MyTicketPage } from './pages/MyTicketPage';
+import { MyTicketsPage } from './pages/MyTicketsPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { SchedulePage } from './pages/SchedulePage';
 
@@ -79,6 +81,22 @@ export const routes: RouteObject[] = [
         element: (
           <RequireAuth>
             <AccountPage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: 'account/tickets',
+        element: (
+          <RequireAuth>
+            <MyTicketsPage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: 'account/tickets/:code',
+        element: (
+          <RequireAuth>
+            <MyTicketPage />
           </RequireAuth>
         ),
       },

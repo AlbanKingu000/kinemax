@@ -1,5 +1,5 @@
 // Sample /api/showtimes/:id/seatmap answers for web tests.
-import type { Booking, SeatMapResponse, SeatMapSeat } from '@kinemax/shared';
+import type { Booking, SeatMapResponse, SeatMapSeat, Ticket } from '@kinemax/shared';
 
 export const SHOWTIME_ID = '0190f0a0-0000-7000-8000-0000000000b1';
 export const SUITE_SHOWTIME_ID = '0190f0a0-0000-7000-8000-0000000000b2';
@@ -154,3 +154,66 @@ export function heldBooking(
 }
 
 export const BOOKING_ID = '0190f0a0-0000-7000-8000-0000000000c1';
+
+export const TICKET_CODE = 'ABCD1234EFGH5678';
+
+/** A paid booking as a ticket (VIP hall, a combo brought during the film). */
+export function paidTicket(booking: Booking, extra: Partial<Ticket> = {}): Ticket {
+  return {
+    id: booking.id,
+    code: TICKET_CODE,
+    status: 'CONFIRMED',
+    movie: {
+      slug: 'kodi',
+      titleSq: 'Kodi Orbital 9',
+      titleEn: null,
+      posterPath: '/seed/posters/kodi.svg',
+      ageRating: 'AGE_12',
+      durationMinutes: 131,
+    },
+    location: {
+      slug: 'prizren',
+      name: 'Kinemax Prizren',
+      address: 'Rruga e Shadërvanit 3',
+      timeZone: 'Europe/Belgrade',
+    },
+    hall: {
+      name: 'Salla 1',
+      hallTypeCode: 'VIP_RECLINER',
+      hallTypeNameSq: 'VIP',
+      hallTypeNameEn: null,
+    },
+    startsAt: '2026-10-20T18:30:00.000Z',
+    endsAt: '2026-10-20T21:00:00.000Z',
+    localDate: '2026-10-20',
+    localTime: '20:30',
+    isWholeHall: false,
+    seats: booking.seats,
+    food: [
+      {
+        menuItemId: '0190f0a0-0000-7000-8000-000000000301',
+        nameSq: 'Kombo klasike',
+        nameEn: null,
+        quantity: 1,
+        unitPriceCents: 500,
+        totalCents: 500,
+        fulfillment: 'DELIVER_TO_SEAT',
+        serveTiming: 'DURING_SHOW',
+      },
+    ],
+    ticketsCents: booking.ticketsCents,
+    foodCents: 500,
+    totalCents: booking.ticketsCents + 500,
+    currency: 'EUR',
+    confirmedAt: '2026-10-15T10:00:00.000Z',
+    cancelledAt: null,
+    categories: booking.categories,
+    payment: { status: 'SUCCEEDED', amountCents: booking.ticketsCents + 500, reference: 'DEMO-X' },
+    cancellation: {
+      allowed: true,
+      until: '2026-10-20T16:30:00.000Z',
+      refundCents: booking.ticketsCents + 500,
+    },
+    ...extra,
+  };
+}

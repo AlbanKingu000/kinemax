@@ -3,23 +3,26 @@
 import { ticketQrValue, type Ticket } from '@kinemax/shared';
 import { QRCodeSVG } from 'qrcode.react';
 import type { ReactNode } from 'react';
-import { AgeBadge } from '../components/Badge/Badge';
+import { AgeBadge, Badge } from '../components/Badge/Badge';
 import { Button } from '../components/Button/Button';
 import { formatLongDate, formatPrice } from '../i18n/format';
 import { pickText } from '../i18n/messages';
 import { useLocale, useMessages } from '../i18n/use-messages';
-import { groupCode } from './booking-code';
+import { groupCode } from './ticket-format';
 import { downloadCalendarEvent } from './ics';
 import styles from './TicketView.module.css';
 
 export function TicketView({
   ticket,
   qrSize = 176,
+  qrNote,
   actions,
 }: {
   ticket: Ticket;
   /** Pixels; larger on the "Biletat e mia" detail for scanning at the entrance. */
   qrSize?: number;
+  /** A hint under the QR code (e.g. turn up the brightness). */
+  qrNote?: ReactNode;
   /** Extra actions under the calendar button (links, cancellation). */
   actions?: ReactNode;
 }) {
@@ -28,6 +31,7 @@ export function TicketView({
   const title = pickText(locale, ticket.movie.titleSq, ticket.movie.titleEn);
   const hallType = pickText(locale, ticket.hall.hallTypeNameSq, ticket.hall.hallTypeNameEn);
   const when = `${formatLongDate(locale, t, ticket.localDate)} · ${ticket.localTime}`;
+  const valid = ticket.status === 'CONFIRMED';
   const categoryName = (code: string) => {
     const category = ticket.categories.find((c) => c.code === code);
     return category ? pickText(locale, category.nameSq, category.nameEn) : code;
@@ -48,7 +52,10 @@ export function TicketView({
           )}
           <div className={styles.show}>
             <h2 className={styles.title}>{title}</h2>
-            <AgeBadge rating={ticket.movie.ageRating} />
+            <div className={styles.badges}>
+              <AgeBadge rating={ticket.movie.ageRating} />
+              {!valid && <Badge tone="warning">{t.ticket.status[ticket.status]}</Badge>}
+            </div>
             <p className={styles.meta}>
               {ticket.location.name} · {ticket.hall.name} ({hallType})
             </p>
@@ -103,18 +110,24 @@ export function TicketView({
       </div>
 
       <div className={styles.stub}>
-        <div className={styles.qr}>
-          <QRCodeSVG
-            value={ticketQrValue(ticket.code)}
-            size={qrSize}
-            level="M"
-            marginSize={2}
-            bgColor="transparent"
-            fgColor="currentColor"
-            role="img"
-            aria-label={t.ticket.qr(ticket.code)}
-          />
-        </div>
+        {valid ? (
+          <div className={styles.qr}>
+            <QRCodeSVG
+              value={ticketQrValue(ticket.code)}
+              size={qrSize}
+              level="M"
+              marginSize={2}
+              bgColor="transparent"
+              fgColor="currentColor"
+              role="img"
+              aria-label={t.ticket.qr(ticket.code)}
+            />
+          </div>
+        ) : (
+          // A cancelled or refunded ticket does not let anyone in: no QR code to show.
+          <Badge tone="warning">{t.ticket.status[ticket.status]}</Badge>
+        )}
+        {valid && qrNote && <p className={styles.qrNote}>{qrNote}</p>}
         <p className={styles.codeLabel}>{t.ticket.code}</p>
         <p className={styles.code}>{groupCode(ticket.code)}</p>
         <div className={styles.actions}>

@@ -100,6 +100,8 @@ become invalid after an API restart, the client fetches a new one).
   | seat hold per IP            | 120 per 10 minutes | `POST /api/bookings/hold`           |
   | demo payment per user       | 30 per 10 minutes  | `POST /api/payments/:id/simulate`   |
   | demo payment per IP         | 120 per 10 minutes | `POST /api/payments/:id/simulate`   |
+  | cancellation per user       | 10 per 10 minutes  | `POST /api/bookings/:id/cancel`     |
+  | cancellation per IP         | 60 per 10 minutes  | `POST /api/bookings/:id/cancel`     |
 
   Behind a reverse proxy set `TRUST_PROXY` to the number of proxies, or every client shares the
   proxy's IP.

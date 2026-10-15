@@ -9,9 +9,9 @@ import { useNavigate } from 'react-router';
 import { ApiRequestError } from '../api/http';
 import { authErrorMessage, fieldErrorMessage } from '../auth/auth-errors';
 import { useAuth } from '../auth/auth-context';
-import { Button } from '../components/Button/Button';
+import { Button, ButtonLink } from '../components/Button/Button';
 import { RadioGroup } from '../components/Choice/Radio';
-import { EmptyState } from '../components/EmptyState/EmptyState';
+
 import { ErrorSummary, type SummaryError } from '../components/ErrorSummary/ErrorSummary';
 import { FormField } from '../components/FormField/FormField';
 import { Input } from '../components/Input/Input';
@@ -39,9 +39,12 @@ export function AccountPage() {
         <h2 id="account-tickets" className={styles.heading}>
           {t.account.myTickets}
         </h2>
-        <EmptyState icon="ticket" title={t.account.myTickets} headingLevel="h3">
-          <p>{t.account.myTicketsSoon}</p>
-        </EmptyState>
+        <p className={styles.text}>{t.myTickets.description}</p>
+        <div>
+          <ButtonLink to="/account/tickets" variant="secondary" icon="ticket">
+            {t.account.myTickets}
+          </ButtonLink>
+        </div>
       </section>
     </Container>
   );

@@ -124,8 +124,11 @@ function DrawerAccount({ onDone }: { onDone: () => void }) {
   }
   return (
     <div className={styles.drawerAccount}>
-      <NavLink to="/account" className={styles.login} onClick={onDone}>
+      <NavLink to="/account" end className={styles.login} onClick={onDone}>
         {t.account.myAccount} · {firstName(user.name)}
+      </NavLink>
+      <NavLink to="/account/tickets" className={styles.login} onClick={onDone}>
+        {t.account.myTickets}
       </NavLink>
       <Button
         variant="ghost"
