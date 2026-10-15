@@ -68,7 +68,8 @@ items as they are finished.
 
 ## Progress (keep up to date)
 
-- Started 15 Oct 2026.
+- Started 15 Oct 2026. Committed as "fix: auto-hiding seat view panel, framing, transition path and
+  VIP readability" (`3b886a8`).
 - Before = the 7d final state (`e6737a2`), measured with the same script on the same machine
   (installed Google Chrome headed, Intel UHD Graphics 620, 1440×900, DPR 1, dev server,
   Prishtinë halls): 3D chunk 941.72 kB raw / 255.43 kB gzip; draw calls overview/seat Standard
@@ -125,7 +126,7 @@ suite}.png`, `polish2-seat-{…}.png`, `polish2-seat-hidden-panel.png` (mid-drag
 - [x] 11 npm run verify
 - [x] 12 Chrome check (console clean) + screenshots polish2-3d-<type>.png, polish2-seat-<type>.png,
       polish2-seat-hidden-panel.png, polish2-transition-1/2/3.png
-- [ ] 13 Roadmap + commit "fix: auto-hiding seat view panel, framing, transition path and VIP
+- [x] 13 Roadmap + commit "fix: auto-hiding seat view panel, framing, transition path and VIP
       readability"
 
 ## The task (as given)

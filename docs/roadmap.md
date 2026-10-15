@@ -20,7 +20,7 @@ task is finished, move it to DONE with its commit hash.
 | 3D + 2D seat selection with view from seat (task 07 part B)          | `d82cf0c`            |
 | Seat holds, ticket categories, server-side prices (task 07 part C)   | `c7ecc24`            |
 | Cinematic 3D hall + locked seat view (task 7d)                       | `a3e0401`            |
-| 3D fixes: auto-hiding seat panel, framing, flight path, VIP (7e)     | (pending)            |
+| 3D fixes: auto-hiding seat panel, framing, flight path, VIP (7e)     | `3b886a8`            |
 
 ## Next (in this order)
 
