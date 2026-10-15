@@ -98,6 +98,8 @@ become invalid after an API restart, the client fetches a new one).
   | change-password per user    | 5 per 15 minutes   |                                     |
   | seat hold per user          | 30 per 10 minutes  | `POST /api/bookings/hold`           |
   | seat hold per IP            | 120 per 10 minutes | `POST /api/bookings/hold`           |
+  | demo payment per user       | 30 per 10 minutes  | `POST /api/payments/:id/simulate`   |
+  | demo payment per IP         | 120 per 10 minutes | `POST /api/payments/:id/simulate`   |
 
   Behind a reverse proxy set `TRUST_PROXY` to the number of proxies, or every client shares the
   proxy's IP.

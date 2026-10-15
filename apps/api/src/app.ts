@@ -12,6 +12,7 @@ import type { Logger } from './logger.js';
 import { createAuthRouter } from './routes/auth.js';
 import { createBookingsRouter, type BookingRateLimits } from './routes/bookings.js';
 import { createCatalogRouter } from './routes/catalog.js';
+import { createCheckoutRouter, type CheckoutRateLimits } from './routes/checkout.js';
 import { createHealthRouter } from './routes/health.js';
 import { createMenuRouter } from './routes/menu.js';
 import { createProtectedExamplesRouter } from './routes/protected-examples.js';
@@ -44,6 +45,8 @@ export interface AppDeps {
   now?: () => Date;
   /** Seat hold rate limits (default BOOKING_RATE_LIMITS). */
   bookingRateLimits?: BookingRateLimits;
+  /** Demo payment rate limits (default CHECKOUT_RATE_LIMITS). */
+  checkoutRateLimits?: CheckoutRateLimits;
 }
 
 export function createApp({
@@ -54,6 +57,7 @@ export function createApp({
   auth,
   now = () => new Date(),
   bookingRateLimits,
+  checkoutRateLimits,
 }: AppDeps): Express {
   const app = express();
   const cookies = cookieSettings(auth.cookieSecure);
@@ -106,6 +110,15 @@ export function createApp({
       logger,
       now,
       ...(bookingRateLimits ? { rateLimits: bookingRateLimits } : {}),
+    }),
+  );
+  app.use(
+    '/api',
+    createCheckoutRouter({
+      prisma,
+      logger,
+      now,
+      ...(checkoutRateLimits ? { rateLimits: checkoutRateLimits } : {}),
     }),
   );
   app.use('/api', createProtectedExamplesRouter(prisma));

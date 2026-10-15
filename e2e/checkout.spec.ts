@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 import { e2eAccount } from '../apps/api/scripts/e2e-account.ts';
 import {
@@ -14,6 +16,35 @@ import {
 // journeys of a project run one after the other, and each one books its own show.
 
 test.describe.configure({ mode: 'serial' });
+
+/**
+ * Journeys that start signed in: one login per project (through the API, kept as storage state)
+ * instead of one per journey, so the whole e2e run stays under the login rate limit (20 per IP
+ * per 15 minutes). The full journey below signs in through the page itself.
+ */
+const signedIn = test.extend<object, { checkoutState: string }>({
+  checkoutState: [
+    async ({ playwright }, use, info) => {
+      const baseURL = info.project.use.baseURL ?? '';
+      const file = join(info.project.outputDir, `checkout-session-${info.project.name}.json`);
+      const api = await playwright.request.newContext({ baseURL });
+      const csrf = (await (await api.get('/api/auth/csrf')).json()) as { csrfToken: string };
+      const { email, password } = e2eAccount(info.project.name, 'checkout');
+      const login = await api.post('/api/auth/login', {
+        headers: { Origin: baseURL, 'X-CSRF-Token': csrf.csrfToken },
+        data: { email, password },
+      });
+      expect(login.status()).toBe(200);
+      await api.storageState({ path: file });
+      await api.dispose();
+      await use(file);
+    },
+    { scope: 'worker' },
+  ],
+  storageState: async ({ checkoutState }, use) => {
+    await use(checkoutState);
+  },
+});
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
@@ -34,11 +65,8 @@ async function othersShows(request: APIRequestContext) {
   ];
 }
 
-/** Signs in, picks a seat in 2D and goes through the tickets step to the food step. */
+/** Signed in: picks a seat in 2D and goes through the tickets step to the food step. */
 async function toFoodStep(page: Page, id: string, isMobile: boolean) {
-  await page.goto('/login');
-  await signIn(page, e2eAccount(test.info().project.name, 'checkout'));
-  await expect(page).toHaveURL(/\/$/);
   await page.goto(`/booking/${id}`);
   await pickSeat(page, await open2D(page, isMobile));
   await page.getByRole('complementary').getByRole('button', { name: 'Vazhdo' }).click();
@@ -69,70 +97,195 @@ async function currentHold(page: Page): Promise<Hold> {
   return body.booking;
 }
 
-test('food in a VIP hall: a combo brought to the seat during the film', async ({
+signedIn(
+  'food in a VIP hall: a combo brought to the seat during the film',
+  async ({ page, request, isMobile }) => {
+    // A login, four page loads and an axe scan.
+    test.setTimeout(60_000);
+    const problems = watchConsole(page);
+    const id = await findShowtime(request, 'VIP_RECLINER', { skip: isMobile ? 1 : 0 });
+    const food = await toFoodStep(page, id, isMobile);
+    await expect(food.getByRole('timer')).toHaveText(/^(10:00|0\d:\d\d)$/);
+    await expect(food.getByRole('button', { name: 'Kalo këtë hap' })).toBeVisible();
+
+    await food.getByRole('radio', { name: 'Na e sjellim te ulësja' }).check();
+    await food.getByRole('radio', { name: 'Gjatë filmit (rreth 20 min pas fillimit)' }).check();
+    await food.getByRole('tab', { name: 'Kombo' }).click();
+    await food.getByRole('button', { name: 'Më shumë: Kombo klasike' }).click();
+    const order = food.getByRole('complementary', { name: 'Porosia jote' });
+    await expect(order.getByText('1 × Kombo klasike')).toBeVisible();
+    await expect(
+      order.getByText('Na e sjellim te ulësja · Gjatë filmit (rreth 20 min pas fillimit)'),
+    ).toBeVisible();
+
+    // Saved on the server, at the cinema's price, in the booking total.
+    const booking = await currentHold(page);
+    expect(booking.food).toEqual([
+      expect.objectContaining({
+        nameSq: 'Kombo klasike',
+        quantity: 1,
+        fulfillment: 'DELIVER_TO_SEAT',
+        serveTiming: 'DURING_SHOW',
+      }),
+    ]);
+    expect(booking.totalCents).toBe(booking.ticketsCents + booking.foodCents);
+    expect(booking.foodCents).toBeGreaterThan(0);
+    await expectNoAxe(page);
+
+    await food.getByRole('button', { name: 'Vazhdo' }).click();
+    await expect(page).toHaveURL(new RegExp(`/booking/${id}/pay$`));
+    expect(problems).toEqual([]);
+  },
+);
+
+signedIn(
+  'food in a Standard hall: no seat delivery, and the step can be skipped',
+  async ({ page, request, isMobile }) => {
+    test.setTimeout(60_000);
+    const problems = watchConsole(page);
+    const id = await findShowtime(request, 'STANDARD', {
+      skip: isMobile ? 1 : 0,
+      exclude: await othersShows(request),
+    });
+    const food = await toFoodStep(page, id, isMobile);
+    await expect(food.getByRole('tablist', { name: 'Kategoritë e menysë' })).toBeVisible();
+    // Counter pickup only in this hall.
+    await expect(food.getByRole('radio', { name: 'Na e sjellim te ulësja' })).toHaveCount(0);
+    await food.getByRole('button', { name: 'Më shumë: Kokoshka mesatare' }).click();
+    const order = food.getByRole('complementary', { name: 'Porosia jote' });
+    await expect(order.getByText('1 × Kokoshka mesatare', { exact: true })).toBeVisible();
+
+    await food.getByRole('button', { name: 'Kalo këtë hap' }).click();
+    await expect(page).toHaveURL(new RegExp(`/booking/${id}/pay$`));
+    expect((await currentHold(page)).food).toEqual([]);
+    expect(problems).toEqual([]);
+  },
+);
+
+/** The demo payment step: clearly a demo, nothing to type. */
+async function expectDemoPayment(page: Page) {
+  const pay = page.getByRole('region', { name: 'Pagesa' });
+  await expect(pay.getByText('DEMO – nuk kryhet asnjë pagesë reale')).toBeVisible();
+  await expect(pay.getByRole('img', { name: 'Karta demo 4242 •••• •••• 4242' })).toBeVisible();
+  await expect(pay.locator('input, textarea, select')).toHaveCount(0);
+  await expect(pay.getByRole('button', { name: /^Paguaj \(demo\) · \d+,\d{2} €$/ })).toBeEnabled();
+  return pay;
+}
+
+test('the whole journey: home → movie → time → seat → login → tickets → food → pay → QR ticket', async ({
   page,
-  request,
   isMobile,
 }) => {
-  // A login, four page loads and an axe scan.
-  test.setTimeout(60_000);
+  // Eight page loads, an argon2 login, two axe scans.
+  test.setTimeout(90_000);
   const problems = watchConsole(page);
-  const id = await findShowtime(request, 'VIP_RECLINER', { skip: isMobile ? 1 : 0 });
-  const food = await toFoodStep(page, id, isMobile);
-  await expect(food.getByRole('timer')).toHaveText(/^(10:00|0\d:\d\d)$/);
-  await expect(food.getByRole('button', { name: 'Kalo këtë hap' })).toBeVisible();
-
-  await food.getByRole('radio', { name: 'Na e sjellim te ulësja' }).check();
-  await food.getByRole('radio', { name: 'Gjatë filmit (rreth 20 min pas fillimit)' }).check();
-  await food.getByRole('tab', { name: 'Kombo' }).click();
-  await food.getByRole('button', { name: 'Më shumë: Kombo klasike' }).click();
-  const order = food.getByRole('complementary', { name: 'Porosia jote' });
-  await expect(order.getByText('1 × Kombo klasike')).toBeVisible();
-  await expect(
-    order.getByText('Na e sjellim te ulësja · Gjatë filmit (rreth 20 min pas fillimit)'),
-  ).toBeVisible();
-
-  // Saved on the server, at the cinema's price, in the booking total.
-  const booking = await currentHold(page);
-  expect(booking.food).toEqual([
-    expect.objectContaining({
-      nameSq: 'Kombo klasike',
-      quantity: 1,
-      fulfillment: 'DELIVER_TO_SEAT',
-      serveTiming: 'DURING_SHOW',
-    }),
-  ]);
-  expect(booking.totalCents).toBe(booking.ticketsCents + booking.foodCents);
-  expect(booking.foodCents).toBeGreaterThan(0);
-  await expectNoAxe(page);
-
-  await food.getByRole('button', { name: 'Vazhdo' }).click();
-  await expect(food.getByText('Pagesa demo vjen së shpejti.')).toBeVisible();
-  expect(problems).toEqual([]);
-});
-
-test('food in a Standard hall: no seat delivery, and the step can be skipped', async ({
-  page,
-  request,
-  isMobile,
-}) => {
-  test.setTimeout(60_000);
-  const problems = watchConsole(page);
-  const id = await findShowtime(request, 'STANDARD', {
-    skip: isMobile ? 1 : 0,
-    exclude: await othersShows(request),
+  await page.goto('/');
+  const firstMovie = page.locator('#now-showing').getByRole('heading', { level: 3 }).first();
+  const title = (await firstMovie.textContent()) ?? '';
+  await firstMovie.getByRole('link').click();
+  await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
+  const showtimes = page.locator('section', {
+    has: page.getByRole('heading', { level: 2, name: 'Oraret' }),
   });
-  const food = await toFoodStep(page, id, isMobile);
-  await expect(food.getByRole('tablist', { name: 'Kategoritë e menysë' })).toBeVisible();
-  // Counter pickup only in this hall.
-  await expect(food.getByRole('radio', { name: 'Na e sjellim te ulësja' })).toHaveCount(0);
-  await food.getByRole('button', { name: 'Më shumë: Kokoshka mesatare' }).click();
-  const order = food.getByRole('complementary', { name: 'Porosia jote' });
-  await expect(order.getByText('1 × Kokoshka mesatare', { exact: true })).toBeVisible();
+  // Two days ahead: shows the other specs (which take the earliest ones) do not book.
+  await showtimes
+    .getByRole('tab')
+    .nth(isMobile ? 3 : 2)
+    .click();
+  await showtimes
+    .getByRole('link', { name: /^\d{2}:\d{2}, / })
+    .first()
+    .click();
+  await expect(page).toHaveURL(/\/booking\/[0-9a-f-]{36}$/);
 
-  await food.getByRole('button', { name: 'Kalo këtë hap' }).click();
-  await expect(food.getByText('Pagesa demo vjen së shpejti.')).toBeVisible();
-  await expect(order.getByText('Ende nuk ke zgjedhur asgjë.')).toBeVisible();
-  expect((await currentHold(page)).food).toEqual([]);
+  // A seat further along the first row (not the one the other specs pick), by keyboard.
+  const map = await open2D(page, isMobile);
+  await map.locator('button[tabindex="0"]').focus();
+  for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('Enter');
+  await page.getByRole('complementary').getByRole('button', { name: 'Vazhdo' }).click();
+  await signIn(page, e2eAccount(test.info().project.name, 'checkout'));
+  await expect(page).toHaveURL(/\/booking\/[0-9a-f-]{36}$/);
+  await page.getByRole('complementary').getByRole('button', { name: 'Vazhdo' }).click();
+
+  const tickets = page.getByRole('region', { name: 'Biletat' });
+  await expect(tickets.getByRole('timer')).toBeVisible();
+  const age = tickets.getByRole('checkbox', { name: /^Konfirmoj që të gjithë shikuesit/ });
+  if (await age.isVisible()) await age.check();
+  await tickets.getByRole('button', { name: 'Vazhdo' }).click();
+
+  const food = page.getByRole('region', { name: 'Ushqimi & pijet' });
+  await food.getByRole('button', { name: 'Më shumë: Kokoshka mesatare' }).click();
+  await expect(food.getByText('1 × Kokoshka mesatare', { exact: true })).toBeVisible();
+  await food.getByRole('button', { name: 'Vazhdo' }).click();
+
+  const pay = await expectDemoPayment(page);
+  await expect(pay.getByText('1 × Kokoshka mesatare', { exact: true })).toBeVisible();
+  await expectNoAxe(page);
+  await pay.getByRole('button', { name: /^Paguaj \(demo\)/ }).click();
+
+  await expect(page).toHaveURL(/\/booking\/[0-9a-f-]{36}\/confirmed$/);
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Rezervimi u konfirmua' }),
+  ).toBeVisible();
+  const ticket = page.getByRole('article', { name: title });
+  const qr = ticket.getByRole('img', { name: /^Kodi QR i biletës [0-9A-Z]{16}$/ });
+  await expect(qr).toBeVisible();
+  const code = ((await qr.getAttribute('aria-label')) ?? '').slice(-16);
+  await expect(ticket.getByText(code.replace(/(.{4})(?=.)/g, '$1 '))).toBeVisible();
+  await expect(ticket.getByText(/^1 × Kokoshka mesatare · Merre në banak$/)).toBeVisible();
+  await expect(ticket.getByRole('link', { name: 'Biletat e mia' })).toBeVisible();
+
+  // The ticket on the server: confirmed, paid, the QR encodes only the code.
+  const bookingId = /\/booking\/([0-9a-f-]{36})\/confirmed$/.exec(page.url())?.[1] ?? '';
+  const body = (await (await page.request.get(`/api/bookings/${bookingId}/ticket`)).json()) as {
+    ticket: { code: string; status: string; payment: { status: string } };
+  };
+  expect([body.ticket.code, body.ticket.status, body.ticket.payment.status]).toEqual([
+    code,
+    'CONFIRMED',
+    'SUCCEEDED',
+  ]);
+
+  // "Shto në kalendar": an .ics file with the show.
+  const download = page.waitForEvent('download');
+  await ticket.getByRole('button', { name: 'Shto në kalendar' }).click();
+  const file = await download;
+  expect(file.suggestedFilename()).toBe(`kinemax-${code}.ics`);
+  const ics = await readFile(await file.path(), 'utf8');
+  expect(ics).toMatch(/^BEGIN:VCALENDAR\r\n/);
+  expect(ics).toContain(`UID:${code}@kinemax`);
+  expect(ics).toMatch(/\r\nDTSTART:\d{8}T\d{6}Z\r\n/);
+  await expectNoAxe(page);
   expect(problems).toEqual([]);
 });
+
+signedIn(
+  'a declined demo payment keeps the hold; paying again confirms it',
+  async ({ page, request, isMobile }) => {
+    test.setTimeout(60_000);
+    const problems = watchConsole(page);
+    const id = await findShowtime(request, 'STANDARD', {
+      skip: isMobile ? 3 : 2,
+      exclude: await othersShows(request),
+    });
+    const food = await toFoodStep(page, id, isMobile);
+    await food.getByRole('button', { name: 'Kalo këtë hap' }).click();
+    const pay = await expectDemoPayment(page);
+
+    await pay.getByRole('button', { name: 'Simulo refuzim' }).click();
+    await expect(pay.getByText(/^Pagesa u refuzua \(demo\)/)).toBeVisible();
+    // Still on hold, nothing confirmed.
+    const hold = (await (await page.request.get('/api/bookings/current')).json()) as {
+      booking: { status: string } | null;
+    };
+    expect(hold.booking?.status).toBe('HELD');
+
+    await pay.getByRole('button', { name: /^Paguaj \(demo\)/ }).click();
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Rezervimi u konfirmua' }),
+    ).toBeVisible();
+    await expect(page.getByRole('img', { name: /^Kodi QR i biletës / })).toBeVisible();
+    expect(problems).toEqual([]);
+  },
+);

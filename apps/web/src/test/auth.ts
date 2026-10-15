@@ -34,7 +34,8 @@ export function stubAuth(initial: AuthUser | null = null, catalog: CatalogStub =
     const url = new URL(urlOf(input), 'http://localhost');
     const method = init?.method ?? 'GET';
     const body: unknown = typeof init?.body === 'string' ? JSON.parse(init.body) : undefined;
-    if (url.pathname.startsWith('/api/bookings') && catalog.bookings) {
+    const bookingApi = /^\/api\/(bookings|payments)\//.test(url.pathname);
+    if (bookingApi && catalog.bookings) {
       state.requests.push({ method, path: url.pathname, body });
       return respond(catalog.bookings({ method, path: url.pathname, body }));
     }

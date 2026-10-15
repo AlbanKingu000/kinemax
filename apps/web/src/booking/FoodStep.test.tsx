@@ -168,21 +168,31 @@ describe('Food & drinks step', () => {
     ).toBeInTheDocument();
   });
 
-  it('can be skipped: an order already chosen is removed first', async () => {
+  it('can be skipped straight to the payment', async () => {
     const { fake } = withFoodHold(false);
     renderApp(FOOD);
     const skip = await screen.findByRole('button', { name: 'Kalo këtë hap' }, STEP_WAIT);
     await screen.findByRole('tablist', {}, STEP_WAIT);
     fireEvent.click(skip);
-    expect(await screen.findByText('Pagesa demo vjen së shpejti.')).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Pagesa' }, STEP_WAIT),
+    ).toBeInTheDocument();
     expect(foodPuts(fake)).toHaveLength(0);
+  });
 
+  it('removes an order already chosen when the step is skipped', async () => {
+    const { fake } = withFoodHold(false);
+    renderApp(FOOD);
+    await screen.findByRole('tablist', {}, STEP_WAIT);
     fireEvent.click(screen.getByRole('button', { name: 'Më shumë: Kokoshka mesatare' }));
-    fireEvent.click(skip);
+    fireEvent.click(screen.getByRole('button', { name: 'Kalo këtë hap' }));
     await waitFor(() => {
       expect(foodPuts(fake).at(-1)?.body).toEqual({ items: [] });
     });
     expect(foodPuts(fake)).toHaveLength(1);
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Pagesa' }, STEP_WAIT),
+    ).toBeInTheDocument();
   });
 
   it('resumes the food already on the hold', async () => {

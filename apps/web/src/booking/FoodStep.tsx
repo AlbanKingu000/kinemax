@@ -79,7 +79,6 @@ function FoodOrder({ initial, map }: { initial: Booking; map: SeatMapResponse })
   const [order, setOrder] = useState(() => orderOf(initial));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
   const [gone, setGone] = useState(false);
   const latest = useRef(0);
   const timer = useRef<number | undefined>(undefined);
@@ -133,7 +132,6 @@ function FoodOrder({ initial, map }: { initial: Booking; map: SeatMapResponse })
   /** Shows the change at once and saves it a moment later. */
   function change(next: Order) {
     setOrder(next);
-    setNotice('');
     pending.current = next;
     window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => {
@@ -148,9 +146,8 @@ function FoodOrder({ initial, map }: { initial: Booking; map: SeatMapResponse })
     if (toSave && !(await save(toSave))) return;
     then();
   }
-  // The demo payment is the next step (part B of the checkout).
   const proceed = () => {
-    setNotice(t.food.nextStepSoon);
+    void navigate(`/booking/${showtimeId}/pay`);
   };
 
   if (gone || secondsLeft <= 0) return <HoldExpired showtimeId={showtimeId} />;
@@ -350,9 +347,6 @@ function FoodOrder({ initial, map }: { initial: Booking; map: SeatMapResponse })
               {error}
             </p>
           )}
-          <p role="status" className={styles.notice}>
-            {notice}
-          </p>
           <div className={styles.actions}>
             <Button
               variant="ghost"

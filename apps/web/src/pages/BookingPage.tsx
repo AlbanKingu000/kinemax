@@ -21,6 +21,7 @@ import {
   MAX_TICKETS,
 } from '../booking/selection';
 import { FoodStep } from '../booking/FoodStep';
+import { PaymentStep } from '../booking/PaymentStep';
 import { SeatMap2D } from '../booking/SeatMap2D';
 import { neighbourSeat, screenDistance } from '../booking/seat-view';
 import { TicketsStep } from '../booking/TicketsStep';
@@ -46,7 +47,7 @@ const Hall3D = lazy(() => import('../booking/Hall3D'));
  * Booking one show. Step "seats": 3D hall or 2D map, a summary panel and "Vazhdo". Step "tickets":
  * the held seats with ticket categories and server prices (signed in only).
  */
-export function BookingPage({ step = 'seats' }: { step?: 'seats' | 'tickets' | 'food' }) {
+export function BookingPage({ step = 'seats' }: { step?: 'seats' | 'tickets' | 'food' | 'pay' }) {
   const t = useMessages();
   const { showtimeId = '' } = useParams();
   const { status } = useAuth();
@@ -59,7 +60,7 @@ export function BookingPage({ step = 'seats' }: { step?: 'seats' | 'tickets' | '
     if (showLocation && chosenLocation?.slug !== showLocation) choose(showLocation);
   }, [showLocation, chosenLocation?.slug, choose]);
   usePageMeta(
-    `${step === 'tickets' ? t.tickets.title : step === 'food' ? t.food.title : t.seats.title} · ${t.meta.titleSuffix}`,
+    `${{ seats: t.seats.title, tickets: t.tickets.title, food: t.food.title, pay: t.payment.title }[step]} · ${t.meta.titleSuffix}`,
     t.booking.seatsSoonBody,
   );
 
@@ -141,6 +142,8 @@ export function BookingPage({ step = 'seats' }: { step?: 'seats' | 'tickets' | '
         <TicketsStep map={seatMap.data} />
       ) : step === 'food' ? (
         <FoodStep map={seatMap.data} />
+      ) : step === 'pay' ? (
+        <PaymentStep map={seatMap.data} />
       ) : (
         <SeatSelection map={seatMap.data} onRefresh={seatMap.refresh} />
       )}

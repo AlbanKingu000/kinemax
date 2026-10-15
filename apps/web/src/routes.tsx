@@ -6,6 +6,7 @@ import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
 import { ComingSoonPage } from './pages/ComingSoonPage';
 import { BookingPage } from './pages/BookingPage';
+import { ConfirmationPage } from './pages/ConfirmationPage';
 import { HomePage } from './pages/HomePage';
 import { MovieDetailPage } from './pages/MovieDetailPage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -49,6 +50,22 @@ export const routes: RouteObject[] = [
         element: (
           <RequireAuth>
             <BookingPage key="food" step="food" />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: 'booking/:showtimeId/pay',
+        element: (
+          <RequireAuth>
+            <BookingPage key="pay" step="pay" />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: 'booking/:bookingId/confirmed',
+        element: (
+          <RequireAuth>
+            <ConfirmationPage />
           </RequireAuth>
         ),
       },

@@ -202,18 +202,6 @@
   font-size: var(--text-body-sm);
 }
 
-.notice:empty {
-  display: none;
-}
-
-.notice {
-  padding: var(--space-3);
-  border-left: 3px solid var(--color-info);
-  background: var(--color-info-bg);
-  color: var(--color-text);
-  font-size: var(--text-body-sm);
-}
-
 .actions {
   display: flex;
   flex-wrap: wrap;

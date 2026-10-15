@@ -7,6 +7,7 @@ import { inject, vi, type Mock } from 'vitest';
 import { createApp, type AppDeps } from '../../src/app.js';
 import type { AuthRateLimits } from '../../src/auth/rate-limit.js';
 import type { BookingRateLimits } from '../../src/routes/bookings.js';
+import type { CheckoutRateLimits } from '../../src/routes/checkout.js';
 import { createSessionService } from '../../src/auth/sessions.js';
 import { createPrismaClient } from '../../src/db/prisma.js';
 import type { Logger } from '../../src/logger.js';
@@ -40,6 +41,7 @@ export function makeTestApp(
     cookieSecure?: boolean;
     rateLimits?: AuthRateLimits;
     bookingRateLimits?: BookingRateLimits;
+    checkoutRateLimits?: CheckoutRateLimits;
     now?: () => Date;
   } = {},
 ) {
@@ -60,6 +62,7 @@ export function makeTestApp(
     },
     ...(options.now ? { now: options.now } : {}),
     ...(options.bookingRateLimits ? { bookingRateLimits: options.bookingRateLimits } : {}),
+    ...(options.checkoutRateLimits ? { checkoutRateLimits: options.checkoutRateLimits } : {}),
   };
   return { app: createApp(deps), logger, prisma };
 }

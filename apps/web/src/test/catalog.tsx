@@ -74,7 +74,7 @@ export interface CatalogStub {
   seatmap?: Record<string, unknown>;
   /** /api/locations/:slug/menu by location slug. */
   menu?: Record<string, Answer>;
-  /** /api/bookings/*: answers by method and path (needs stubAuth, which sees the method). */
+  /** /api/bookings/* and /api/payments/*: answers by method and path (needs stubAuth). */
   bookings?: (request: { method: string; path: string; body: unknown }) => Answer;
 }
 

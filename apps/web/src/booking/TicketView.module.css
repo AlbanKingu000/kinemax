@@ -1,0 +1,158 @@
+/* A cinema ticket: the show on the left, a perforated stub with the QR code on the right (stacked
+   on phones). */
+.ticket {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-top: 2px solid var(--color-crimson);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-3);
+}
+
+@media (min-width: 768px) {
+  .ticket {
+    grid-template-columns: minmax(0, 1fr) 16rem;
+  }
+}
+
+.main {
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-6);
+}
+
+.header {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.poster {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 2 / 3;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+}
+
+.show {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+}
+
+.title {
+  font-size: var(--text-h3);
+  line-height: var(--leading-tight);
+}
+
+.meta {
+  color: var(--color-text-secondary);
+  font-size: var(--text-body-sm);
+}
+
+.when {
+  font-weight: var(--weight-semibold);
+}
+
+.block {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.blockTitle {
+  color: var(--color-text-muted);
+  font-size: var(--text-overline);
+  letter-spacing: var(--tracking-overline);
+  text-transform: uppercase;
+}
+
+.lines {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-body-sm);
+}
+
+.lines li,
+.total {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.lines li span:last-child {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.total {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.total strong {
+  font-size: var(--text-body-lg);
+}
+
+/* The stub: a dashed perforation towards the main part */
+.stub {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: var(--space-2);
+  padding: var(--space-6);
+  border-top: 2px dashed var(--color-border-control);
+  background: var(--color-elevated);
+  text-align: center;
+}
+
+@media (min-width: 768px) {
+  .stub {
+    border-top: 0;
+    border-left: 2px dashed var(--color-border-control);
+  }
+}
+
+/* QR codes scan best dark on light, with a quiet zone (the light frame) */
+.qr {
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--color-text);
+  color: var(--color-bg);
+  line-height: 0;
+}
+
+.qr svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.codeLabel {
+  margin-top: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-overline);
+  letter-spacing: var(--tracking-overline);
+  text-transform: uppercase;
+}
+
+/* One line, so the code reads as one unit */
+.code {
+  font-size: var(--text-body);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.actions {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}

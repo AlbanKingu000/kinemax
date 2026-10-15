@@ -1,0 +1,172 @@
+.step {
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-6);
+  border: 1px solid var(--color-border);
+  border-top: 2px solid var(--color-crimson);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.title {
+  font-size: var(--text-h3);
+}
+
+/* Impossible to miss: nothing here is a real payment */
+.demo {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--color-warning);
+  border-left-width: 4px;
+  border-radius: var(--radius-md);
+  background: var(--color-warning-bg);
+  color: var(--color-text);
+  font-size: var(--text-body-sm);
+}
+
+.demo strong {
+  font-size: var(--text-body);
+  letter-spacing: var(--tracking-wide);
+}
+
+.layout {
+  display: grid;
+  gap: var(--space-6);
+}
+
+@media (min-width: 1024px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) 21rem;
+    align-items: start;
+  }
+}
+
+.pay {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-5);
+}
+
+/* The demo card: a picture in the brand colors (no inputs) */
+.card {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: var(--space-3);
+  width: min(100%, 22rem);
+  aspect-ratio: 1.586;
+  padding: var(--space-5);
+  border: 1px solid rgb(var(--rgb-ivory) / 18%);
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(circle at 85% 15%, rgb(var(--rgb-crimson) / 55%), transparent 55%),
+    linear-gradient(135deg, var(--color-crimson-deep), var(--color-bg));
+  box-shadow: var(--shadow-3);
+  color: var(--color-on-crimson);
+}
+
+.brand {
+  font-family: var(--font-display);
+  font-size: var(--text-body-lg);
+  letter-spacing: var(--tracking-wide);
+}
+
+.chip {
+  width: 2.75rem;
+  height: 2rem;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, var(--color-seat-piping), rgb(var(--rgb-ivory) / 60%));
+}
+
+.number {
+  align-self: end;
+  font-size: var(--text-h4);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.12em;
+}
+
+.holder {
+  font-size: var(--text-caption);
+  letter-spacing: var(--tracking-overline);
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.problem:empty {
+  display: none;
+}
+
+.problem {
+  padding: var(--space-3);
+  border-left: 3px solid var(--color-info);
+  background: var(--color-info-bg);
+  color: var(--color-text);
+  font-size: var(--text-body-sm);
+}
+
+.problem[data-tone='declined'],
+.problem[data-tone='error'] {
+  border-left-color: var(--color-error);
+  background: var(--color-error-bg);
+}
+
+.summary {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+}
+
+.summaryTitle {
+  font-size: var(--text-h4);
+}
+
+.lines {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-body-sm);
+}
+
+.lines li,
+.total {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.lines li span:last-child {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.total {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.total strong {
+  font-size: var(--text-body-lg);
+}
+
+.back {
+  display: flex;
+  justify-content: flex-end;
+}

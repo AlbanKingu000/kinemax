@@ -4,11 +4,9 @@ import {
   holdRequestSchema,
   MAX_TICKETS_PER_BOOKING,
   ticketsRequestSchema,
-  type Booking,
   type BookingSeat,
 } from '@kinemax/shared';
-import { Router, type Request } from 'express';
-import { z } from 'zod';
+import { Router } from 'express';
 import { createRateLimiter, type RateLimiter, type RateLimitRule } from '../auth/rate-limit.js';
 import { expireStaleHolds } from '../db/holds.js';
 import { loadPricingRules } from '../db/pricing-rules.js';
@@ -27,6 +25,16 @@ import { requireAuth } from '../http/auth-middleware.js';
 import { sqlStateOf } from '../http/db-errors.js';
 import { HttpError, parseInput } from '../http/errors.js';
 import type { Logger } from '../logger.js';
+import {
+  idParams,
+  loadBooking,
+  lockOpenHold,
+  notFound,
+  storeTotal,
+  unprocessable,
+  userId,
+  type Db,
+} from './booking-common.js';
 import { availableMenuWhere } from './menu.js';
 
 const MINUTE = 60_000;
@@ -37,170 +45,6 @@ export const BOOKING_RATE_LIMITS = {
   holdPerIp: { windowMs: 10 * MINUTE, max: 120 },
 } satisfies Record<string, RateLimitRule>;
 export type BookingRateLimits = Record<keyof typeof BOOKING_RATE_LIMITS, RateLimitRule>;
-
-type Db = PrismaClient | Prisma.TransactionClient;
-
-const idParams = z.object({ id: z.uuid() });
-const notFound = () => new HttpError(404, 'not_found', 'Not found.');
-const unprocessable = (message: string) => new HttpError(422, 'unprocessable', message);
-
-/** The signed-in user (routes below run after requireAuth). */
-function userId(req: Request): string {
-  if (!req.auth) throw new HttpError(401, 'unauthorized', 'Please sign in.');
-  return req.auth.user.id;
-}
-
-/** The booking as the owner sees it; null when it does not exist or belongs to someone else. */
-async function loadBooking(db: Db, id: string, owner: string, at: Date): Promise<Booking | null> {
-  const booking = await db.booking.findFirst({
-    where: { id, userId: owner },
-    include: {
-      seats: { include: { seat: true } },
-      foodItems: { include: { menuItem: { select: { nameEn: true } } }, orderBy: { id: 'asc' } },
-      showtime: { select: { movie: { select: { ageRating: true } } } },
-    },
-  });
-  if (!booking) return null;
-  const categories = await db.ticketCategory.findMany({
-    where: { isActive: true },
-    orderBy: [{ sortOrder: 'asc' }, { code: 'asc' }],
-    select: { code: true, nameSq: true, nameEn: true, descriptionSq: true, descriptionEn: true },
-  });
-
-  const bySeat = new Map<string, BookingSeat & { order: [number, string] }>();
-  for (const row of booking.seats) {
-    const entry = bySeat.get(row.seatId) ?? {
-      seatId: row.seatId,
-      row: row.seat.rowLabel,
-      number: row.seat.number,
-      type: row.seat.seatType,
-      tickets: [],
-      surchargeCents: 0,
-      totalCents: 0,
-      order: [row.seat.y, row.seat.rowLabel],
-    };
-    entry.tickets.push({
-      occupant: row.occupant,
-      category: row.ticketCategoryCode,
-      priceCents: row.unitPriceCents,
-    });
-    entry.surchargeCents += row.seatSurchargeCents;
-    entry.totalCents += row.unitPriceCents + row.seatSurchargeCents;
-    bySeat.set(row.seatId, entry);
-  }
-  const seats = [...bySeat.values()]
-    .sort(
-      (a, b) =>
-        a.order[0] - b.order[0] || a.order[1].localeCompare(b.order[1]) || a.number - b.number,
-    )
-    .map((seat) => ({
-      seatId: seat.seatId,
-      row: seat.row,
-      number: seat.number,
-      type: seat.type,
-      tickets: seat.tickets.sort((a, b) => a.occupant - b.occupant),
-      surchargeCents: seat.surchargeCents,
-      totalCents: seat.totalCents,
-    }));
-
-  const food = booking.foodItems.map((item) => ({
-    menuItemId: item.menuItemId,
-    nameSq: item.nameSq,
-    nameEn: item.menuItem.nameEn,
-    quantity: item.quantity,
-    unitPriceCents: item.unitPriceCents,
-    totalCents: item.quantity * item.unitPriceCents,
-    fulfillment: item.fulfillment,
-    serveTiming: item.serveTiming,
-  }));
-  const { ageRating } = booking.showtime.movie;
-  // A hold past its expiry is over, even before the cleanup job marks it EXPIRED.
-  const expired =
-    booking.status === 'HELD' &&
-    booking.holdExpiresAt !== null &&
-    booking.holdExpiresAt.getTime() <= at.getTime();
-  return {
-    id: booking.id,
-    status: expired ? 'EXPIRED' : booking.status,
-    showtimeId: booking.showtimeId,
-    holdExpiresAt: booking.holdExpiresAt?.toISOString() ?? null,
-    serverNow: at.toISOString(),
-    isWholeHall: booking.isWholeHall,
-    ageRating,
-    ageConfirmationRequired: AGE_CONFIRMATION_RATINGS.includes(ageRating),
-    ageRatingConfirmed: booking.ageRatingConfirmed,
-    seats,
-    wholeHallPriceCents: booking.wholeHallPriceCents,
-    food,
-    ticketsCents: booking.isWholeHall
-      ? (booking.wholeHallPriceCents ?? 0)
-      : seats.reduce((sum, seat) => sum + seat.totalCents, 0),
-    foodCents: food.reduce((sum, item) => sum + item.totalCents, 0),
-    totalCents: booking.totalCents,
-    currency: 'EUR',
-    categories,
-  };
-}
-
-/** Recalculates the stored total from the booking's snapshots: tickets (or the suite) + food. */
-async function storeTotal(tx: Prisma.TransactionClient, id: string): Promise<void> {
-  const booking = await tx.booking.findUniqueOrThrow({
-    where: { id },
-    select: {
-      isWholeHall: true,
-      wholeHallPriceCents: true,
-      seats: { select: { unitPriceCents: true, seatSurchargeCents: true } },
-      foodItems: { select: { quantity: true, unitPriceCents: true } },
-    },
-  });
-  const tickets = booking.isWholeHall
-    ? (booking.wholeHallPriceCents ?? 0)
-    : booking.seats.reduce((sum, t) => sum + t.unitPriceCents + t.seatSurchargeCents, 0);
-  const food = booking.foodItems.reduce((sum, f) => sum + f.quantity * f.unitPriceCents, 0);
-  await tx.booking.update({ where: { id }, data: { totalCents: tickets + food } });
-}
-
-/**
- * Locks the user's booking for a change (serializing changes with each other and with a release)
- * and checks that it is still an open hold: another user's booking 404, not HELD 409, an expired
- * hold or a started show 410.
- */
-async function lockOpenHold(tx: Prisma.TransactionClient, id: string, owner: string, at: Date) {
-  const locked = await tx.$queryRaw<{ id: string }[]>`
-    SELECT "id" FROM "Booking" WHERE "id" = ${id}::uuid AND "userId" = ${owner}::uuid FOR UPDATE`;
-  if (locked.length === 0) throw notFound();
-  const booking = await tx.booking.findUniqueOrThrow({
-    where: { id },
-    include: {
-      seats: { select: { seatId: true, seat: { select: { seatType: true } } } },
-      showtime: {
-        select: {
-          startsAt: true,
-          movie: { select: { ageRating: true } },
-          hall: {
-            select: {
-              id: true,
-              hallTypeId: true,
-              wholeHallOnly: true,
-              hallType: { select: { code: true, allowsSeatDelivery: true } },
-              location: { select: { id: true, timeZone: true } },
-            },
-          },
-        },
-      },
-    },
-  });
-  if (booking.status !== 'HELD') {
-    throw new HttpError(409, 'conflict', 'This booking can no longer be changed.');
-  }
-  if (
-    (booking.holdExpiresAt?.getTime() ?? 0) <= at.getTime() ||
-    booking.showtime.startsAt.getTime() <= at.getTime()
-  ) {
-    throw new HttpError(410, 'gone', 'This hold has expired.');
-  }
-  return booking;
-}
 
 /** Prices every seat with the server's pricing function; a missing rule means "not bookable". */
 function priceSeats(

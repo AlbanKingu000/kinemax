@@ -37,6 +37,43 @@ tick items (with the file-editing tool) as they are finished.
    (`checkout.spec.ts`, serial) and book shows no other spec uses; the e2e catalog now includes the
    menu (the seed's menu code is shared).
 
+9. **B1, checkout.** `POST /api/bookings/:id/checkout` (no body) answers 200 with the payment and
+   the booking. "Tickets set" means the booking has its tickets (every seat carries exactly its
+   tickets, guaranteed by G12) or is a suite. A 15+/18+ booking without the age confirmation
+   answers 422. Calling it again reuses the open (PENDING) payment and keeps its amount equal to
+   the booking's current server total, so there is never more than one open payment.
+10. **B3, payment rules.** `POST /api/payments/:id/simulate` locks the payment and its booking, so
+    parallel calls run one after the other: the first success confirms, later ones answer 200 with
+    the same result. A declined (FAILED) payment cannot succeed later (409); paying again opens a
+    new payment through checkout (the page does this by itself). If the total changed after the
+    payment was opened (food edited), paying the old amount answers 409. Paying after the hold
+    expired closes the payment as FAILED and answers 410, also when only the database clock knows
+    (the status trigger's KX002 is mapped to 410 here). Rate limits: 30 per user and 120 per IP per
+    10 minutes (in memory, like the others; `docs/auth.md`).
+11. **B4, the ticket.** New `GET /api/bookings/:id/ticket` (owner only, bookings that were
+    confirmed; 404 otherwise) feeds the confirmation page and part C. QR library:
+    **`qrcode.react` 4.2.0** (ISC, by zpao, the most used React QR component; no dependencies at
+    all, no install/prepare scripts, released Dec 2024), drawing an SVG of `KINEMAX:<code>` only;
+    it uses `currentColor` so the colors come from the tokens (near-black on ivory, high contrast for
+    scanners). "Shto në kalendar" builds an RFC 5545 `.ics` file in the browser (UTC times, escaped
+    and folded lines); no server endpoint. Until part C the "Biletat e mia" link opens `/account`.
+12. **B2, nothing to type.** The payment step has no input of any kind (asserted by a unit test and
+    the e2e); the card is a picture (`role="img"`, "Karta demo 4242 •••• •••• 4242"), the DEMO
+    notice is a warning banner. Routes: `/booking/:showtimeId/pay` and
+    `/booking/:bookingId/confirmed`.
+
+13. **Web unit test timeout 15 s.** The full-app web tests (router, several steps that may each
+    wait up to 5 s, `STEP_WAIT`) ran into Vitest's default 5 s limit for the whole test under
+    coverage once the suite grew, while another program kept ~3.5 of 8 cores busy (a renderer of
+    the owner's own Chrome, left untouched). The web Vitest config now allows 15 s per test, like
+    the styleguide and routes tests already did; no assertion changed.
+
+14. **e2e and the login rate limit.** With the new journeys a full e2e run made more than 20 logins
+    from 127.0.0.1 within 15 minutes, so the last spec (hold expiry) got 429 "Shumë përpjekje".
+    The limit stays as it is; instead the checkout journeys sign in once per project through the
+    API (`/api/auth/csrf` + `/api/auth/login`, kept as Playwright storage state in the project's
+    output folder). Only the full journey signs in through the login page.
+
 ## Progress (keep up to date)
 
 - Started 15 Oct 2026.
@@ -52,6 +89,19 @@ verify` green (shared 24, api 285, web 363, scripts 10; coverage web 92.23% / 83
   `checkout-food-vip_recliner-{desktop,mobile-390}.png`,
   `checkout-food-order-vip_recliner-{desktop,mobile-390}.png`, `checkout-food-standard-desktop.png`.
   Committed as "feat: food and drinks ordering" (hash in docs/roadmap.md).
+- Part B: done. New dependency `qrcode.react` 4.2.0 (decision 11). New tests: API 13 checkout
+  integration (idempotent checkout, server age gate, expiry 410 incl. the database clock, six
+  parallel pays confirm once, decline → new payment → success, tampering, ownership, rate limit,
+  ticket view); shared 2; web 6 payment/confirmation (no inputs, QR value `KINEMAX:<code>`,
+  `.ics`), 3 `.ics`; e2e 2 journeys × 2 projects (home → … → QR ticket with the `.ics` file;
+  decline then success). `npm run verify` green (shared 26, api 298, web 373, scripts 10; coverage
+  web 92.21% / 82.86%; e2e 65 passed, 4 project skips) after decisions 13 and 14. Chrome check
+  (Claude in Chrome, dev server, seed customer): VIP show → seat → tickets → food (popcorn) → the
+  payment step (DEMO banner, no inputs, 12,30 €) → "Simulo refuzim" (still HELD) → "Paguaj
+  (demo)" → confirmation with QR, grouped code, food line; reload: console clean, no overflow.
+  Screenshots (Playwright, installed Chrome, console clean): `checkout-pay-{desktop,mobile-390}.png`,
+  `checkout-pay-declined-{desktop,mobile-390}.png`, `checkout-confirmation-{desktop,mobile-390}.png`.
+  Committed as "feat: demo payment and booking confirmation" (hash in docs/roadmap.md).
 
 ## Checklist
 
@@ -68,17 +118,17 @@ verify` green (shared 24, api 285, web 363, scripts 10; coverage web 92.23% / 83
 
 ### Part B: Demo payment + confirmation
 
-- [ ] B1 POST /api/bookings/:id/checkout (tickets set, age gate on the server, idempotent PENDING
+- [x] B1 POST /api/bookings/:id/checkout (tickets set, age gate on the server, idempotent PENDING
       payment)
-- [ ] B2 Demo payment page (DEMO label, no card fields, stylized fake card, pay/decline, summary,
+- [x] B2 Demo payment page (DEMO label, no card fields, stylized fake card, pay/decline, summary,
       countdown)
-- [ ] B3 POST /api/payments/:id/simulate (success: one transaction, exactly once; decline: retry;
+- [x] B3 POST /api/payments/:id/simulate (success: one transaction, exactly once; decline: retry;
       expired → 410)
-- [ ] B4 Confirmation page /booking/:id/confirmed (ticket summary, code, QR "KINEMAX:<code>", .ics,
+- [x] B4 Confirmation page /booking/:id/confirmed (ticket summary, code, QR "KINEMAX:<code>", .ics,
       link to Biletat e mia)
-- [ ] B5 Tests (double-pay concurrency, expiry, age gate, tampering, idempotency, decline→retry,
+- [x] B5 Tests (double-pay concurrency, expiry, age gate, tampering, idempotency, decline→retry,
       ownership, QR content; e2e full journey + decline then success)
-- [ ] Part B: verify + Chrome check + screenshots + roadmap + commit "feat: demo payment and
+- [x] Part B: verify + Chrome check + screenshots + roadmap + commit "feat: demo payment and
       booking confirmation"
 
 ### Part C: My tickets, QR and cancellation
