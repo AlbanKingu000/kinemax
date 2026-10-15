@@ -19,7 +19,7 @@ task is finished, move it to DONE with its commit hash.
 | Login, register and account UI (task 07 part A)                      | `df22271`            |
 | 3D + 2D seat selection with view from seat (task 07 part B)          | `d82cf0c`            |
 | Seat holds, ticket categories, server-side prices (task 07 part C)   | `c7ecc24`            |
-| Cinematic 3D hall + locked seat view (task 7d)                       | see next commit      |
+| Cinematic 3D hall + locked seat view (task 7d)                       | `a3e0401`            |
 
 ## Next (in this order)
 

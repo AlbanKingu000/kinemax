@@ -66,7 +66,7 @@ finished.
 
 ## Progress (keep up to date)
 
-- Started 13 Oct 2026.
+- Started 13 Oct 2026. Committed as "feat: cinematic 3D hall and locked seat view" (`a3e0401`).
 - Baseline (before, commit `2d4de54`), installed Google Chrome headed, Intel UHD Graphics 620
   (D3D11), 1440×900, DPR 1, dev server, Prishtinë halls: 3D chunk 917.07 kB raw / 246.80 kB
   gzip. Draw calls overview/seat: Standard 37/16, VIP 62/12, Grand 40/23, Suite 30/30. FPS while
