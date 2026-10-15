@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ageRatingSchema, seatTypeSchema } from './catalog.js';
+import { bookingFoodSchema } from './food.js';
 
 /** At most this many tickets per booking; a COUPLE sofa counts as two. */
 export const MAX_TICKETS_PER_BOOKING = 10;
@@ -106,6 +107,11 @@ export const bookingSchema = z.object({
   ageRatingConfirmed: z.boolean(),
   seats: z.array(bookingSeatSchema),
   wholeHallPriceCents: z.int().min(0).nullable(),
+  /** Optional food & drinks, with price snapshots. */
+  food: z.array(bookingFoodSchema),
+  /** Tickets (or the whole suite) and food; totalCents is their sum. */
+  ticketsCents: z.int().min(0),
+  foodCents: z.int().min(0),
   totalCents: z.int().min(0),
   currency: z.literal('EUR'),
   /** The categories a ticket can have, in display order. */

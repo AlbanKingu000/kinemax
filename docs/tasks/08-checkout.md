@@ -7,21 +7,63 @@ tick items (with the file-editing tool) as they are finished.
 
 (Taken without asking, with the safest reasonable option. Newest last.)
 
+1. **A1, menu endpoint shape.** `GET /api/locations/:slug/menu?showtime=<id>` returns the items
+   with their ids (the food PUT needs them), the cinema's price, category, texts, image and combo
+   contents; `seatDelivery` is the hall type's `allowsSeatDelivery` for that show, `null` without
+   `?showtime`. A showtime of another cinema answers 404. Public, cached 60 s like the catalog.
+2. **A2, where the rules live.** The serve-timing rule is enforced three times: the request schema
+   (400 `validation_failed`), the domain (`serveTimingFor`, 422) and a database CHECK (G13, new
+   migration `food_serve_timing`; existing seat deliveries, none in the seed, are backfilled to
+   "before the show"). "Seat delivery only where the hall type allows it" stays in the domain only:
+   a database trigger for it would need a new `KX` code and is not asked for.
+3. **A3, names.** A food line keeps the existing Albanian name snapshot; the English name is read
+   from the menu item (no new snapshot column). Each item appears once per fulfillment in an order.
+4. **A4, one choice per order.** The UI asks "Merre në banak / Na e sjellim te ulësja" (and the
+   serve time) once for the whole order; the API accepts it per line. Quantity changes are saved
+   350 ms after the last click; leaving the step waits for that save. "Kalo këtë hap" removes an
+   order already chosen.
+5. **A4, VIP dishes.** VIP dishes are offered wherever the cinema lists them (counter pickup in
+   other halls), so their seed description "Shërbehet në vend / Served at your seat" (wrong there)
+   became "Përgatitet në çast / Freshly prepared".
+6. **A4, illustrations.** The 19 item images are original flat SVG illustrations in the brand
+   palette, drawn by `apps/api/prisma/seed/menu-art.ts`, written by the seed to
+   `apps/web/public/seed/menu/` and committed (a test keeps the files identical to the generator).
+   They are decorative (`alt=""`): each card's name is its heading.
+7. **A4, structure.** "Vazhdo" on "Biletat" now opens `/booking/:showtimeId/food`; the hold loader,
+   countdown and "time is up" view moved from the tickets step to `booking/hold.tsx`, shared by
+   both steps. New design-system component `QuantityStepper` (shown on /styleguide).
+8. **A5, e2e accounts.** The checkout journeys get their own fixed test account per Playwright
+   project (`e2e-bleresi…@kinemax.test`, test database only), run one after the other
+   (`checkout.spec.ts`, serial) and book shows no other spec uses; the e2e catalog now includes the
+   menu (the seed's menu code is shared).
+
 ## Progress (keep up to date)
 
 - Started 15 Oct 2026.
+- Part A: done. New tests: API 14 integration (menu, food PUT, G13) + domain + seed art; shared 4;
+  web 6 (food step) + 2 (stepper); e2e 2 journeys × 2 projects (`checkout.spec.ts`). `npm run
+verify` green (shared 24, api 285, web 363, scripts 10; coverage web 92.23% / 83.13%; e2e 61
+  passed, 4 project skips). A first verify run failed only because screenshot runs loaded the
+  machine at the same time (7 web timeouts) plus one real stale fixture in the shared booking test
+  (fixed). Chrome check (Claude in Chrome, dev server, seed customer): VIP show → 2D seat →
+  tickets → food → seat delivery during the film + Kombo klasike → saved on the server at the
+  Prizren price (4,80 €), reload resumes it, no overflow, console clean. 390 px and screenshots
+  with the Playwright script in installed Chrome (console clean, no overflow):
+  `checkout-food-vip_recliner-{desktop,mobile-390}.png`,
+  `checkout-food-order-vip_recliner-{desktop,mobile-390}.png`, `checkout-food-standard-desktop.png`.
+  Committed as "feat: food and drinks ordering" (hash in docs/roadmap.md).
 
 ## Checklist
 
 ### Part A: Food & drinks (optional step)
 
-- [ ] A1 GET /api/locations/:slug/menu (+ seat delivery for a showtime)
-- [ ] A2 Migration: serve timing (BEFORE_SHOW / DURING_SHOW) for seat delivery, DB + domain rules
-- [ ] A3 PUT /api/bookings/:id/food (owner, HELD, not expired; validation, server prices, total)
-- [ ] A4 UI step "Ushqimi & pijet" (skip, tabs, cards with brand images, steppers, combos,
+- [x] A1 GET /api/locations/:slug/menu (+ seat delivery for a showtime)
+- [x] A2 Migration: serve timing (BEFORE_SHOW / DURING_SHOW) for seat delivery, DB + domain rules
+- [x] A3 PUT /api/bookings/:id/food (owner, HELD, not expired; validation, server prices, total)
+- [x] A4 UI step "Ushqimi & pijet" (skip, tabs, cards with brand images, steppers, combos,
       pickup/seat delivery, serve timing, running total, countdown)
-- [ ] A5 Tests (API, UI, e2e: combo with seat delivery in VIP; skip in Standard)
-- [ ] Part A: verify + Chrome check + screenshots + roadmap + commit "feat: food and drinks
+- [x] A5 Tests (API, UI, e2e: combo with seat delivery in VIP; skip in Standard)
+- [x] Part A: verify + Chrome check + screenshots + roadmap + commit "feat: food and drinks
       ordering"
 
 ### Part B: Demo payment + confirmation

@@ -14,6 +14,7 @@ import {
   assertFulfillmentAllowed,
   FulfillmentError,
   isFulfillmentAllowed,
+  serveTimingFor,
 } from '../../src/domain/fulfillment.js';
 
 describe('fulfillment', () => {
@@ -40,6 +41,13 @@ describe('fulfillment', () => {
     expect(() => {
       assertFulfillmentAllowed(standard, 'DELIVER_TO_SEAT');
     }).toThrow(/STANDARD/);
+  });
+
+  it('needs a serve time for seat delivery and none for counter pickup', () => {
+    expect(serveTimingFor('DELIVER_TO_SEAT', 'DURING_SHOW')).toBe('DURING_SHOW');
+    expect(serveTimingFor('PICKUP_AT_COUNTER', undefined)).toBeNull();
+    expect(() => serveTimingFor('DELIVER_TO_SEAT', undefined)).toThrow(FulfillmentError);
+    expect(() => serveTimingFor('PICKUP_AT_COUNTER', 'BEFORE_SHOW')).toThrow(FulfillmentError);
   });
 });
 

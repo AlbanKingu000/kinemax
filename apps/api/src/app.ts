@@ -13,6 +13,7 @@ import { createAuthRouter } from './routes/auth.js';
 import { createBookingsRouter, type BookingRateLimits } from './routes/bookings.js';
 import { createCatalogRouter } from './routes/catalog.js';
 import { createHealthRouter } from './routes/health.js';
+import { createMenuRouter } from './routes/menu.js';
 import { createProtectedExamplesRouter } from './routes/protected-examples.js';
 import { createSeatMapRouter } from './routes/seatmap.js';
 import { createShowtimesRouter } from './routes/showtimes.js';
@@ -96,6 +97,7 @@ export function createApp({
   );
   app.use('/api', createCatalogRouter(prisma, now));
   app.use('/api', createSeatMapRouter(prisma, now));
+  app.use('/api', createMenuRouter(prisma));
   app.use('/api', createShowtimesRouter(prisma, now));
   app.use(
     '/api',

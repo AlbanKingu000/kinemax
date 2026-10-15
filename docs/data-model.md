@@ -1,6 +1,6 @@
 # Kinemax data model
 
-PostgreSQL 18 via Prisma 7 (`apps/api/prisma/schema.prisma`, migration `init_domain`). Everything
+PostgreSQL 18 via Prisma 7 (`apps/api/prisma/schema.prisma`, migration `init_domain` and later ones). Everything
 the money and booking flows depend on is enforced **by the database**, not only by application code.
 
 Conventions:
@@ -153,14 +153,16 @@ it. Example (Thursday 20:00, base €4.50): ADULT €4.50 + STUDENT €3.60 + so
 - `MenuItem` (+ `ComboComponent`), `LocationMenuItem` (availability and price per location),
   `BookingFoodItem` (optional food with name and price snapshot, fulfillment PICKUP_AT_COUNTER or
   DELIVER_TO_SEAT; delivery only in hall types with `allowsSeatDelivery`, checked in
-  `apps/api/src/domain/fulfillment.ts`).
+  `apps/api/src/domain/fulfillment.ts`; `serveTiming` BEFORE_SHOW or DURING_SHOW, about 20 minutes
+  after the start, required for seat delivery and empty for counter pickup, G13). The booking total
+  is tickets (or the suite) plus food, recalculated by the API from the snapshots on every change.
 - `DemoPayment`: demo provider only; there are no card number, CVC or expiry columns anywhere.
 
 ## Database-level guarantees
 
 The raw SQL lives at the end of the migrations: G0-G11 in `*_init_domain`, G12 in
-`*_couple_seat_two_tickets`, and `*_trigger_error_codes` replaces the trigger functions so they
-raise the custom error codes below. Prisma ignores these objects when diffing (verified: diffing
+`*_couple_seat_two_tickets`, G13 in `*_food_serve_timing`, and `*_trigger_error_codes` replaces
+the trigger functions so they raise the custom error codes below. Prisma ignores these objects when diffing (verified: diffing
 the database against the schema produces an empty migration).
 
 ### Error codes
@@ -198,6 +200,7 @@ Integration tests: `apps/api/test/db/guarantees.db.test.ts`.
 | G10 | A seat is never held/booked twice for a showtime; locks stay inside the showtime's hall; suites are only sold whole, once | PK `(showtimeId, seatId)`, PK `showtimeId` for suites, composite FKs, guard trigger    |
 | G11 | Releasing a booking frees its seats atomically                                                                            | `AFTER UPDATE OF status` trigger deletes the live locks                                |
 | G12 | A COUPLE sofa has exactly 2 tickets per booking, every other seat exactly 1; the sofa surcharge is charged once           | Occupant CHECK + capacity trigger, deferred count trigger, seat-type change guard      |
+| G13 | Food delivered to the seat has a serve time; food picked up at the counter has none                                       | CHECK `(fulfillment = DELIVER_TO_SEAT) = (serveTiming IS NOT NULL)`                    |
 
 ### Why a separate lock table (G10/G11)
 

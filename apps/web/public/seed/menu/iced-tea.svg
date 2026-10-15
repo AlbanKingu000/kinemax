@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="360" viewBox="0 0 480 360">
+<defs>
+<radialGradient id="glow" cx="0.5" cy="0.62" r="0.6"><stop offset="0" stop-color="#6e0c1d"/><stop offset="0.6" stop-color="#2a0710"/><stop offset="1" stop-color="#0b0a0b"/></radialGradient>
+</defs>
+<rect width="100%" height="100%" fill="url(#glow)"/>
+<ellipse cx="240" cy="304" rx="190" ry="18" fill="#000" opacity="0.45"/>
+<rect x="248" y="92" width="9" height="70" rx="4" fill="#f3eee8" transform="rotate(12 252 130)"/>
+<polygon points="192,150 288,150 276,300 204,300" fill="#d98a2b"/>
+<rect x="186" y="138" width="108" height="16" rx="7" fill="#f3eee8"/>
+<rect x="200" y="205" width="80" height="34" rx="6" fill="#f3eee8" opacity="0.92"/>
+<circle cx="240" cy="222" r="9" fill="#b3132f"/>
+</svg>

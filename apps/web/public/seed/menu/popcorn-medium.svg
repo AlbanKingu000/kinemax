@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="360" viewBox="0 0 480 360">
+<defs>
+<radialGradient id="glow" cx="0.5" cy="0.62" r="0.6"><stop offset="0" stop-color="#6e0c1d"/><stop offset="0.6" stop-color="#2a0710"/><stop offset="1" stop-color="#0b0a0b"/></radialGradient>
+</defs>
+<rect width="100%" height="100%" fill="url(#glow)"/>
+<ellipse cx="240" cy="304" rx="190" ry="18" fill="#000" opacity="0.45"/>
+<circle cx="184" cy="142" r="15" fill="#e9dcc8"/><circle cx="210" cy="140" r="15" fill="#e9dcc8"/><circle cx="236" cy="138" r="15" fill="#e9dcc8"/><circle cx="262" cy="141" r="15" fill="#e9dcc8"/><circle cx="288" cy="139" r="15" fill="#e9dcc8"/><circle cx="197" cy="124" r="13" fill="#e9dcc8"/><circle cx="223" cy="122" r="13" fill="#e9dcc8"/><circle cx="249" cy="120" r="13" fill="#e9dcc8"/><circle cx="275" cy="123" r="13" fill="#e9dcc8"/><circle cx="210" cy="106" r="11" fill="#e9dcc8"/><circle cx="236" cy="104" r="11" fill="#e9dcc8"/><circle cx="262" cy="102" r="11" fill="#e9dcc8"/>
+<polygon points="170,150 310,150 292,300 188,300" fill="#f3eee8"/><polygon points="177,150 191,150 203.6,300 193.2,300" fill="#b3132f"/><polygon points="205,150 219,150 224.4,300 214,300" fill="#b3132f"/><polygon points="233,150 247,150 245.2,300 234.8,300" fill="#b3132f"/><polygon points="261,150 275,150 266,300 255.6,300" fill="#b3132f"/><polygon points="289,150 303,150 286.8,300 276.4,300" fill="#b3132f"/>
+<rect x="166" y="146" width="148" height="10" rx="4" fill="#e9dcc8"/>
+</svg>

@@ -8,6 +8,9 @@ import {
   SEED_USERS,
   TIME_ADJUSTMENTS,
 } from '../../prisma/seed/data.js';
+import { readFileSync } from 'node:fs';
+import { MENU_ART_SLUGS, menuArtSvg } from '../../prisma/seed/menu-art.js';
+import { menuImagePath } from '../../prisma/seed/menu.js';
 import { backdropSvg, posterSvg } from '../../prisma/seed/posters.js';
 import {
   CLEANING_BUFFER_MINUTES,
@@ -68,6 +71,15 @@ describe('seed data', () => {
       for (const slug of menu.unavailable) expect(slugs.has(slug)).toBe(true);
     }
     expect(Object.keys(LOCATION_MENUS).sort()).toEqual(LOCATIONS.map((l) => l.slug).sort());
+  });
+
+  it('has an illustration for every menu item, committed as the generator draws it', () => {
+    expect([...MENU_ART_SLUGS].sort()).toEqual(MENU_ITEMS.map((i) => i.slug).sort());
+    for (const item of MENU_ITEMS) {
+      const file = new URL(`../../../web/public${menuImagePath(item.slug)}`, import.meta.url);
+      expect(readFileSync(file, 'utf8')).toBe(menuArtSvg(item.slug));
+    }
+    expect(menuArtSvg('unknown')).toMatch(/^<\?xml[\s\S]*<\/svg>\n$/);
   });
 
   it('defines valid time windows and one manager per location', () => {

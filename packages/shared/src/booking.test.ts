@@ -95,7 +95,21 @@ describe('booking responses', () => {
       },
     ],
     wholeHallPriceCents: null,
-    totalCents: 1010,
+    food: [
+      {
+        menuItemId: seat(50),
+        nameSq: 'Kombo klasike',
+        nameEn: null,
+        quantity: 1,
+        unitPriceCents: 500,
+        totalCents: 500,
+        fulfillment: 'DELIVER_TO_SEAT',
+        serveTiming: 'DURING_SHOW',
+      },
+    ],
+    ticketsCents: 1010,
+    foodCents: 500,
+    totalCents: 1510,
     currency: 'EUR',
     categories: [
       { code: 'ADULT', nameSq: 'I rritur', nameEn: null, descriptionSq: null, descriptionEn: null },

@@ -150,6 +150,9 @@ const sq = {
     subtitlesOnly: 'Vetëm filmat me titra',
     reminders: 'Kujtesë para shfaqjes',
     disabledSwitch: 'Çelës joaktiv',
+    steppers: 'Sasia (stepper)',
+    stepperItem: 'Kokoshka mesatare',
+    stepperLimits: 'Në kufij: 0 dhe 20 (butoni përkatës joaktiv)',
   },
   navigation: {
     links: 'Lidhjet',
@@ -436,6 +439,9 @@ const en: StyleguideMessages = {
     subtitlesOnly: 'Subtitled films only',
     reminders: 'Reminder before the show',
     disabledSwitch: 'Disabled switch',
+    steppers: 'Quantity stepper',
+    stepperItem: 'Medium popcorn',
+    stepperLimits: 'At the limits: 0 and 20 (that button disabled)',
   },
   navigation: {
     links: 'Links',

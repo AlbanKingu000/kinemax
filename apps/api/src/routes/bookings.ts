@@ -1,5 +1,6 @@
 import {
   AGE_CONFIRMATION_RATINGS,
+  foodRequestSchema,
   holdRequestSchema,
   MAX_TICKETS_PER_BOOKING,
   ticketsRequestSchema,
@@ -12,6 +13,7 @@ import { createRateLimiter, type RateLimiter, type RateLimitRule } from '../auth
 import { expireStaleHolds } from '../db/holds.js';
 import { loadPricingRules } from '../db/pricing-rules.js';
 import { generateBookingCode } from '../domain/booking-code.js';
+import { FulfillmentError, isFulfillmentAllowed, serveTimingFor } from '../domain/fulfillment.js';
 import {
   PricingError,
   priceSeatTickets,
@@ -25,6 +27,7 @@ import { requireAuth } from '../http/auth-middleware.js';
 import { sqlStateOf } from '../http/db-errors.js';
 import { HttpError, parseInput } from '../http/errors.js';
 import type { Logger } from '../logger.js';
+import { availableMenuWhere } from './menu.js';
 
 const MINUTE = 60_000;
 
@@ -53,6 +56,7 @@ async function loadBooking(db: Db, id: string, owner: string, at: Date): Promise
     where: { id, userId: owner },
     include: {
       seats: { include: { seat: true } },
+      foodItems: { include: { menuItem: { select: { nameEn: true } } }, orderBy: { id: 'asc' } },
       showtime: { select: { movie: { select: { ageRating: true } } } },
     },
   });
@@ -99,6 +103,16 @@ async function loadBooking(db: Db, id: string, owner: string, at: Date): Promise
       totalCents: seat.totalCents,
     }));
 
+  const food = booking.foodItems.map((item) => ({
+    menuItemId: item.menuItemId,
+    nameSq: item.nameSq,
+    nameEn: item.menuItem.nameEn,
+    quantity: item.quantity,
+    unitPriceCents: item.unitPriceCents,
+    totalCents: item.quantity * item.unitPriceCents,
+    fulfillment: item.fulfillment,
+    serveTiming: item.serveTiming,
+  }));
   const { ageRating } = booking.showtime.movie;
   // A hold past its expiry is over, even before the cleanup job marks it EXPIRED.
   const expired =
@@ -117,10 +131,75 @@ async function loadBooking(db: Db, id: string, owner: string, at: Date): Promise
     ageRatingConfirmed: booking.ageRatingConfirmed,
     seats,
     wholeHallPriceCents: booking.wholeHallPriceCents,
+    food,
+    ticketsCents: booking.isWholeHall
+      ? (booking.wholeHallPriceCents ?? 0)
+      : seats.reduce((sum, seat) => sum + seat.totalCents, 0),
+    foodCents: food.reduce((sum, item) => sum + item.totalCents, 0),
     totalCents: booking.totalCents,
     currency: 'EUR',
     categories,
   };
+}
+
+/** Recalculates the stored total from the booking's snapshots: tickets (or the suite) + food. */
+async function storeTotal(tx: Prisma.TransactionClient, id: string): Promise<void> {
+  const booking = await tx.booking.findUniqueOrThrow({
+    where: { id },
+    select: {
+      isWholeHall: true,
+      wholeHallPriceCents: true,
+      seats: { select: { unitPriceCents: true, seatSurchargeCents: true } },
+      foodItems: { select: { quantity: true, unitPriceCents: true } },
+    },
+  });
+  const tickets = booking.isWholeHall
+    ? (booking.wholeHallPriceCents ?? 0)
+    : booking.seats.reduce((sum, t) => sum + t.unitPriceCents + t.seatSurchargeCents, 0);
+  const food = booking.foodItems.reduce((sum, f) => sum + f.quantity * f.unitPriceCents, 0);
+  await tx.booking.update({ where: { id }, data: { totalCents: tickets + food } });
+}
+
+/**
+ * Locks the user's booking for a change (serializing changes with each other and with a release)
+ * and checks that it is still an open hold: another user's booking 404, not HELD 409, an expired
+ * hold or a started show 410.
+ */
+async function lockOpenHold(tx: Prisma.TransactionClient, id: string, owner: string, at: Date) {
+  const locked = await tx.$queryRaw<{ id: string }[]>`
+    SELECT "id" FROM "Booking" WHERE "id" = ${id}::uuid AND "userId" = ${owner}::uuid FOR UPDATE`;
+  if (locked.length === 0) throw notFound();
+  const booking = await tx.booking.findUniqueOrThrow({
+    where: { id },
+    include: {
+      seats: { select: { seatId: true, seat: { select: { seatType: true } } } },
+      showtime: {
+        select: {
+          startsAt: true,
+          movie: { select: { ageRating: true } },
+          hall: {
+            select: {
+              id: true,
+              hallTypeId: true,
+              wholeHallOnly: true,
+              hallType: { select: { code: true, allowsSeatDelivery: true } },
+              location: { select: { id: true, timeZone: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+  if (booking.status !== 'HELD') {
+    throw new HttpError(409, 'conflict', 'This booking can no longer be changed.');
+  }
+  if (
+    (booking.holdExpiresAt?.getTime() ?? 0) <= at.getTime() ||
+    booking.showtime.startsAt.getTime() <= at.getTime()
+  ) {
+    throw new HttpError(410, 'gone', 'This hold has expired.');
+  }
+  return booking;
 }
 
 /** Prices every seat with the server's pricing function; a missing rule means "not bookable". */
@@ -378,39 +457,7 @@ export function createBookingsRouter({
     const at = now();
 
     await prisma.$transaction(async (tx) => {
-      // Serializes ticket changes with each other and with a hold release.
-      const locked = await tx.$queryRaw<{ id: string }[]>`
-        SELECT "id" FROM "Booking" WHERE "id" = ${id}::uuid AND "userId" = ${owner}::uuid FOR UPDATE`;
-      if (locked.length === 0) throw notFound();
-      const booking = await tx.booking.findUniqueOrThrow({
-        where: { id },
-        include: {
-          seats: { select: { seatId: true, seat: { select: { seatType: true } } } },
-          showtime: {
-            select: {
-              startsAt: true,
-              movie: { select: { ageRating: true } },
-              hall: {
-                select: {
-                  id: true,
-                  hallTypeId: true,
-                  wholeHallOnly: true,
-                  location: { select: { id: true, timeZone: true } },
-                },
-              },
-            },
-          },
-        },
-      });
-      if (booking.status !== 'HELD') {
-        throw new HttpError(409, 'conflict', 'This booking can no longer be changed.');
-      }
-      if (
-        (booking.holdExpiresAt?.getTime() ?? 0) <= at.getTime() ||
-        booking.showtime.startsAt.getTime() <= at.getTime()
-      ) {
-        throw new HttpError(410, 'gone', 'This hold has expired.');
-      }
+      const booking = await lockOpenHold(tx, id, owner, at);
 
       // Exactly one ticket per person: occupant 1 on every seat, occupant 2 on sofas.
       const seatTypes = new Map(booking.seats.map((s) => [s.seatId, s.seat.seatType]));
@@ -476,14 +523,56 @@ export function createBookingsRouter({
           ticketCategoryId: categoryOf(row.seatId, row.occupant).id,
         })),
       });
-      await tx.booking.update({
-        where: { id },
-        data: {
-          ageRatingConfirmed,
-          totalCents: priced.reduce((sum, p) => sum + p.price.totalCents, 0),
-        },
-      });
+      await tx.booking.update({ where: { id }, data: { ageRatingConfirmed } });
+      await storeTotal(tx, id);
     });
+    res.json({ booking: await loadBooking(prisma, id, owner, at) });
+  });
+
+  router.put('/bookings/:id/food', requireAuth, async (req, res) => {
+    const owner = userId(req);
+    const { id } = parseInput(idParams, req.params);
+    const input = parseInput(foodRequestSchema, req.body);
+    const at = now();
+
+    await prisma.$transaction(async (tx) => {
+      const booking = await lockOpenHold(tx, id, owner, at);
+      const { hall } = booking.showtime;
+      const menuItemIds = [...new Set(input.items.map((line) => line.menuItemId))];
+      // The cinema's own offer and price: never anything sent by the client.
+      const offers = await tx.locationMenuItem.findMany({
+        where: { ...availableMenuWhere(hall.location.id), menuItemId: { in: menuItemIds } },
+        select: { menuItemId: true, priceCents: true, menuItem: { select: { nameSq: true } } },
+      });
+      const offerOf = new Map(offers.map((o) => [o.menuItemId, o]));
+      const rows = input.items.map((line) => {
+        const offer = offerOf.get(line.menuItemId);
+        if (!offer) throw unprocessable('An item is not available at this cinema.');
+        if (!isFulfillmentAllowed(hall.hallType, line.fulfillment)) {
+          throw unprocessable('This hall does not bring food to the seat.');
+        }
+        let serveTiming;
+        try {
+          serveTiming = serveTimingFor(line.fulfillment, line.serveTiming);
+        } catch (error) {
+          if (error instanceof FulfillmentError) throw unprocessable(error.message);
+          throw error;
+        }
+        return {
+          bookingId: id,
+          menuItemId: line.menuItemId,
+          nameSq: offer.menuItem.nameSq,
+          quantity: line.quantity,
+          unitPriceCents: offer.priceCents,
+          fulfillment: line.fulfillment,
+          serveTiming,
+        };
+      });
+      await tx.bookingFoodItem.deleteMany({ where: { bookingId: id } });
+      if (rows.length > 0) await tx.bookingFoodItem.createMany({ data: rows });
+      await storeTotal(tx, id);
+    });
+    logger.info('booking.food', { bookingId: id, lines: input.items.length });
     res.json({ booking: await loadBooking(prisma, id, owner, at) });
   });
 

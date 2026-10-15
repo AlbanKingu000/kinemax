@@ -21,19 +21,18 @@ task is finished, move it to DONE with its commit hash.
 | Seat holds, ticket categories, server-side prices (task 07 part C)   | `c7ecc24`            |
 | Cinematic 3D hall + locked seat view (task 7d)                       | `a3e0401`            |
 | 3D fixes: auto-hiding seat panel, framing, flight path, VIP (7e)     | `3b886a8`            |
+| Food & drinks ordering (task 8 part A)                               | (next commit)        |
 
 ## Next (in this order)
 
-1. Food & drinks ordering (optional; pickup at counter or seat delivery in VIP/Suite), after the
-   "Biletat" step
-2. Demo payment + booking confirmation (must refuse a 15+/18+ booking without
+1. Demo payment + booking confirmation (must refuse a 15+/18+ booking without
    `ageRatingConfirmed` on the server, and a hold that has expired)
-3. My account: my tickets with QR code, cancellation (until 2h before) (login, register and the
+2. My account: my tickets with QR code, cancellation (until 2h before) (login, register and the
    account page are done)
-4. Admin panel: super admin (prices, settings, users, all locations) + location managers (movies,
+3. Admin panel: super admin (prices, settings, users, all locations) + location managers (movies,
    showtimes, halls, bookings); deactivating a showtime must cancel/refund its bookings
-5. Security review + full e2e pass
-6. Push to a private GitHub repo (AlbanKingu000/kinemax)
+4. Security review + full e2e pass
+5. Push to a private GitHub repo (AlbanKingu000/kinemax)
 
 ## Known open points
 

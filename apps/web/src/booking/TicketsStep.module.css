@@ -21,22 +21,6 @@
   font-size: var(--text-h3);
 }
 
-.timer {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  color: var(--color-text-secondary);
-  font-size: var(--text-body-sm);
-}
-
-/* Tabular figures: the countdown does not jump while it ticks */
-.clock {
-  color: var(--color-text);
-  font-size: var(--text-h4);
-  font-variant-numeric: tabular-nums;
-  font-weight: var(--weight-semibold);
-}
-
 .note {
   color: var(--color-text-muted);
   font-size: var(--text-body-sm);
@@ -103,18 +87,6 @@
 .age {
   display: grid;
   gap: var(--space-2);
-}
-
-.notice:empty {
-  display: none;
-}
-
-.notice {
-  padding: var(--space-3);
-  border-left: 3px solid var(--color-info);
-  background: var(--color-info-bg);
-  color: var(--color-text);
-  font-size: var(--text-body-sm);
 }
 
 .actions {

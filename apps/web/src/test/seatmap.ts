@@ -128,6 +128,9 @@ export function heldBooking(
     ageRatingConfirmed: false,
     seats,
     wholeHallPriceCents: null,
+    food: [],
+    ticketsCents: seats.reduce((sum, s) => sum + s.totalCents, 0),
+    foodCents: 0,
     totalCents: seats.reduce((sum, s) => sum + s.totalCents, 0),
     currency: 'EUR',
     categories: [

@@ -44,6 +44,14 @@ export const routes: RouteObject[] = [
           </RequireAuth>
         ),
       },
+      {
+        path: 'booking/:showtimeId/food',
+        element: (
+          <RequireAuth>
+            <BookingPage key="food" step="food" />
+          </RequireAuth>
+        ),
+      },
       { path: 'experiences', element: <ComingSoonPage page="experiences" /> },
       { path: 'locations', element: <ComingSoonPage page="locations" /> },
       { path: 'food', element: <ComingSoonPage page="food" /> },

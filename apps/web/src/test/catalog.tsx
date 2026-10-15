@@ -72,6 +72,8 @@ export interface CatalogStub {
   showtime?: Record<string, Answer>;
   /** /api/showtimes/:id/seatmap by id: a body, or a function called on every request. */
   seatmap?: Record<string, unknown>;
+  /** /api/locations/:slug/menu by location slug. */
+  menu?: Record<string, Answer>;
   /** /api/bookings/*: answers by method and path (needs stubAuth, which sees the method). */
   bookings?: (request: { method: string; path: string; body: unknown }) => Answer;
 }
@@ -110,6 +112,8 @@ export function stubCatalog(stub: CatalogStub = {}) {
       return answer(stub.movieDetail?.[decodeURIComponent(url.pathname.slice(12))]);
     }
     if (url.pathname === '/api/showtimes') return answer(stub.showtimes?.(url));
+    const menuMatch = /^\/api\/locations\/([^/]+)\/menu$/.exec(url.pathname);
+    if (menuMatch) return answer(stub.menu?.[decodeURIComponent(menuMatch[1] ?? '')]);
     const seatmapMatch = /^\/api\/showtimes\/([^/]+)\/seatmap$/.exec(url.pathname);
     if (seatmapMatch) {
       const answer2 = stub.seatmap?.[decodeURIComponent(seatmapMatch[1] ?? '')];

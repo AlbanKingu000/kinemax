@@ -16,6 +16,7 @@ import { RadioGroup } from '../components/Choice/Radio';
 import { Switch } from '../components/Choice/Switch';
 import { ChooseCinema } from '../components/ChooseCinema/ChooseCinema';
 import { Chip } from '../components/Chip/Chip';
+import { QuantityStepper } from '../components/QuantityStepper/QuantityStepper';
 import { ErrorSummary } from '../components/ErrorSummary/ErrorSummary';
 import { DayTabs } from '../components/DayTabs/DayTabs';
 import { EmptyState } from '../components/EmptyState/EmptyState';
@@ -188,6 +189,7 @@ export function StyleguidePage() {
   const [demoLocation, setDemoLocation] = useState('prizren');
   const [demoDay, setDemoDay] = useState(DEMO_DAYS[0] ?? '');
   const [seatType, setSeatType] = useState<'standard' | 'vip' | 'couple'>('vip');
+  const [stepperValue, setStepperValue] = useState(2);
   const [selectedGenres, setSelectedGenres] = useState<string[]>(['drama']);
   const [activeFilters, setActiveFilters] = useState<('prishtina' | 'vip')[]>(['prishtina', 'vip']);
 
@@ -725,6 +727,30 @@ export function StyleguidePage() {
                     <Switch label={s.forms.subtitlesOnly} />
                     <Switch label={s.forms.reminders} defaultChecked />
                     <Switch label={s.forms.disabledSwitch} disabled />
+                  </div>
+                </Sub>
+                <Sub title={s.forms.steppers}>
+                  <div className={styles.stack}>
+                    <QuantityStepper
+                      value={stepperValue}
+                      onChange={setStepperValue}
+                      itemName={s.forms.stepperItem}
+                      max={20}
+                    />
+                    <p>{s.forms.stepperLimits}</p>
+                    <div className={styles.row}>
+                      <QuantityStepper
+                        value={0}
+                        onChange={() => undefined}
+                        itemName={s.forms.stepperItem}
+                      />
+                      <QuantityStepper
+                        value={20}
+                        max={20}
+                        onChange={() => undefined}
+                        itemName={s.forms.stepperItem}
+                      />
+                    </div>
                   </div>
                 </Sub>
               </div>

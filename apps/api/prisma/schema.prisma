@@ -117,6 +117,13 @@ enum Fulfillment {
   DELIVER_TO_SEAT
 }
 
+/// When food delivered to the seat is served (seat delivery only).
+enum ServeTiming {
+  BEFORE_SHOW
+  /// About 20 minutes after the start.
+  DURING_SHOW
+}
+
 enum PaymentStatus {
   PENDING
   SUCCEEDED
@@ -626,6 +633,8 @@ model BookingFoodItem {
   quantity       Int
   unitPriceCents Int
   fulfillment    Fulfillment @default(PICKUP_AT_COUNTER)
+  /// Required for DELIVER_TO_SEAT, null for PICKUP_AT_COUNTER (CHECK in migration food_serve_timing).
+  serveTiming    ServeTiming?
 
   booking  Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Restrict)

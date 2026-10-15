@@ -1,6 +1,6 @@
 // Fills the TEST database (DATABASE_URL_TEST, name must end in "_test") with the demo catalog for
 // the Playwright e2e run: hall types, the 4 locations with their halls and seats, the 12 movies,
-// prices and 14 days of showtimes from the same deterministic plan as the dev seed, plus the fixed
+// prices, the per-location menus and 14 days of showtimes from the same deterministic plan as the dev seed, plus the fixed
 // test customers (e2e-account.ts). No bookings, so every show is available. Wipes the test database first. Never touches DATABASE_URL.
 import { hashPassword } from '../src/auth/password.js';
 import { loadDotEnv, rootEnvPath } from '../src/config/load-dotenv.js';
@@ -19,6 +19,7 @@ import {
   TIME_ADJUSTMENTS,
   TIME_ZONE,
 } from '../prisma/seed/data.js';
+import { seedMenu } from '../prisma/seed/menu.js';
 import { planShowtimes } from '../prisma/seed/schedule.js';
 import { E2E_ACCOUNTS } from './e2e-account.js';
 
@@ -107,6 +108,7 @@ try {
       l.id,
     ]),
   );
+  await seedMenu(prisma, locationIds);
   await prisma.hallTypePrice.createMany({
     data: BASE_PRICES.map((rule) => ({
       hallTypeId: hallTypeIds.get(rule.hallType) ?? '',

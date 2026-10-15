@@ -130,7 +130,10 @@ describe('Tickets step', () => {
       expect(proceed).toBeEnabled();
     });
     fireEvent.click(proceed);
-    expect(screen.getByText(/Hapi tjetër \(ushqimi dhe pagesa demo\)/)).toBeInTheDocument();
+    // On to the optional food & drinks step.
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Ushqimi & pijet' }, STEP_WAIT),
+    ).toBeInTheDocument();
   });
 
   it('announces 5 and 1 minutes left and sends the buyer back when the hold expires', async () => {

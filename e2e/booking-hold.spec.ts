@@ -58,9 +58,11 @@ test('select → Vazhdo → login → hold → categories → age confirmation �
   await expect(
     step.getByRole('checkbox', { name: /^Konfirmoj që të gjithë shikuesit/ }),
   ).toBeChecked();
-  await step.getByRole('button', { name: 'Vazhdo' }).click();
-  await expect(step.getByText(/Hapi tjetër \(ushqimi dhe pagesa demo\)/)).toBeVisible();
   await expectNoAxe(page);
+  await step.getByRole('button', { name: 'Vazhdo' }).click();
+  // On to the optional food & drinks step (checkout.spec.ts covers it).
+  await expect(page).toHaveURL(new RegExp(`/booking/${id}/food$`));
+  await expect(page.getByRole('heading', { level: 2, name: 'Ushqimi & pijet' })).toBeVisible();
 
   // Coming back to the show resumes the hold.
   await page.goto(`/booking/${id}`);

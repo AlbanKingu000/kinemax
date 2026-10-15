@@ -14,9 +14,7 @@ import type { PrismaClient } from '../../src/generated/prisma/client.js';
 import {
   BASE_PRICES,
   HALL_TYPES,
-  LOCATION_MENUS,
   LOCATIONS,
-  MENU_ITEMS,
   MOVIES,
   RULES_VALID_FROM,
   SEAT_SURCHARGES,
@@ -25,6 +23,8 @@ import {
   TIME_ADJUSTMENTS,
   TIME_ZONE,
 } from './data.js';
+import { MENU_ART_SLUGS, menuArtSvg } from './menu-art.js';
+import { seedMenu } from './menu.js';
 import { backdropSvg, posterSvg } from './posters.js';
 import { planShowtimes, type ScheduleHall } from './schedule.js';
 
@@ -110,8 +110,11 @@ async function upsertUser(
 }
 
 function writeArtwork(): void {
-  for (const dir of ['seed/posters', 'seed/backdrops'])
+  for (const dir of ['seed/posters', 'seed/backdrops', 'seed/menu'])
     mkdirSync(`${webPublicDir}${dir}`, { recursive: true });
+  for (const slug of MENU_ART_SLUGS) {
+    writeFileSync(`${webPublicDir}seed/menu/${slug}.svg`, menuArtSvg(slug));
+  }
   for (const movie of MOVIES) {
     writeFileSync(`${webPublicDir}seed/posters/${movie.slug}.svg`, posterSvg(movie));
     writeFileSync(`${webPublicDir}seed/backdrops/${movie.slug}.svg`, backdropSvg(movie));
@@ -369,61 +372,6 @@ async function seedPricing(
         create: { id, ...rule },
         update: rule,
       });
-    }
-  }
-}
-
-async function seedMenu(prisma: PrismaClient, locationIds: Map<string, string>) {
-  const ids = new Map<string, string>();
-  for (const item of MENU_ITEMS) {
-    const data = {
-      slug: item.slug,
-      nameSq: item.nameSq,
-      nameEn: item.nameEn,
-      descriptionSq: item.descriptionSq ?? null,
-      descriptionEn: item.descriptionEn ?? null,
-      category: item.category,
-      isCombo: item.category === 'COMBO',
-      isActive: true,
-      imagePath: null,
-    };
-    const saved = await prisma.menuItem.upsert({
-      where: { slug: item.slug },
-      create: data,
-      update: data,
-    });
-    ids.set(item.slug, saved.id);
-  }
-  for (const item of MENU_ITEMS.filter((i) => i.components)) {
-    const comboId = ids.get(item.slug) ?? '';
-    await prisma.comboComponent.deleteMany({ where: { comboId } });
-    await prisma.comboComponent.createMany({
-      data: (item.components ?? []).map((c) => ({
-        comboId,
-        componentId: ids.get(c.slug) ?? '',
-        quantity: c.quantity,
-      })),
-    });
-  }
-  for (const [slug, menu] of Object.entries(LOCATION_MENUS)) {
-    const locationId = locationIds.get(slug) ?? '';
-    for (const item of MENU_ITEMS) {
-      const menuItemId = ids.get(item.slug) ?? '';
-      const priceCents = Math.round((item.priceCents * menu.priceFactor) / 10) * 10;
-      const isAvailable = !menu.unavailable.includes(item.slug);
-      const where = { locationId_menuItemId: { locationId, menuItemId } };
-      if (isAvailable) {
-        await prisma.locationMenuItem.upsert({
-          where,
-          create: { locationId, menuItemId, priceCents, isAvailable },
-          update: { priceCents, isAvailable },
-        });
-      } else {
-        await prisma.locationMenuItem.updateMany({
-          where: { locationId, menuItemId },
-          data: { isAvailable: false },
-        });
-      }
     }
   }
 }

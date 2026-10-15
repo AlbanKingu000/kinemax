@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="360" viewBox="0 0 480 360">
+<defs>
+<radialGradient id="glow" cx="0.5" cy="0.62" r="0.6"><stop offset="0" stop-color="#6e0c1d"/><stop offset="0.6" stop-color="#2a0710"/><stop offset="1" stop-color="#0b0a0b"/></radialGradient>
+</defs>
+<rect width="100%" height="100%" fill="url(#glow)"/>
+<ellipse cx="240" cy="304" rx="190" ry="18" fill="#000" opacity="0.45"/>
+<circle cx="80.5" cy="140.5" r="15" fill="#e9dcc8"/><circle cx="106.5" cy="138.5" r="15" fill="#e9dcc8"/><circle cx="132.5" cy="136.5" r="15" fill="#e9dcc8"/><circle cx="158.5" cy="139.5" r="15" fill="#e9dcc8"/><circle cx="184.5" cy="137.5" r="15" fill="#e9dcc8"/><circle cx="210.5" cy="140.5" r="15" fill="#e9dcc8"/><circle cx="93.5" cy="122.5" r="13" fill="#e9dcc8"/><circle cx="119.5" cy="120.5" r="13" fill="#e9dcc8"/><circle cx="145.5" cy="118.5" r="13" fill="#e9dcc8"/><circle cx="171.5" cy="121.5" r="13" fill="#e9dcc8"/><circle cx="197.5" cy="119.5" r="13" fill="#e9dcc8"/><circle cx="106.5" cy="104.5" r="11" fill="#e9dcc8"/><circle cx="132.5" cy="102.5" r="11" fill="#e9dcc8"/><circle cx="158.5" cy="100.5" r="11" fill="#e9dcc8"/><circle cx="184.5" cy="103.5" r="11" fill="#e9dcc8"/>
+<polygon points="66.5,148.5 213.5,148.5 194.6,300 85.4,300" fill="#f3eee8"/><polygon points="73.9,148.5 88.6,148.5 101.8,300 90.9,300" fill="#b3132f"/><polygon points="103.3,148.5 118,148.5 123.6,300 112.7,300" fill="#b3132f"/><polygon points="132.7,148.5 147.4,148.5 145.5,300 134.5,300" fill="#b3132f"/><polygon points="162.1,148.5 176.8,148.5 167.3,300 156.4,300" fill="#b3132f"/><polygon points="191.5,148.5 206.2,148.5 189.1,300 178.2,300" fill="#b3132f"/>
+<rect x="62.5" y="144.5" width="155" height="10" rx="4" fill="#e9dcc8"/><rect x="298" y="92" width="9" height="70" rx="4" fill="#f3eee8" transform="rotate(12 302 130)"/>
+<polygon points="242,150 338,150 326,300 254,300" fill="#b3132f"/>
+<rect x="236" y="138" width="108" height="16" rx="7" fill="#f3eee8"/>
+<rect x="250" y="205" width="80" height="34" rx="6" fill="#f3eee8" opacity="0.92"/>
+<circle cx="290" cy="222" r="9" fill="#b3132f"/><rect x="408" y="92" width="9" height="70" rx="4" fill="#f3eee8" transform="rotate(12 412 130)"/>
+<polygon points="352,150 448,150 436,300 364,300" fill="#b3132f"/>
+<rect x="346" y="138" width="108" height="16" rx="7" fill="#f3eee8"/>
+<rect x="360" y="205" width="80" height="34" rx="6" fill="#f3eee8" opacity="0.92"/>
+<circle cx="400" cy="222" r="9" fill="#b3132f"/>
+</svg>
