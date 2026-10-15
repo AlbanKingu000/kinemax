@@ -139,5 +139,7 @@ The living styleguide is at http://localhost:5180/styleguide (dev server only; 4
 - After each finished task (verify green, Chrome check done), make ONE local commit with a
   Conventional Commits message (`feat:`, `fix:`, `chore:`, `test:`, `docs:`, `refactor:`). Review
   `git status` first and stage only the task's files.
-- No remote and no push until explicitly asked. Never force push.
+- The only remote is `origin` = https://github.com/AlbanKingu000/kinemax (private backup). After a
+  task is FULLY finished (all parts committed, verify green), push main to origin. Never force
+  push, never push a failing state, never add, remove or change a remote.
 - Never add Co-Authored-By or any other AI attribution to commit messages or PR descriptions.
