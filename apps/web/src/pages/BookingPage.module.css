@@ -115,40 +115,88 @@
   color: var(--color-text-secondary);
 }
 
+@media (max-width: 767px) {
+  .hallLoading {
+    aspect-ratio: auto;
+    height: 26rem;
+    min-height: 0;
+  }
+}
+
 .reset {
   position: absolute;
   top: var(--space-3);
   right: var(--space-3);
 }
 
-/* View from a seat: a calm card over the 3D view */
+/* View from a seat: a compact card low over the 3D view (the rows in front stay visible) */
 .overlay {
   position: absolute;
   right: var(--space-3);
   bottom: var(--space-3);
   left: var(--space-3);
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr auto;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
+  gap: var(--space-2) var(--space-3);
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--color-border);
   border-top: 2px solid var(--color-crimson);
   border-radius: var(--radius-md);
-  background: var(--color-elevated);
+  background: rgb(var(--rgb-black) / 90%);
   box-shadow: var(--shadow-3);
+  backdrop-filter: blur(8px);
 }
 
 .overlayTitle {
   font-family: var(--font-display);
   font-size: var(--text-h4);
+  line-height: 1.2;
+}
+
+.overlayActions,
+.overlayNav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 .overlayActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+.overlayNav {
+  grid-column: 1 / -1;
+}
+
+/* How to look around, top left of the seat view */
+.lookHint {
+  position: absolute;
+  top: var(--space-3);
+  left: var(--space-3);
+  max-width: calc(100% - var(--space-6));
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: rgb(var(--rgb-black) / 80%);
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
+  pointer-events: none;
+}
+
+/* Phones: the card sits under the view instead of covering most of it */
+@media (max-width: 767px) {
+  .overlay {
+    position: static;
+    grid-template-columns: 1fr;
+    margin-top: var(--space-2);
+    padding: var(--space-3);
+  }
+
+  .overlayActions {
+    justify-content: flex-start;
+  }
 }
 
 .open3d {
@@ -271,11 +319,12 @@
 }
 
 .swatch[data-type='VIP'] {
-  background: var(--color-crimson-pressed);
+  background: var(--color-seat-vip);
 }
 
 .swatch[data-type='COUPLE'] {
   width: 1.75rem;
+  background: var(--color-seat-couple);
 }
 
 .swatch[data-type='WHEELCHAIR'] {

@@ -14,10 +14,39 @@ import {
   suiteMap,
 } from '../test/seatmap';
 
-// three.js does not run in jsdom: a stand-in that shows which seat the camera looks from.
+// three.js does not run in jsdom: a stand-in that shows which seat the camera looks from. Its
+// "arrive" button plays the end of the camera glide; its "step" buttons the [ and ] keys.
 vi.mock('../booking/Hall3D', () => ({
-  default: ({ label, viewSeat }: { label: string; viewSeat: { id: string } | null }) => (
-    <div role="img" aria-label={label} data-view-seat={viewSeat?.id ?? ''} />
+  default: (props: {
+    label: string;
+    viewSeat: { id: string } | null;
+    recenterSignal: number;
+    onArrive: (id: string) => void;
+    onStep: (step: -1 | 1) => void;
+  }) => (
+    <div
+      role="img"
+      aria-label={props.label}
+      data-view-seat={props.viewSeat?.id ?? ''}
+      data-recenter={props.recenterSignal}
+    >
+      <button
+        type="button"
+        onClick={() => {
+          if (props.viewSeat) props.onArrive(props.viewSeat.id);
+        }}
+      >
+        arrive
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          props.onStep(1);
+        }}
+      >
+        step ]
+      </button>
+    </div>
   ),
 }));
 
@@ -302,6 +331,10 @@ describe('BookingPage: 3D and 2D', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Shiko pamjen nga Rreshti A, ulësja 2' }));
     const hall = await hall3d();
     expect(hall).toHaveAttribute('data-view-seat', data.seats[1]?.id);
+    // The overlay waits for the camera to arrive.
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Rikthe pamjen' })).not.toBeInTheDocument();
+    fireEvent.click(within(hall).getByRole('button', { name: 'arrive' }));
     const overlay = screen.getByRole('dialog', { name: 'Rreshti A · Ulësja 2 · Standard' });
     fireEvent.click(within(overlay).getByRole('button', { name: 'Zgjidh këtë ulëse' }));
     expect(within(screen.getByRole('complementary')).getByText(/1 biletë/)).toBeInTheDocument();
@@ -309,6 +342,53 @@ describe('BookingPage: 3D and 2D', () => {
     fireEvent.click(within(overlay).getByRole('button', { name: 'Kthehu te salla' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(hall).toHaveAttribute('data-view-seat', '');
+  });
+
+  it('the seat view shows the distance, moves along the row and looks back at the screen', async () => {
+    withWebGL(false);
+    const data = standardMap();
+    stubAuth(null, { seatmap: { [SHOWTIME_ID]: data } });
+    renderApp(`/booking/${SHOWTIME_ID}`);
+    const a1 = await screen.findByRole('button', { name: /^Rreshti A, ulësja 1,/ });
+    a1.focus();
+    fireEvent.keyDown(a1, { key: 'ArrowRight' });
+    fireEvent.click(screen.getByRole('button', { name: 'Shiko pamjen nga Rreshti A, ulësja 2' }));
+    const hall = await hall3d();
+    fireEvent.click(within(hall).getByRole('button', { name: 'arrive' }));
+    const overlay = screen.getByRole('dialog');
+    // Eye (-2, 1.18, 5) to the screen center (0, 3, 0): about 5.7 m.
+    expect(within(overlay).getByText('Distanca nga ekrani ~6 m')).toBeInTheDocument();
+
+    const prev = within(overlay).getByRole('button', { name: 'Ulësja e mëparshme' });
+    const next = within(overlay).getByRole('button', { name: 'Ulësja tjetër' });
+    prev.focus();
+    fireEvent.click(prev);
+    expect(hall).toHaveAttribute('data-view-seat', data.seats[0]?.id);
+    // The overlay stays during the short glide to the neighbour and names the new seat.
+    expect(
+      screen.getByRole('dialog', { name: 'Rreshti A · Ulësja 1 · Standard' }),
+    ).toBeInTheDocument();
+    // Row end: the button turns off and the focus moves to the other direction.
+    expect(prev).toBeDisabled();
+    expect(next).toHaveFocus();
+    fireEvent.click(within(hall).getByRole('button', { name: 'step ]' }));
+    expect(hall).toHaveAttribute('data-view-seat', data.seats[1]?.id);
+    expect(prev).toBeEnabled();
+
+    expect(hall).toHaveAttribute('data-recenter', '0');
+    fireEvent.click(within(overlay).getByRole('button', { name: 'Shiko ekranin' }));
+    expect(hall).toHaveAttribute('data-recenter', '1');
+  });
+
+  it('switches the header to the cinema of the show', async () => {
+    window.localStorage.setItem(LOCATION_STORAGE_KEY, 'prishtine');
+    stubAuth(null, { seatmap: { [SHOWTIME_ID]: standardMap() } });
+    renderApp(`/booking/${SHOWTIME_ID}`);
+    await screen.findByRole('heading', { level: 1, name: 'Kodi Orbital 9' });
+    await waitFor(() => {
+      expect(window.localStorage.getItem(LOCATION_STORAGE_KEY)).toBe('prizren');
+    });
+    expect(screen.getAllByRole('button', { name: 'Kinemaja: Prizren' }).length).toBeGreaterThan(0);
   });
 
   it('shows a suite in 3D for looking only; it is booked as a whole', async () => {

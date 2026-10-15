@@ -26,6 +26,11 @@
   --color-crimson-text: #e6566a; /* red text and icons on dark backgrounds */
   --color-on-crimson: #f3eee8;
 
+  /* Seat types: the 2D map, the legend and the 3D hall use the same colors. Ivory numbers on all. */
+  --color-seat-standard: #8e1023; /* crimson velvet */
+  --color-seat-vip: #5a1a24; /* dark burgundy leather */
+  --color-seat-couple: #a3354b; /* rose velvet loveseat */
+
   /* Status (tuned for dark backgrounds) */
   --color-success: #4fbf8a;
   --color-warning: #e3b341;
@@ -141,6 +146,8 @@
   --duration-base: 200ms;
   --duration-slow: 360ms;
   --duration-cinematic: 800ms;
+  /* The reduced-motion replacement for camera flights: kept (not zeroed) under reduced motion. */
+  --duration-crossfade: 180ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-exit: cubic-bezier(0.4, 0, 1, 1);

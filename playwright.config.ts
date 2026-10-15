@@ -9,6 +9,16 @@ const testDatabaseUrl = assertTestDatabaseUrl(process.env.DATABASE_URL_TEST);
 
 const isCI = Boolean(process.env.CI);
 const EXPIRY_SPEC = /booking-expiry.spec.ts$/;
+// The 3D hall journeys render WebGL in software for ~40 s each: they run after the main projects
+// and one after the other, so they never starve the argon2 logins of the other specs (or the
+// database connections the seat-map polling opens) of CPU.
+const HALL_SPEC = /hall-3d.spec.ts$/;
+const desktop = { ...devices['Desktop Chrome'] };
+const phone = {
+  ...devices['Desktop Chrome'],
+  viewport: { width: 390, height: 844 },
+  isMobile: true,
+};
 
 export default defineConfig({
   testDir: 'e2e',
@@ -24,22 +34,26 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   projects: [
+    { name: 'desktop-chromium', testIgnore: [EXPIRY_SPEC, HALL_SPEC], use: desktop },
+    { name: 'mobile-chromium', testIgnore: [EXPIRY_SPEC, HALL_SPEC], use: phone },
     {
-      name: 'desktop-chromium',
-      testIgnore: EXPIRY_SPEC,
-      use: { ...devices['Desktop Chrome'] },
+      name: 'hall-3d-desktop',
+      testMatch: HALL_SPEC,
+      dependencies: ['desktop-chromium', 'mobile-chromium'],
+      use: desktop,
     },
     {
-      name: 'mobile-chromium',
-      testIgnore: EXPIRY_SPEC,
-      use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 }, isMobile: true },
+      name: 'hall-3d-mobile',
+      testMatch: HALL_SPEC,
+      dependencies: ['hall-3d-desktop'],
+      use: phone,
     },
     {
       // Shortens the hold time for the whole test database, so it runs alone after the others.
       name: 'hold-expiry',
       testMatch: EXPIRY_SPEC,
-      dependencies: ['desktop-chromium', 'mobile-chromium'],
-      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['hall-3d-mobile'],
+      use: desktop,
     },
   ],
   webServer: [

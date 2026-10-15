@@ -4,7 +4,7 @@ import {
   type SeatMapResponse,
   type SeatMapSeat,
 } from '@kinemax/shared';
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { ApiRequestError, apiRequest } from '../api/http';
 import { useAuth } from '../auth/auth-context';
@@ -19,6 +19,7 @@ import {
   MAX_TICKETS,
 } from '../booking/selection';
 import { SeatMap2D } from '../booking/SeatMap2D';
+import { neighbourSeat, screenDistance } from '../booking/seat-view';
 import { TicketsStep } from '../booking/TicketsStep';
 import { canRender3D, useSeatMap } from '../booking/use-seat-map';
 import { AgeBadge, FormatBadge, LanguageBadge } from '../components/Badge/Badge';
@@ -31,6 +32,7 @@ import { usePrefersReducedMotion } from '../hooks/use-prefers-reduced-motion';
 import { formatLongDate, formatPrice } from '../i18n/format';
 import { pickText } from '../i18n/messages';
 import { useLocale, useMessages } from '../i18n/use-messages';
+import { useLocationChoice } from '../location/location-context';
 import styles from './BookingPage.module.css';
 
 // The 3D hall is a separate chunk: three.js only loads on this page, and only when 3D is shown.
@@ -46,6 +48,12 @@ export function BookingPage({ step = 'seats' }: { step?: 'seats' | 'tickets' }) 
   const { status } = useAuth();
   const navigate = useNavigate();
   const seatMap = useSeatMap(showtimeId);
+  // The header follows the cinema of the show being booked (saved like a choice in the picker).
+  const { selected: chosenLocation, choose } = useLocationChoice();
+  const showLocation = seatMap.status === 'ready' ? seatMap.data.location.slug : undefined;
+  useEffect(() => {
+    if (showLocation && chosenLocation?.slug !== showLocation) choose(showLocation);
+  }, [showLocation, chosenLocation?.slug, choose]);
   usePageMeta(
     `${step === 'tickets' ? t.tickets.title : t.seats.title} · ${t.meta.titleSuffix}`,
     t.booking.seatsSoonBody,
@@ -175,7 +183,12 @@ function SeatSelection({ map, onRefresh }: { map: SeatMapResponse; onRefresh: ()
   const [selection, setSelection] = useState(() => readSelection(showtimeId));
   const [notice, setNotice] = useState('');
   const [viewSeat, setViewSeat] = useState<SeatMapSeat | null>(null);
+  // The seat the camera has arrived at: the seat view overlay shows only after the glide.
+  const [seated, setSeated] = useState<string | null>(null);
   const [resetSignal, setResetSignal] = useState(0);
+  const [recenterSignal, setRecenterSignal] = useState(0);
+  const prevButton = useRef<HTMLButtonElement>(null);
+  const nextButton = useRef<HTMLButtonElement>(null);
   const [holding, setHolding] = useState(false);
 
   // On load and after every refresh: drop chosen seats that were taken in the meantime.
@@ -249,6 +262,23 @@ function SeatSelection({ map, onRefresh }: { map: SeatMapResponse; onRefresh: ()
     }
   }
 
+  function closeSeatView() {
+    setViewSeat(null);
+    setSeated(null);
+  }
+
+  /** Glides to the neighbouring seat in the row; at the row end that button turns off. */
+  function step(direction: -1 | 1) {
+    if (!viewSeat || seated === null) return;
+    const next = neighbourSeat(map.seats, viewSeat, direction);
+    if (!next) return;
+    setViewSeat(next);
+    const button = direction < 0 ? prevButton.current : nextButton.current;
+    if (!neighbourSeat(map.seats, next, direction) && document.activeElement === button) {
+      (direction < 0 ? nextButton.current : prevButton.current)?.focus();
+    }
+  }
+
   const nothing = map.hall.wholeHallOnly ? !selection.wholeHall : chosen.length === 0;
   const legend = (['STANDARD', 'VIP', 'COUPLE', 'WHEELCHAIR', 'COMPANION'] as const).filter(
     (type) => map.seats.some((s) => s.type === type),
@@ -271,7 +301,7 @@ function SeatSelection({ map, onRefresh }: { map: SeatMapResponse; onRefresh: ()
                     aria-pressed={mode === m}
                     onClick={() => {
                       setMode(m);
-                      if (m === '2d') setViewSeat(null);
+                      if (m === '2d') closeSeatView();
                     }}
                   >
                     {m === '3d' ? t.seats.view3d : t.seats.view2d}
@@ -297,53 +327,102 @@ function SeatSelection({ map, onRefresh }: { map: SeatMapResponse; onRefresh: ()
                   selected={selection.seatIds}
                   viewSeat={viewSeat}
                   onView={setViewSeat}
+                  onArrive={setSeated}
+                  onStep={step}
                   resetSignal={resetSignal}
+                  recenterSignal={recenterSignal}
                   reducedMotion={reducedMotion}
                   label={t.seats.hallLabel(map.hall.name)}
+                  lookLabel={t.seats.lookLabel}
                   tooltip={(seat) => {
                     const price = map.prices[seat.type];
                     return `${t.seats.rowSeat(seat.row, seat.number)} · ${typeName(seat)}${price !== undefined ? ` · ${formatPrice(locale, price)}` : ''}`;
                   }}
                 />
               </Suspense>
-              {viewSeat ? (
-                <div
-                  className={styles.overlay}
-                  role="dialog"
-                  aria-label={t.seats.overlay(viewSeat.row, viewSeat.number, typeName(viewSeat))}
-                >
-                  <p className={styles.overlayTitle}>
-                    {t.seats.overlay(viewSeat.row, viewSeat.number, typeName(viewSeat))}
-                  </p>
-                  <div className={styles.overlayActions}>
-                    {map.hall.wholeHallOnly ? null : viewSeat.status === 'AVAILABLE' ||
-                      selection.seatIds.includes(viewSeat.id) ? (
+              {viewSeat && seated !== null ? (
+                <>
+                  <p className={styles.lookHint}>{t.seats.lookHint}</p>
+                  <div
+                    className={styles.overlay}
+                    role="dialog"
+                    aria-label={t.seats.overlay(viewSeat.row, viewSeat.number, typeName(viewSeat))}
+                  >
+                    <div className={styles.overlayText}>
+                      <p className={styles.overlayTitle} aria-live="polite">
+                        {t.seats.overlay(viewSeat.row, viewSeat.number, typeName(viewSeat))}
+                      </p>
+                      <p className={styles.note}>
+                        {t.seats.distance(Math.round(screenDistance(viewSeat, map.hall.screen)))}
+                      </p>
+                    </div>
+                    <div className={styles.overlayActions}>
+                      {map.hall.wholeHallOnly ? null : viewSeat.status === 'AVAILABLE' ||
+                        selection.seatIds.includes(viewSeat.id) ? (
+                        <Button
+                          size="sm"
+                          variant={
+                            selection.seatIds.includes(viewSeat.id) ? 'secondary' : 'primary'
+                          }
+                          onClick={() => {
+                            toggle(viewSeat);
+                          }}
+                        >
+                          {selection.seatIds.includes(viewSeat.id)
+                            ? t.seats.removeThis
+                            : t.seats.selectThis}
+                        </Button>
+                      ) : (
+                        <p className={styles.note}>{t.seats.taken}</p>
+                      )}
                       <Button
                         size="sm"
-                        variant={selection.seatIds.includes(viewSeat.id) ? 'secondary' : 'primary'}
+                        variant="ghost"
                         onClick={() => {
-                          toggle(viewSeat);
+                          closeSeatView();
                         }}
                       >
-                        {selection.seatIds.includes(viewSeat.id)
-                          ? t.seats.removeThis
-                          : t.seats.selectThis}
+                        {t.seats.backToHall}
                       </Button>
-                    ) : (
-                      <p className={styles.note}>{t.seats.taken}</p>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        setViewSeat(null);
-                      }}
-                    >
-                      {t.seats.backToHall}
-                    </Button>
+                    </div>
+                    <div className={styles.overlayNav}>
+                      <Button
+                        ref={prevButton}
+                        size="sm"
+                        variant="secondary"
+                        icon="chevronLeft"
+                        disabled={!neighbourSeat(map.seats, viewSeat, -1)}
+                        onClick={() => {
+                          step(-1);
+                        }}
+                      >
+                        {t.seats.prevSeat}
+                      </Button>
+                      <Button
+                        ref={nextButton}
+                        size="sm"
+                        variant="secondary"
+                        iconEnd="chevronRight"
+                        disabled={!neighbourSeat(map.seats, viewSeat, 1)}
+                        onClick={() => {
+                          step(1);
+                        }}
+                      >
+                        {t.seats.nextSeat}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setRecenterSignal((n) => n + 1);
+                        }}
+                      >
+                        {t.seats.lookAtScreen}
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              ) : (
+                </>
+              ) : viewSeat ? null : (
                 <Button
                   size="sm"
                   variant="secondary"

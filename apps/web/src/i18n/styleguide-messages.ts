@@ -46,6 +46,7 @@ const sq = {
       text: 'Teksti',
       crimson: 'E kuqja',
       status: 'Gjendjet',
+      seats: 'Ulëset (harta 2D, legjenda, salla 3D)',
     },
     contrastHeading: 'Kontrasti (WCAG AA)',
     contrastIntro:
@@ -332,6 +333,7 @@ const en: StyleguideMessages = {
       text: 'Text',
       crimson: 'Crimson',
       status: 'Status',
+      seats: 'Seats (2D map, legend, 3D hall)',
     },
     contrastHeading: 'Contrast (WCAG AA)',
     contrastIntro: 'Every color pair the interface uses. The same check runs as an automated test.',

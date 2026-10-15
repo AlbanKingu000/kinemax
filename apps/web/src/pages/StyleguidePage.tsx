@@ -103,6 +103,7 @@ const SWATCH_GROUPS = {
     'color-crimson-text',
   ],
   status: ['color-success', 'color-warning', 'color-error', 'color-info'],
+  seats: ['color-seat-standard', 'color-seat-vip', 'color-seat-couple'],
 } as const;
 
 const TYPE_SCALE = [

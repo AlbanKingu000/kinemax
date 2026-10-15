@@ -19,6 +19,7 @@ task is finished, move it to DONE with its commit hash.
 | Login, register and account UI (task 07 part A)                      | `df22271`            |
 | 3D + 2D seat selection with view from seat (task 07 part B)          | `d82cf0c`            |
 | Seat holds, ticket categories, server-side prices (task 07 part C)   | `c7ecc24`            |
+| Cinematic 3D hall + locked seat view (task 7d)                       | see next commit      |
 
 ## Next (in this order)
 
@@ -34,6 +35,9 @@ task is finished, move it to DONE with its commit hash.
 6. Push to a private GitHub repo (AlbanKingu000/kinemax)
 
 ## Known open points
+
+- The 3D opening view comes from the front, so the whole Kinemax Grand screen is only seen from
+  the seats or by orbiting (task 7d decision 1, to confirm).
 
 - Seat holds and their rate limits live in one API process: the cleanup job is safe with several
   processes, the in-memory hold rate limits are not (production needs a shared store).

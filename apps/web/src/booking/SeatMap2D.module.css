@@ -42,7 +42,7 @@
   padding: 0;
   border: 1px solid transparent;
   border-radius: 28% 28% 18% 18%;
-  background: var(--color-crimson-deep);
+  background: var(--color-seat-standard);
   color: var(--color-on-crimson);
   font-size: clamp(0.5rem, 1.2vw, 0.7rem);
   font-weight: var(--weight-semibold);
@@ -57,10 +57,11 @@
 .seat[data-type='COUPLE'] {
   aspect-ratio: 2 / 1;
   border-radius: 16% / 32%;
+  background: var(--color-seat-couple);
 }
 
 .seat[data-type='VIP'] {
-  background: var(--color-crimson-pressed);
+  background: var(--color-seat-vip);
   border-color: rgb(var(--rgb-ivory) / 30%);
 }
 

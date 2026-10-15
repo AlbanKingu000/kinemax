@@ -105,4 +105,8 @@ export const CONTRAST_PAIRS: readonly ContrastPair[] = [
   pair('color-text', 'color-badge-bg', 'badge'),
   // Seat map: a selected seat is ivory with its number in page black.
   pair('color-bg', 'color-text', 'seat'),
+  // Seat numbers in ivory on every seat-type color (the same colors are the 3D seat colors).
+  pair('color-on-crimson', 'color-seat-standard', 'seat'),
+  pair('color-on-crimson', 'color-seat-vip', 'seat'),
+  pair('color-on-crimson', 'color-seat-couple', 'seat'),
 ];

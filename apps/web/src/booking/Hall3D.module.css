@@ -9,6 +9,15 @@
   background: var(--color-bg);
 }
 
+/* Phones: a fixed height (aspect-ratio with a min-height would widen the box past the screen) */
+@media (max-width: 767px) {
+  .wrap {
+    aspect-ratio: auto;
+    height: 26rem;
+    min-height: 0;
+  }
+}
+
 .canvas {
   position: absolute !important;
   inset: 0;
@@ -23,4 +32,33 @@
   font-size: var(--text-caption);
   white-space: nowrap;
   pointer-events: none;
+}
+
+/* The seat view takes drags as head turns: no browser panning or pinch zoom there. */
+.wrap[data-seated] {
+  cursor: grab;
+  touch-action: none;
+}
+
+.wrap[data-seated]:active {
+  cursor: grabbing;
+}
+
+.wrap:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus-ring);
+  outline-offset: calc(var(--focus-ring-offset) * -1);
+}
+
+/* Reduced motion: a short crossfade replaces the camera flight. */
+.fade {
+  position: absolute;
+  inset: 0;
+  background: var(--color-bg);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-crossfade) var(--ease-standard);
+}
+
+.fade[data-on] {
+  opacity: 1;
 }
