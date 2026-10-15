@@ -103,7 +103,7 @@ const SWATCH_GROUPS = {
     'color-crimson-text',
   ],
   status: ['color-success', 'color-warning', 'color-error', 'color-info'],
-  seats: ['color-seat-standard', 'color-seat-vip', 'color-seat-couple'],
+  seats: ['color-seat-standard', 'color-seat-vip', 'color-seat-couple', 'color-seat-piping'],
 } as const;
 
 const TYPE_SCALE = [
@@ -128,6 +128,8 @@ const MOTION = [
   'duration-base',
   'duration-slow',
   'duration-cinematic',
+  'duration-overlay-out',
+  'duration-overlay-in',
   'ease-standard',
   'ease-emphasized',
   'ease-exit',

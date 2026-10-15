@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { HALLS, type TestHall } from '../test/halls';
 import { seat } from '../test/seatmap';
 import {
   aisleXs,
@@ -14,11 +15,16 @@ import {
   neighbourSeat,
   overviewPose,
   planFlight,
+  project,
   rowsOf,
+  screenCenterOf,
   screenDistance,
   screenExtent,
+  screenPoints,
   seatPitch,
+  seatPoints,
   seatPose,
+  TO_SEAT,
   type Pose,
   type Vec3,
 } from './seat-view';
@@ -50,7 +56,13 @@ describe('easeInOut', () => {
 describe('camera flights', () => {
   const from: Pose = { position: [5, 8, -2], yaw: 2.7, pitch: -0.45, fov: 60 };
   const to: Pose = { position: [-1, 2.9, 11], yaw: 0.05, pitch: 0.02, fov: 55 };
-  const flight = planFlight(from, to, 1.1, [0, 2, 9]);
+  const flight = planFlight(from, to, {
+    lift: 1.1,
+    look: [
+      [0, 2, 9],
+      [0, 3.5, 0],
+    ],
+  });
 
   it('starts at the start and reaches the target exactly', () => {
     const start = flightPose(flight, 0);
@@ -87,12 +99,21 @@ describe('camera flights', () => {
     expect(heights.at(-1)).toBeCloseTo(to.position[1]);
   });
 
-  it('turns through the hall for a big turn, and the short way for a small one', () => {
-    // Halfway the camera looks towards the seats (+Z), not at the wall beside it.
-    const mid = flightPose(flight, 0.5);
-    expect(direction(mid.yaw, mid.pitch)[0]).toBeLessThan(0);
-    const small = planFlight(to, { ...to, position: [-0.45, 2.9, 11], yaw: 0.1 }, 0.12, [0, 2, 9]);
-    expect(small.yawDelta).toBeCloseTo(0.05);
+  it('turns the short way between neighbouring seats', () => {
+    const next: Pose = { ...to, position: [-0.45, 2.9, 11], yaw: 0.1 };
+    const small = planFlight(to, next, {
+      lift: 0.12,
+      look: [
+        [0, 3.5, 0],
+        [0, 3.5, 0],
+      ],
+    });
+    for (let i = 0; i <= 10; i++) {
+      const yaw = flightPose(small, i / 10).yaw;
+      expect(Math.abs(wrap(yaw - to.yaw))).toBeLessThanOrEqual(
+        Math.abs(wrap(next.yaw - to.yaw)) + 0.02,
+      );
+    }
   });
 });
 
@@ -250,5 +271,140 @@ describe('hall layout helpers', () => {
     expect(aisles[0]).toBeLessThan(-2.75);
     expect(aisles[1]).toBeCloseTo(0);
     expect(aisles[2]).toBeGreaterThan(3.025);
+  });
+});
+
+// The real halls (seed layouts), on a desktop 16:10 view and a 390 px phone's 3D box.
+const DESKTOP = 16 / 10;
+const PHONE = 358 / 416;
+const curvedHall = (hall: TestHall) => hall.code === 'PREMIUM_LARGE_FORMAT';
+const inView = (q: { x: number; y: number }, margin: number) =>
+  Math.abs(q.x) <= margin && Math.abs(q.y) <= margin;
+
+describe('the seat view in the real halls', () => {
+  /** Seats from the middle of the hall (by distance from the screen) to the back. */
+  const backHalf = (hall: TestHall) => {
+    const ys = hall.seats.map((s) => s.y);
+    const middle = (Math.min(...ys) + Math.max(...ys)) / 2;
+    return hall.seats.filter((s) => s.y >= middle && s.type !== 'WHEELCHAIR');
+  };
+
+  it.each(HALLS.map((hall) => [hall.code, hall] as const))(
+    '%s: from the middle back the whole screen is in view, with a small margin',
+    (_code, hall) => {
+      for (const s of backHalf(hall)) {
+        const pose = seatPose(s, hall.screen, DESKTOP, curvedHall(hall));
+        expect(pose.fov).toBeGreaterThanOrEqual(55);
+        expect(pose.fov).toBeLessThanOrEqual(62);
+        // The corners, and for the curved Grand screen points along its top and bottom edge.
+        for (const corner of screenPoints(hall.screen, curvedHall(hall))) {
+          expect(inView(project(pose, corner, DESKTOP), 0.95), `${s.row}${String(s.number)}`).toBe(
+            true,
+          );
+        }
+      }
+    },
+  );
+
+  it.each(HALLS.map((hall) => [hall.code, hall] as const))(
+    '%s: the seat backs in front show above the seat-view panel',
+    (_code, hall) => {
+      // The compact panel covers the bottom ~12% of a desktop frame (NDC below -0.76). In the
+      // Grand's middle rows the tall curved screen leaves no more room: there the backs are at
+      // the bottom of the frame, under the panel's edge, and show when it fades out.
+      const above = hall.code === 'PREMIUM_LARGE_FORMAT' ? -0.9 : -0.76;
+      for (const s of backHalf(hall)) {
+        const pose = seatPose(s, hall.screen, DESKTOP, curvedHall(hall));
+        const backs = hall.seats
+          .filter((o) => o.y < s.y - 0.5 && o.y > s.y - 4 && o.type !== 'WHEELCHAIR')
+          .map((o) => project(pose, [o.x, o.z + 1.1, o.y + 0.3], DESKTOP))
+          .filter((q) => Math.abs(q.x) < 0.9);
+        expect(Math.max(...backs.map((q) => q.y)), `${s.row}${String(s.number)}`).toBeGreaterThan(
+          above,
+        );
+      }
+    },
+  );
+
+  it.each(HALLS.map((hall) => [hall.code, hall] as const))(
+    '%s: the flight to a seat keeps the screen center in the frame, arcing above the seating',
+    (_code, hall) => {
+      const center = screenCenterOf(hall.screen);
+      for (const aspect of [DESKTOP, PHONE]) {
+        const overview = overviewPose(seatPoints(hall.seats), aspect, [center]);
+        const top = Math.max(...hall.seats.map((s) => s.z)) + EYE_HEIGHT_M;
+        for (const row of rowsOf(hall.seats)) {
+          const seats = row.filter((s) => s.type !== 'WHEELCHAIR');
+          for (const s of [seats[0], seats[Math.floor(seats.length / 2)], seats.at(-1)]) {
+            if (!s) continue;
+            const to = seatPose(s, hall.screen, aspect, curvedHall(hall));
+            const flight = planFlight(overview.pose, to, {
+              ...TO_SEAT,
+              look: [overview.target, center],
+              keep: { end: 1, aspect },
+            });
+            for (let i = 0; i <= 9; i++) {
+              const pose = flightPose(flight, i / 9);
+              expect(
+                inView(project(pose, center, aspect), 1),
+                `${s.row}${String(s.number)} ${String(i)}`,
+              ).toBe(true);
+            }
+            // Over the seats the path stays well above the heads (it arcs above the seating, not
+            // low beside the screen) until it comes down into the row.
+            const firstRow = rowsOf(hall.seats)[0]?.[0]?.y ?? 0;
+            for (let i = 0; i <= 40; i++) {
+              const [, height, depth] = flightPose(flight, i / 40).position;
+              if (depth > firstRow && depth < s.y - 1.5) expect(height).toBeGreaterThan(top + 1.5);
+            }
+          }
+        }
+      }
+    },
+  );
+
+  it('flies back to the hall the same way: the screen center stays in the frame', () => {
+    for (const hall of HALLS) {
+      const center = screenCenterOf(hall.screen);
+      const overview = overviewPose(seatPoints(hall.seats), DESKTOP, [center]);
+      const s = hall.seats[Math.floor(hall.seats.length * 0.6)];
+      if (!s) continue;
+      const from = seatPose(s, hall.screen, DESKTOP, curvedHall(hall));
+      const back = planFlight(from, overview.pose, {
+        ...TO_SEAT,
+        gaze: [1 - TO_SEAT.gaze[1], 1 - TO_SEAT.gaze[0]],
+        look: [center, overview.target],
+        keep: { end: 0, aspect: DESKTOP },
+      });
+      for (let i = 0; i <= 9; i++) {
+        expect(inView(project(flightPose(back, i / 9), center, DESKTOP), 1)).toBe(true);
+      }
+      const end = flightPose(back, 1);
+      expect(end.position[2]).toBeCloseTo(overview.pose.position[2]);
+    }
+  });
+
+  it('turns smoothly: no frame turns the view by more than 2.5 degrees (1/240 of the flight)', () => {
+    const hall = HALLS.find((h) => h.code === 'STANDARD');
+    if (!hall) throw new Error('no standard hall');
+    const center = screenCenterOf(hall.screen);
+    const overview = overviewPose(seatPoints(hall.seats), DESKTOP, [center]);
+    for (const s of hall.seats.filter((_, i) => i % 7 === 0)) {
+      const to = seatPose(s, hall.screen, DESKTOP, false);
+      const flight = planFlight(overview.pose, to, {
+        ...TO_SEAT,
+        look: [overview.target, center],
+        keep: { end: 1, aspect: DESKTOP },
+      });
+      let previous = flightPose(flight, 0);
+      for (let i = 1; i <= 240; i++) {
+        const pose = flightPose(flight, i / 240);
+        const a = direction(pose.yaw, pose.pitch);
+        const b = direction(previous.yaw, previous.pitch);
+        const turn = Math.acos(Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]));
+        expect(turn).toBeLessThan(2.5 * DEG);
+        previous = pose;
+      }
+    }
   });
 });

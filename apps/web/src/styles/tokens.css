@@ -28,7 +28,8 @@
 
   /* Seat types: the 2D map, the legend and the 3D hall use the same colors. Ivory numbers on all. */
   --color-seat-standard: #8e1023; /* crimson velvet */
-  --color-seat-vip: #5a1a24; /* dark burgundy leather */
+  --color-seat-vip: #7c2a3a; /* burgundy leather (gold piping in 3D) */
+  --color-seat-piping: #c9a46a; /* gold piping of the VIP recliners (3D only) */
   --color-seat-couple: #a3354b; /* rose velvet loveseat */
 
   /* Status (tuned for dark backgrounds) */
@@ -148,6 +149,9 @@
   --duration-cinematic: 800ms;
   /* The reduced-motion replacement for camera flights: kept (not zeroed) under reduced motion. */
   --duration-crossfade: 180ms;
+  /* The seat-view panel stepping aside while the user looks around, and coming back */
+  --duration-overlay-out: 150ms;
+  --duration-overlay-in: 250ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-exit: cubic-bezier(0.4, 0, 1, 1);
@@ -159,5 +163,7 @@
     --duration-base: 0.01ms;
     --duration-slow: 0.01ms;
     --duration-cinematic: 0.01ms;
+    --duration-overlay-out: 0.01ms;
+    --duration-overlay-in: 0.01ms;
   }
 }

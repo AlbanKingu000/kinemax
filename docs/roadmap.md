@@ -20,6 +20,7 @@ task is finished, move it to DONE with its commit hash.
 | 3D + 2D seat selection with view from seat (task 07 part B)          | `d82cf0c`            |
 | Seat holds, ticket categories, server-side prices (task 07 part C)   | `c7ecc24`            |
 | Cinematic 3D hall + locked seat view (task 7d)                       | `a3e0401`            |
+| 3D fixes: auto-hiding seat panel, framing, flight path, VIP (7e)     | (pending)            |
 
 ## Next (in this order)
 
@@ -37,7 +38,8 @@ task is finished, move it to DONE with its commit hash.
 ## Known open points
 
 - The 3D opening view comes from the front, so the whole Kinemax Grand screen is only seen from
-  the seats or by orbiting (task 7d decision 1, to confirm).
+  the seats or by orbiting (task 7d decision 1, to confirm). In its middle rows (H-K) the seat
+  backs in front sit at the seat-view panel's edge (task 7e decision 4).
 
 - Seat holds and their rate limits live in one API process: the cleanup job is safe with several
   processes, the in-memory hold rate limits are not (production needs a shared store).

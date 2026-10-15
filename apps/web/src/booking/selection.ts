@@ -75,6 +75,27 @@ export function storeSelection(showtimeId: string, selection: StoredSelection): 
   }
 }
 
+// The 2D/3D choice survives it too (and the next show in this session): coming back from the
+// login, a visitor who picked 2D gets the 2D map again, not a freshly loaded 3D hall.
+const VIEW_KEY = 'kinemax.seatView';
+
+export function readViewMode(): '2d' | '3d' | null {
+  try {
+    const value = window.sessionStorage.getItem(VIEW_KEY);
+    return value === '2d' || value === '3d' ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+export function storeViewMode(mode: '2d' | '3d'): void {
+  try {
+    window.sessionStorage.setItem(VIEW_KEY, mode);
+  } catch {
+    // Storage unavailable: the page opens in its default view next time.
+  }
+}
+
 /** Seats grouped by row in screen order (front first), each row sorted left to right. */
 export function rowsOf(seats: readonly SeatMapSeat[]): SeatMapSeat[][] {
   const rows = new Map<string, SeatMapSeat[]>();

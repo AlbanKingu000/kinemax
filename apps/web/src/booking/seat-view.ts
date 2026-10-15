@@ -18,7 +18,7 @@ const DEG = Math.PI / 180;
 /** Eyes above the seat's tier when seated. */
 export const EYE_HEIGHT_M = 1.18;
 /** The seated field of view (vertical, degrees) and the small range the wheel may change it in. */
-export const SEAT_FOV_RANGE = { min: 55, max: 60 } as const;
+export const SEAT_FOV_RANGE = { min: 55, max: 62 } as const;
 export const OVERVIEW_FOV = 60;
 /** How far the head turns from looking at the screen. */
 export const LOOK_LIMITS = { yaw: 70 * DEG, down: -25 * DEG, up: 20 * DEG };
@@ -53,22 +53,57 @@ export function direction(yaw: number, pitch: number): Vec3 {
 /** A curved screen (Kinemax Grand) is an arc of this radius (x the width); its edges come forward. */
 export const CURVE_RADIUS_FACTOR = 2;
 
-/** How far the edges of a curved screen stand in front of its middle. */
-export function curveDepth(widthM: number): number {
+/** How far a point of a curved screen, `dx` meters from its middle, stands in front of the middle. */
+function arcDepth(widthM: number, dx: number): number {
   const r = widthM * CURVE_RADIUS_FACTOR;
-  return r - Math.sqrt(r ** 2 - (widthM / 2) ** 2);
+  return r - Math.sqrt(r ** 2 - dx ** 2);
 }
 
-/** The corners and the top/bottom middle of the screen (a curved screen's edges stand forward). */
-function screenPoints(screen: Screen, curved: boolean): Vec3[] {
-  const edge = curved ? curveDepth(screen.widthM) : 0;
-  return [-1, 0, 1].flatMap((sx) =>
-    [-1, 1].map((sy): Vec3 => [
-      screen.x + (sx * screen.widthM) / 2,
-      screen.z + (sy * screen.heightM) / 2,
-      screen.y + (sx === 0 ? 0 : edge),
-    ]),
+/** How far the edges of a curved screen stand in front of its middle. */
+export const curveDepth = (widthM: number) => arcDepth(widthM, widthM / 2);
+
+/**
+ * Points along the top and bottom edge of the screen. A flat edge is straight (its ends and middle
+ * suffice); a curved one bends in the frame, so it is sampled along the arc.
+ */
+export function screenPoints(screen: Screen, curved: boolean): Vec3[] {
+  const steps = curved ? 8 : 2;
+  return Array.from({ length: steps + 1 }, (_, i) => (i / steps - 0.5) * screen.widthM).flatMap(
+    (dx) =>
+      [-1, 1].map((sy): Vec3 => [
+        screen.x + dx,
+        screen.z + (sy * screen.heightM) / 2,
+        screen.y + (curved ? arcDepth(screen.widthM, dx) : 0),
+      ]),
   );
+}
+
+/**
+ * Where points land in the frame of a pose, in normalized device coordinates (-1..1 from the
+ * left/bottom to the right/top edge). Points behind the camera are Infinity.
+ */
+export function project(pose: Pose, p: Vec3, aspect: number): { x: number; y: number } {
+  const f = direction(pose.yaw, pose.pitch);
+  const r: Vec3 = [Math.cos(pose.yaw), 0, -Math.sin(pose.yaw)];
+  const u = cross(r, f);
+  const tanV = Math.tan((pose.fov / 2) * DEG);
+  const v: Vec3 = [p[0] - pose.position[0], p[1] - pose.position[1], p[2] - pose.position[2]];
+  const z = dot(v, f);
+  if (z <= 0.01) return { x: Infinity, y: Infinity };
+  return { x: dot(v, r) / z / (tanV * aspect), y: dot(v, u) / z / tanV };
+}
+
+/** The screen's outline in the frame of a pose (normalized device coordinates). */
+export function screenBounds(pose: Pose, screen: Screen, aspect: number, curved: boolean) {
+  const points = screenPoints(screen, curved).map((p) => project(pose, p, aspect));
+  const xs = points.map((p) => p.x);
+  const ys = points.map((p) => p.y);
+  return {
+    left: Math.min(...xs),
+    right: Math.max(...xs),
+    bottom: Math.min(...ys),
+    top: Math.max(...ys),
+  };
 }
 
 /** Where the screen lands in the frame of a pose: its largest |x| and |y|, 1 = the frame edge. */
@@ -78,50 +113,63 @@ export function screenExtent(
   aspect: number,
   curved: boolean,
 ): { x: number; y: number } {
-  const f = direction(pose.yaw, pose.pitch);
-  const r: Vec3 = [Math.cos(pose.yaw), 0, -Math.sin(pose.yaw)];
-  const u = cross(r, f);
-  const tanV = Math.tan((pose.fov / 2) * DEG);
-  let x = 0;
-  let y = 0;
-  for (const p of screenPoints(screen, curved)) {
-    const v: Vec3 = [p[0] - pose.position[0], p[1] - pose.position[1], p[2] - pose.position[2]];
-    const z = dot(v, f);
-    x = Math.max(x, Math.abs(dot(v, r)) / z / (tanV * aspect));
-    y = Math.max(y, Math.abs(dot(v, u)) / z / tanV);
-  }
-  return { x, y };
+  const b = screenBounds(pose, screen, aspect, curved);
+  return {
+    x: Math.max(Math.abs(b.left), Math.abs(b.right)),
+    y: Math.max(Math.abs(b.bottom), Math.abs(b.top)),
+  };
 }
 
-/** Fraction of the frame half-height the screen may use when the seated view looks lower. */
-const SCREEN_MARGIN = 0.9;
-/** How far (0..1) the seated view lowers towards the lowest pitch that still shows the screen. */
-const SEAT_LOOK_LOWER = 0.75;
+/**
+ * Seated framing, in normalized device coordinates: the screen stays inside SCREEN_MARGIN of the
+ * frame sides and top, and above SCREEN_FLOOR, so the rows in front (seat backs) show below it,
+ * above the seat-view panel at the bottom of the frame.
+ */
+export const SCREEN_MARGIN = 0.9;
+export const SCREEN_FLOOR = -0.5;
 
 /**
- * The seated pose: eye height, facing the screen center. The field of view widens a little
- * (within SEAT_FOV_RANGE) where that keeps the whole screen in the frame, and the view looks a
- * little lower where the screen still fits with a margin, so the rows in front (seat backs) show,
- * as from a real seat. Front rows, which see a screen taller than the frame, simply look up at it.
+ * The seated pose: eye height, facing the middle of the screen as seen from the seat (both edges
+ * equally far from the frame sides). It uses the narrowest field of view (within SEAT_FOV_RANGE)
+ * that fits the whole screen with the margins above, and looks as low as the top margin allows,
+ * so as much as possible of the rows in front shows, as from a real seat. Where the screen cannot
+ * fit (front rows, narrow phone frames), the widest view looks at the screen: the rest is a head
+ * turn away.
  */
 export function seatPose(seat: SeatMapSeat, screen: Screen, aspect: number, curved: boolean): Pose {
   const position = eyeOf(seat);
-  const { yaw, pitch } = lookAngles(position, screenCenterOf(screen));
-  const at = (p: number, fov: number): Pose => ({ position, yaw, pitch: p, fov });
-  // At 90 degrees the extents are the tangents the frame must cover.
-  const need = screenExtent(at(pitch, 90), screen, aspect, curved);
-  const fov = Math.min(
-    SEAT_FOV_RANGE.max,
-    Math.max(SEAT_FOV_RANGE.min, (2 * Math.atan(Math.max(need.x, need.y) * 1.06)) / DEG),
+  const center = lookAngles(position, screenCenterOf(screen));
+  const bearings = screenPoints(screen, curved).map((p) =>
+    wrap(lookAngles(position, p).yaw - center.yaw),
   );
-  let lowest = pitch;
-  for (let p = pitch - DEG; p > pitch - 25 * DEG; p -= DEG) {
-    if (screenExtent(at(p, fov), screen, aspect, curved).y > SCREEN_MARGIN) break;
-    lowest = p;
+  const yaw = center.yaw + (Math.max(...bearings) + Math.min(...bearings)) / 2;
+  const at = (pitch: number, fov: number): Pose => ({ position, yaw, pitch, fov });
+  /** The lowest look (in 0.25 degree steps) that keeps the screen top inside the margin. */
+  const lowest = (fov: number) => {
+    if (screenBounds(at(center.pitch, fov), screen, aspect, curved).top > SCREEN_MARGIN) {
+      return null;
+    }
+    let pitch = center.pitch;
+    while (
+      pitch > center.pitch - 30 * DEG &&
+      screenBounds(at(pitch - DEG / 4, fov), screen, aspect, curved).top <= SCREEN_MARGIN
+    ) {
+      pitch -= DEG / 4;
+    }
+    return pitch;
+  };
+  for (let fov: number = SEAT_FOV_RANGE.min; fov <= SEAT_FOV_RANGE.max; fov += 0.5) {
+    const pitch = lowest(fov);
+    if (pitch === null) continue;
+    const b = screenBounds(at(pitch, fov), screen, aspect, curved);
+    if (b.bottom >= SCREEN_FLOOR && Math.max(-b.left, b.right) <= SCREEN_MARGIN) {
+      return at(pitch, fov);
+    }
   }
-  return at(pitch - (pitch - lowest) * SEAT_LOOK_LOWER, fov);
+  return at(lowest(SEAT_FOV_RANGE.max) ?? center.pitch, SEAT_FOV_RANGE.max);
 }
 
+const wrap = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle));
 const dot = (a: Vec3, b: Vec3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const cross = (a: Vec3, b: Vec3): Vec3 => [
   a[1] * b[2] - a[2] * b[1],
@@ -148,52 +196,189 @@ export function easeInOut(t: number): number {
 /** Slow at the end only, for the opening settle. */
 export const easeOut = (t: number) => 1 - (1 - Math.min(1, Math.max(0, t))) ** 3;
 
+type Look = { yaw: number; pitch: number };
+
 export interface Flight {
   from: Pose;
   to: Pose;
-  /** Control point of the curved (quadratic Bezier) path. */
-  control: Vec3;
-  /** The yaw change, chosen to turn through the hall rather than towards a nearby wall. */
-  yawDelta: number;
+  /** Control points of the curved (cubic Bezier) path: near the start and near the end. */
+  controls: readonly [Vec3, Vec3];
+  /** The points the camera looks at when it leaves and when it lands. */
+  look: readonly [Vec3, Vec3];
+  /** The part of the flight (0..1) in which the gaze moves from the first point to the second. */
+  gaze: readonly [number, number];
+  /** How the start and end poses turn away from looking straight at their point. */
+  turn: readonly [Look, Look];
+  keep?: FlightPlan['keep'];
+  /**
+   * Cumulative share (0..1) of the flight's movement and turning at TIMING_STEPS even steps of the
+   * path: the flight plays at an even visual speed, slower where it turns more.
+   */
+  timing: readonly number[];
 }
 
-const wrap = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle));
+const TIMING_STEPS = 120;
+
+export interface FlightPlan {
+  /** Meters the path rises above the higher end. */
+  lift: number;
+  /** What the camera looks at when it leaves and when it lands. */
+  look: readonly [Vec3, Vec3];
+  /** When the gaze moves (default: the whole flight). */
+  gaze?: readonly [number, number];
+  /**
+   * Where (0..1 of the way from the end nearer the screen to the deeper one, across and along the
+   * hall) the path stays high before it comes down to the deeper end.
+   */
+  over?: readonly [number, number];
+  /**
+   * Keep the look point of this end (the screen center) in the frame: where it would leave, the
+   * gaze turns towards it a little earlier, just enough.
+   */
+  keep?: { end: 0 | 1; aspect: number };
+}
+
+/** How far inside the frame (normalized device coordinates) a flight keeps its `keep` point. */
+export const KEEP_IN_VIEW = 0.95;
+
+/** How far along the hall the path is already high near the end nearer the screen. */
+const RISE = 0.15;
+/** Sideways shifts (meters) of the path's top tried, so the path does not pass over its gaze. */
+const DETOURS = [0, 3, -3, 6, -6];
+const SPIN = 9 * DEG;
 
 /**
- * Plans a camera flight. The path rises `lift` meters above the higher end and comes down again;
- * of the two ways to turn, it takes the one that looks more towards `lookThrough` halfway.
+ * Plans a camera flight. The path rises `lift` meters above the higher end, stays high over the
+ * seating up to the point `over` of the way towards the end deeper in the hall (not beside the
+ * screen), and comes down again. The camera keeps looking at a point that glides from the start's to the end's.
+ * A path passing right over that point would spin the view, so of a few sideways detours the one
+ * that turns the view most gently is taken.
  */
-export function planFlight(from: Pose, to: Pose, lift: number, lookThrough: Vec3): Flight {
-  const mid: Vec3 = [
-    (from.position[0] + to.position[0]) / 2,
-    Math.max(from.position[1], to.position[1]) + lift,
-    (from.position[2] + to.position[2]) / 2,
+export function planFlight(from: Pose, to: Pose, plan: FlightPlan): Flight {
+  const deepFirst = from.position[2] > to.position[2];
+  const [near, deep] = deepFirst ? [to, from] : [from, to];
+  const [acrossOver, alongOver] = plan.over ?? [0.5, 0.5];
+  const high = Math.max(from.position[1], to.position[1]) + plan.lift;
+  const along = (k: number) => near.position[2] + (deep.position[2] - near.position[2]) * k;
+  const nearTop: Vec3 = [near.position[0], high, along(RISE)];
+  const deepTop: Vec3 = [
+    near.position[0] + (deep.position[0] - near.position[0]) * acrossOver,
+    high,
+    along(alongOver),
   ];
-  const short = wrap(to.yaw - from.yaw);
-  const long = short - Math.sign(short || 1) * 2 * Math.PI;
-  const toward = lookAngles(mid, lookThrough).yaw;
-  const score = (delta: number) => Math.cos(wrap(from.yaw + delta / 2 - toward));
-  // Turning the long way is only worth it for big turns (it never doubles a small one).
-  const yawDelta = Math.abs(short) > 2.6 && score(long) > score(short) ? long : short;
-  return { from, to, control: mid, yawDelta };
+  const tops = deepFirst ? [deepTop, nearTop] : [nearTop, deepTop];
+  const turnOf = (pose: Pose, at: Vec3): Look => {
+    const straight = lookAngles(pose.position, at);
+    return { yaw: wrap(pose.yaw - straight.yaw), pitch: pose.pitch - straight.pitch };
+  };
+  // Keeping a point in view only applies when both ends show it (an orbit may have turned away).
+  const keep =
+    plan.keep &&
+    [from, to].every((pose) => {
+      const p = project(pose, plan.look[plan.keep?.end ?? 0], plan.keep?.aspect ?? 1);
+      return Math.max(Math.abs(p.x), Math.abs(p.y)) <= KEEP_IN_VIEW;
+    })
+      ? plan.keep
+      : undefined;
+  const dx = to.position[0] - from.position[0];
+  const dz = to.position[2] - from.position[2];
+  const length = Math.hypot(dx, dz);
+  const across: Vec3 = length > 0.5 ? [-dz / length, 0, dx / length] : [1, 0, 0];
+  const plans = DETOURS.map((shift) => {
+    const flight: Flight = {
+      from,
+      to,
+      controls: [0, 1].map((i): Vec3 => {
+        const p = tops[i] ?? nearTop;
+        return [p[0] + across[0] * shift, p[1], p[2] + across[2] * shift];
+      }) as unknown as [Vec3, Vec3],
+      look: plan.look,
+      gaze: plan.gaze ?? [0, 1],
+      turn: [turnOf(from, plan.look[0]), turnOf(to, plan.look[1])],
+      keep,
+      timing: [],
+    };
+    const poses = Array.from({ length: TIMING_STEPS + 1 }, (_, i) =>
+      pathPose(flight, i / TIMING_STEPS),
+    );
+    const moves = poses.slice(1).map((p, i) => {
+      const q = poses[i] ?? p;
+      const way = Math.hypot(...p.position.map((v, j) => v - (q.position[j] ?? 0)));
+      return [way, viewTurn(p, q)] as const;
+    });
+    return { flight, moves, peak: Math.max(...moves.map((m) => m[1])) };
+  });
+  // The direct path, unless it spins (turns more than SPIN in one step): then the gentlest.
+  const best = plans.reduce((a, b) => (a.peak > SPIN && b.peak < a.peak ? b : a));
+  // A quarter of the time goes to the way, three quarters to the turning, each spread evenly.
+  const total = (j: 0 | 1) => best.moves.reduce((sum, m) => sum + m[j], 0);
+  const [way, turning] = [total(0), total(1)];
+  const steps = best.moves.map(
+    ([d, a]) => (way > 1e-6 ? d / way : 0) + (turning > 1e-3 ? (3 * a) / turning : 0) || 1,
+  );
+  const all = steps.reduce((a, b) => a + b, 0);
+  let sum = 0;
+  return { ...best.flight, timing: [0, ...steps.map((e) => (sum += e) / all)] };
 }
 
-/** The pose at progress t (0..1) of a flight, eased. */
+/** How far the view turns between two poses: where it points, and its side axis (a spin). */
+function viewTurn(p: Pose, q: Pose): number {
+  const angle = (u: Vec3, v: Vec3) => Math.acos(Math.min(1, dot(u, v)));
+  const side = (yaw: number): Vec3 => [Math.cos(yaw), 0, -Math.sin(yaw)];
+  return Math.max(
+    angle(direction(p.yaw, p.pitch), direction(q.yaw, q.pitch)),
+    angle(side(p.yaw), side(q.yaw)),
+  );
+}
+
+/** The pose at progress t (0..1) of a flight: eased, at an even visual speed (see timing). */
 export function flightPose(flight: Flight, t: number): Pose {
-  const k = easeInOut(t);
-  const { from, to, control } = flight;
-  const a = (1 - k) ** 2;
-  const b = 2 * (1 - k) * k;
-  const c = k ** 2;
-  const position = [0, 1, 2].map(
-    (i) => a * (from.position[i] ?? 0) + b * (control[i] ?? 0) + c * (to.position[i] ?? 0),
+  const u = easeInOut(t);
+  const { timing } = flight;
+  let i = 0;
+  while (i < TIMING_STEPS - 1 && (timing[i + 1] ?? 1) < u) i++;
+  const [a, b] = [timing[i] ?? 0, timing[i + 1] ?? 1];
+  return pathPose(flight, (i + (b > a ? (u - a) / (b - a) : 0)) / TIMING_STEPS);
+}
+
+/** The pose at the point k (0..1) of the path. */
+function pathPose(flight: Flight, k: number): Pose {
+  const { from, to, controls, look, gaze, turn } = flight;
+  const weights = [(1 - k) ** 3, 3 * (1 - k) ** 2 * k, 3 * (1 - k) * k ** 2, k ** 3];
+  const points = [from.position, controls[0], controls[1], to.position];
+  const position = [0, 1, 2].map((i) =>
+    points.reduce((sum, p, j) => sum + (weights[j] ?? 0) * (p[i] ?? 0), 0),
   ) as unknown as Vec3;
-  return {
-    position,
-    yaw: from.yaw + flight.yawDelta * k,
-    pitch: from.pitch + (to.pitch - from.pitch) * k,
-    fov: from.fov + (to.fov - from.fov) * k,
+  const fov = from.fov + (to.fov - from.fov) * k;
+  const gazing = (w: number): Pose => {
+    const target = [0, 1, 2].map(
+      (i) => (look[0][i] ?? 0) + ((look[1][i] ?? 0) - (look[0][i] ?? 0)) * w,
+    ) as unknown as Vec3;
+    const straight = lookAngles(position, target);
+    return {
+      position,
+      yaw: straight.yaw + turn[0].yaw + wrap(turn[1].yaw - turn[0].yaw) * k,
+      pitch: straight.pitch + turn[0].pitch + (turn[1].pitch - turn[0].pitch) * k,
+      fov,
+    };
   };
+  const w = easeInOut((k - gaze[0]) / Math.max(1e-6, gaze[1] - gaze[0]));
+  const { keep } = flight;
+  if (!keep) return gazing(w);
+  const inside = (g: number) => {
+    const p = project(gazing(g), look[keep.end], keep.aspect);
+    return Math.max(Math.abs(p.x), Math.abs(p.y)) <= KEEP_IN_VIEW;
+  };
+  if (inside(w)) return gazing(w);
+  // Bisect between the planned gaze (point outside) and looking right at the point (inside).
+  let outer = w;
+  let inner: number = keep.end;
+  for (let i = 0; i < 18; i++) {
+    const mid = (outer + inner) / 2;
+    if (inside(mid)) inner = mid;
+    else outer = mid;
+  }
+  return gazing(inner);
 }
 
 /**
@@ -213,17 +398,34 @@ export function neighbourSeat(
   );
 }
 
+/**
+ * From the hall view to a seat: the path rises above the seating and stays high up to 90% of the
+ * way along the hall (on the side the camera starts from); the gaze turns from the seats to the
+ * screen in the first half, keeping the screen center in the frame. The way back mirrors it.
+ */
+export const TO_SEAT = { lift: 3, gaze: [0, 0.5], over: [0, 0.9] } as const;
+
+/** A box around every seated person, for framing the opening view. */
+export function seatPoints(seats: readonly SeatMapSeat[]): Vec3[] {
+  return seats.flatMap((s): Vec3[] => [
+    [s.x - 0.45 * s.widthUnits, s.z, s.y - 0.5],
+    [s.x + 0.45 * s.widthUnits, s.z + 1.15, s.y + 0.5],
+  ]);
+}
+
 const OVERVIEW_AZIMUTH = 24 * DEG;
 const OVERVIEW_ELEVATION = 26 * DEG;
 
 /**
  * The opening view: from the front, beside the screen and a little above it, looking back at the
- * seating. The camera backs off along that direction until every point fits the frame (in big
- * halls it ends up behind the screen wall, which is not drawn from behind: a cutaway).
+ * seating. The camera backs off along that direction until every point fits the frame, and so
+ * does `alsoInView` (the screen center, so a flight to a seat keeps it in the frame from the
+ * start). It ends up behind the screen wall, which is not drawn from behind: a cutaway.
  */
 export function overviewPose(
   points: readonly Vec3[],
   aspect: number,
+  alsoInView: readonly Vec3[] = [],
 ): { pose: Pose; target: Vec3 } {
   const mid = (i: number) =>
     (Math.min(...points.map((p) => p[i] ?? 0)) + Math.max(...points.map((p) => p[i] ?? 0))) / 2;
@@ -247,7 +449,7 @@ export function overviewPose(
   const tanH = tanV * aspect;
   const fits = (d: number) => {
     const cam = at(d);
-    return points.every((p) => {
+    return [...points, ...alsoInView].every((p) => {
       const v = [p[0] - cam[0], p[1] - cam[1], p[2] - cam[2]] as const;
       const z = dot(v, f);
       const x = dot(v, r) / z;

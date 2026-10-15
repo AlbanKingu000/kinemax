@@ -8,6 +8,7 @@ import {
   loveseat,
   planes,
   recliner,
+  reclinerPiping,
   screenFrame,
   sideTable,
   sofaArm,
@@ -50,6 +51,17 @@ describe('seat models', () => {
     expect(size(loveseat(1.1)).x).toBeGreaterThan(seat.x * 1.8);
     // Sofa segments touch their neighbours, so a row reads as one sofa.
     expect(size(sofaSegment(0.95)).x).toBeCloseTo(0.95);
+  });
+
+  it('keeps a recliner in a standard row wide (narrower arms), with gold piping inside it', () => {
+    // At a standard hall's 0.55 m the cushion and its piping still take most of the width.
+    const piping = size(reclinerPiping(0.55));
+    expect(piping.x).toBeGreaterThan(0.3);
+    expect(piping.x).toBeLessThan(0.55);
+    // The armrests stay inside the seat width (neighbours never overlap).
+    expect(size(recliner(0.55)).x).toBeGreaterThan(0.5);
+    expect(size(recliner(0.55)).x).toBeLessThanOrEqual(0.55);
+    expect(size(reclinerPiping(0.95)).x).toBeGreaterThan(0.6);
   });
 
   it('builds the extras: piping, side table, sofa arm, floor plane', () => {

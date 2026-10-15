@@ -15,7 +15,8 @@ import {
 } from '../test/seatmap';
 
 // three.js does not run in jsdom: a stand-in that shows which seat the camera looks from. Its
-// "arrive" button plays the end of the camera glide; its "step" buttons the [ and ] keys.
+// "arrive" button plays the end of the camera glide; its "step" buttons the [ and ] keys; "look"
+// is a drag (or arrow key) turning the head.
 vi.mock('../booking/Hall3D', () => ({
   default: (props: {
     label: string;
@@ -23,6 +24,7 @@ vi.mock('../booking/Hall3D', () => ({
     recenterSignal: number;
     onArrive: (id: string) => void;
     onStep: (step: -1 | 1) => void;
+    onLook: () => void;
   }) => (
     <div
       role="img"
@@ -45,6 +47,9 @@ vi.mock('../booking/Hall3D', () => ({
         }}
       >
         step ]
+      </button>
+      <button type="button" onClick={props.onLook}>
+        look
       </button>
     </div>
   ),
@@ -300,6 +305,19 @@ describe('BookingPage: seat map', () => {
 describe('BookingPage: 3D and 2D', () => {
   const hall3d = () => screen.findByRole('img', { name: 'Salla 1 në 3D' });
 
+  it('remembers the 2D choice in the session, e.g. coming back from the login', async () => {
+    withWebGL(true);
+    stubAuth(null, { seatmap: { [SHOWTIME_ID]: standardMap() } });
+    const first = renderApp(`/booking/${SHOWTIME_ID}`);
+    expect(await hall3d()).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '2D' }));
+    first.unmount();
+    renderApp(`/booking/${SHOWTIME_ID}`);
+    expect(await screen.findByRole('group', { name: 'Ulëset në Salla 1' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '2D' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByRole('img', { name: 'Salla 1 në 3D' })).not.toBeInTheDocument();
+  });
+
   it('opens the 3D hall on desktop and the 2D map on phones', async () => {
     withWebGL(true);
     stubAuth(null, { seatmap: { [SHOWTIME_ID]: standardMap() } });
@@ -378,6 +396,42 @@ describe('BookingPage: 3D and 2D', () => {
     expect(hall).toHaveAttribute('data-recenter', '0');
     fireEvent.click(within(overlay).getByRole('button', { name: 'Shiko ekranin' }));
     expect(hall).toHaveAttribute('data-recenter', '1');
+  });
+
+  it('the seat-view panel steps aside while looking around and comes back when still', async () => {
+    withWebGL(false);
+    const data = standardMap();
+    stubAuth(null, { seatmap: { [SHOWTIME_ID]: data } });
+    renderApp(`/booking/${SHOWTIME_ID}`);
+    const a1 = await screen.findByRole('button', { name: /^Rreshti A, ulësja 1,/ });
+    fireEvent.click(screen.getByRole('button', { name: 'Shiko pamjen nga Rreshti A, ulësja 1' }));
+    const hall = await hall3d();
+    expect(a1).not.toBeInTheDocument();
+    fireEvent.click(within(hall).getByRole('button', { name: 'arrive' }));
+    // The first seat view of the session explains how to look around.
+    expect(screen.getByText(/^Tërhiq ose përdor shigjetat/)).toBeInTheDocument();
+    const overlay = screen.getByRole('dialog');
+    const tag = screen.getByText('A1');
+    expect(tag).toHaveAttribute('aria-hidden', 'true');
+    expect(tag).not.toHaveAttribute('data-shown');
+
+    fireEvent.click(within(hall).getByRole('button', { name: 'look' }));
+    // Hidden visually only: still in the accessibility tree, with the small seat tag instead.
+    expect(overlay).toHaveAttribute('data-hidden', 'true');
+    expect(screen.getByRole('dialog', { name: 'Rreshti A · Ulësja 1 · Standard' })).toBe(overlay);
+    expect(tag).toHaveAttribute('data-shown', 'true');
+    await waitFor(
+      () => {
+        expect(overlay).not.toHaveAttribute('data-hidden');
+      },
+      { timeout: 2000 },
+    );
+    expect(tag).not.toHaveAttribute('data-shown');
+
+    // Keyboard focus inside the panel keeps it in view.
+    within(overlay).getByRole('button', { name: 'Shiko ekranin' }).focus();
+    fireEvent.click(within(hall).getByRole('button', { name: 'look' }));
+    expect(overlay).not.toHaveAttribute('data-hidden');
   });
 
   it('switches the header to the cinema of the show', async () => {

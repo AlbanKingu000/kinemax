@@ -19,6 +19,30 @@ declare global {
   }
 }
 
+/** One drag step in the seat view: a finger on phones (real touch events), the mouse otherwise. */
+async function dragBy(page: Page, isMobile: boolean, from: [number, number], to: [number, number]) {
+  if (!isMobile) {
+    await page.mouse.move(...from);
+    await page.mouse.down();
+    await page.mouse.move(...to, { steps: 4 });
+    return () => page.mouse.up();
+  }
+  const cdp = await page.context().newCDPSession(page);
+  const touch = (type: 'touchStart' | 'touchMove' | 'touchEnd', [x, y]: [number, number]) =>
+    cdp.send('Input.dispatchTouchEvent', {
+      type,
+      touchPoints: type === 'touchEnd' ? [] : [{ x, y }],
+    });
+  await touch('touchStart', from);
+  for (let i = 1; i <= 4; i++) {
+    await touch('touchMove', [from[0] + ((to[0] - from[0]) * i) / 4, from[1]]);
+  }
+  return async () => {
+    await touch('touchEnd', to);
+    await cdp.detach();
+  };
+}
+
 async function open3D(page: Page, isMobile: boolean) {
   if (isMobile) await page.getByRole('button', { name: 'Shiko sallën në 3D' }).click();
   const hall = page.locator('[data-camera]');
@@ -32,7 +56,7 @@ test('3D hall: front view, locked seat view, seat to seat and back', async ({
   request,
   isMobile,
 }) => {
-  // The full flight there and back (2.3 s each) on a software renderer.
+  // The full flight there and back (2.5 s each) on a software renderer.
   test.setTimeout(60_000);
   await page.addInitScript(() => {
     window.localStorage.setItem('kinemax.location', 'prizren');
@@ -68,23 +92,58 @@ test('3D hall: front view, locked seat view, seat to seat and back', async ({
   ).toBeVisible();
   await expect(card.getByText(/^Distanca nga ekrani ~\d+ m$/)).toBeVisible();
   const seatedZ = await hall.getAttribute('data-camera-z');
+  // The first seat view of the session explains how to look around.
+  await expect(page.getByText(/^Tërhiq ose përdor shigjetat/)).toBeVisible();
+
+  // Looking around (a drag, a finger on phones) fades the panel out; a small seat tag stays.
+  const box = await hall.boundingBox();
+  if (!box) throw new Error('no box');
+  const tag = page.getByText(`${row}${String(seat.number)}`, { exact: true });
+  const opacity = (locator: typeof card) =>
+    locator.evaluate((el) => Number(getComputedStyle(el).opacity));
+  const mid: [number, number] = [box.x + box.width * 0.5, box.y + box.height * 0.4];
+  const release = await dragBy(page, isMobile, mid, [mid[0] - box.width * 0.1, mid[1]]);
+  await expect(card).toHaveAttribute('data-hidden', 'true');
+  await expect(tag).toHaveAttribute('data-shown', 'true');
+  await release();
+  // Still for 800 ms: the panel comes back (the fade in takes 250 ms).
+  await expect(card).not.toHaveAttribute('data-hidden');
+  await expect.poll(() => opacity(card)).toBe(1);
+  await expect(tag).not.toHaveAttribute('data-shown');
+
+  // Keyboard focus inside the panel keeps it in view while the arrows turn the head.
+  await card.getByRole('button', { name: 'Shiko ekranin' }).focus();
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  await expect(hall).not.toHaveAttribute('data-look-yaw', '0');
+  await expect(card).not.toHaveAttribute('data-hidden');
+  expect(await opacity(card)).toBe(1);
+  // Enter on the focused "Shiko ekranin" turns the head back to the screen.
+  await page.keyboard.press('Enter');
+  await expect(hall).toHaveAttribute('data-look-yaw', '0');
+  await expect(hall).toHaveAttribute('data-look-pitch', '0');
 
   // Locked in the seat: the arrow keys only turn the head, up to the limits.
   await hall.focus();
   await expect(hall).toBeFocused();
-  for (let i = 0; i < 20; i++) await page.keyboard.press('ArrowLeft');
+  // Focus on the view, not the panel: the arrows hide it like a drag does. (Focusing scrolled
+  // the page: the pointer goes back over the view, a pointer resting on the panel keeps it.)
+  const view = await hall.boundingBox();
+  if (!view) throw new Error('no box');
+  await page.mouse.move(view.x + view.width / 2, view.y + view.height * 0.3);
+  await page.keyboard.press('ArrowLeft');
+  await expect(card).toHaveAttribute('data-hidden', 'true');
+  for (let i = 0; i < 19; i++) await page.keyboard.press('ArrowLeft');
   await expect(hall).toHaveAttribute('data-look-yaw', '70');
   for (let i = 0; i < 12; i++) await page.keyboard.press('ArrowUp');
   await expect(hall).toHaveAttribute('data-look-pitch', '20');
   for (let i = 0; i < 15; i++) await page.keyboard.press('ArrowDown');
   await expect(hall).toHaveAttribute('data-look-pitch', '-25');
   // Dragging turns the head too, and stops at the limit the other way.
-  const box = await hall.boundingBox();
-  if (!box) throw new Error('no box');
   for (let i = 0; i < 4; i++) {
-    await page.mouse.move(box.x + box.width * 0.9, box.y + box.height * 0.4);
+    await page.mouse.move(view.x + view.width * 0.9, view.y + view.height * 0.4);
     await page.mouse.down();
-    await page.mouse.move(box.x + box.width * 0.1, box.y + box.height * 0.4, { steps: 6 });
+    await page.mouse.move(view.x + view.width * 0.1, view.y + view.height * 0.4, { steps: 6 });
     await page.mouse.up();
   }
   await expect(hall).toHaveAttribute('data-look-yaw', '-70');

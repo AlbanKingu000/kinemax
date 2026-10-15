@@ -13,7 +13,9 @@ import { loginPath } from '../auth/next-path';
 import {
   keepAvailable,
   readSelection,
+  readViewMode,
   storeSelection,
+  storeViewMode,
   ticketCount,
   toggleSeat,
   MAX_TICKETS,
@@ -21,6 +23,7 @@ import {
 import { SeatMap2D } from '../booking/SeatMap2D';
 import { neighbourSeat, screenDistance } from '../booking/seat-view';
 import { TicketsStep } from '../booking/TicketsStep';
+import { useAutoHide, useLookHint } from '../booking/use-auto-hide';
 import { canRender3D, useSeatMap } from '../booking/use-seat-map';
 import { AgeBadge, FormatBadge, LanguageBadge } from '../components/Badge/Badge';
 import { Button, ButtonLink } from '../components/Button/Button';
@@ -177,9 +180,16 @@ function SeatSelection({ map, onRefresh }: { map: SeatMapResponse; onRefresh: ()
   const showtimeId = map.showtime.id;
   const seatsById = useMemo(() => new Map(map.seats.map((s) => [s.id, s])), [map.seats]);
   const supports3D = useMemo(() => canRender3D(), []);
-  const [mode, setMode] = useState<'3d' | '2d'>(() =>
-    supports3D && window.matchMedia('(min-width: 1024px)').matches ? '3d' : '2d',
+  const [mode, setModeState] = useState<'3d' | '2d'>(() =>
+    supports3D &&
+    (readViewMode() ?? (window.matchMedia('(min-width: 1024px)').matches ? '3d' : '2d')) === '3d'
+      ? '3d'
+      : '2d',
   );
+  const setMode = (next: '3d' | '2d') => {
+    setModeState(next);
+    storeViewMode(next);
+  };
   const [selection, setSelection] = useState(() => readSelection(showtimeId));
   const [notice, setNotice] = useState('');
   const [viewSeat, setViewSeat] = useState<SeatMapSeat | null>(null);
@@ -189,6 +199,9 @@ function SeatSelection({ map, onRefresh }: { map: SeatMapResponse; onRefresh: ()
   const [recenterSignal, setRecenterSignal] = useState(0);
   const prevButton = useRef<HTMLButtonElement>(null);
   const nextButton = useRef<HTMLButtonElement>(null);
+  // While the user looks around, the seat-view panel and the hint step aside.
+  const { hidden: panelHidden, look, panelProps } = useAutoHide();
+  const showHint = useLookHint(viewSeat !== null && seated !== null);
   const [holding, setHolding] = useState(false);
 
   // On load and after every refresh: drop chosen seats that were taken in the meantime.
@@ -329,6 +342,7 @@ function SeatSelection({ map, onRefresh }: { map: SeatMapResponse; onRefresh: ()
                   onView={setViewSeat}
                   onArrive={setSeated}
                   onStep={step}
+                  onLook={look}
                   resetSignal={resetSignal}
                   recenterSignal={recenterSignal}
                   reducedMotion={reducedMotion}
@@ -342,17 +356,32 @@ function SeatSelection({ map, onRefresh }: { map: SeatMapResponse; onRefresh: ()
               </Suspense>
               {viewSeat && seated !== null ? (
                 <>
-                  <p className={styles.lookHint}>{t.seats.lookHint}</p>
+                  {showHint && (
+                    <p className={styles.lookHint} data-hidden={panelHidden || undefined}>
+                      {t.seats.lookHint}
+                    </p>
+                  )}
+                  {/* While the panel is hidden: where am I (the panel itself stays readable) */}
+                  <p
+                    className={styles.seatTag}
+                    data-shown={panelHidden || undefined}
+                    aria-hidden="true"
+                  >
+                    {viewSeat.row}
+                    {viewSeat.number}
+                  </p>
                   <div
                     className={styles.overlay}
                     role="dialog"
                     aria-label={t.seats.overlay(viewSeat.row, viewSeat.number, typeName(viewSeat))}
+                    data-hidden={panelHidden || undefined}
+                    {...panelProps}
                   >
                     <div className={styles.overlayText}>
                       <p className={styles.overlayTitle} aria-live="polite">
                         {t.seats.overlay(viewSeat.row, viewSeat.number, typeName(viewSeat))}
                       </p>
-                      <p className={styles.note}>
+                      <p className={styles.overlayDistance}>
                         {t.seats.distance(Math.round(screenDistance(viewSeat, map.hall.screen)))}
                       </p>
                     </div>
@@ -376,40 +405,29 @@ function SeatSelection({ map, onRefresh }: { map: SeatMapResponse; onRefresh: ()
                         <p className={styles.note}>{t.seats.taken}</p>
                       )}
                       <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          closeSeatView();
-                        }}
-                      >
-                        {t.seats.backToHall}
-                      </Button>
-                    </div>
-                    <div className={styles.overlayNav}>
-                      <Button
                         ref={prevButton}
                         size="sm"
-                        variant="secondary"
+                        variant="icon"
                         icon="chevronLeft"
+                        aria-label={t.seats.prevSeat}
+                        title={t.seats.prevSeat}
                         disabled={!neighbourSeat(map.seats, viewSeat, -1)}
                         onClick={() => {
                           step(-1);
                         }}
-                      >
-                        {t.seats.prevSeat}
-                      </Button>
+                      />
                       <Button
                         ref={nextButton}
                         size="sm"
-                        variant="secondary"
-                        iconEnd="chevronRight"
+                        variant="icon"
+                        icon="chevronRight"
+                        aria-label={t.seats.nextSeat}
+                        title={t.seats.nextSeat}
                         disabled={!neighbourSeat(map.seats, viewSeat, 1)}
                         onClick={() => {
                           step(1);
                         }}
-                      >
-                        {t.seats.nextSeat}
-                      </Button>
+                      />
                       <Button
                         size="sm"
                         variant="ghost"
@@ -418,6 +436,15 @@ function SeatSelection({ map, onRefresh }: { map: SeatMapResponse; onRefresh: ()
                         }}
                       >
                         {t.seats.lookAtScreen}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          closeSeatView();
+                        }}
+                      >
+                        {t.seats.backToHall}
                       </Button>
                     </div>
                   </div>

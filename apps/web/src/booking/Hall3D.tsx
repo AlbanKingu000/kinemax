@@ -9,6 +9,7 @@ import type { SeatMapResponse, SeatMapSeat } from '@kinemax/shared';
 import { Html, OrbitControls, useTexture } from '@react-three/drei';
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import {
+  Fragment,
   Suspense,
   useCallback,
   useEffect,
@@ -27,6 +28,7 @@ import {
   loveseat,
   planes,
   recliner,
+  reclinerPiping,
   screenFrame,
   sideTable,
   sofaArm,
@@ -56,10 +58,14 @@ import {
   overviewPose,
   planFlight,
   rowsOf,
+  screenCenterOf,
   seatPitch,
+  seatPoints,
   seatPose,
   SEAT_FOV_RANGE,
+  TO_SEAT,
   type Flight,
+  type FlightPlan,
   type Pose,
   type Vec3,
 } from './seat-view';
@@ -74,6 +80,8 @@ export interface Hall3DProps {
   onArrive: (seatId: string) => void;
   /** "[" / "]" in the seat view: the neighbouring seat to the left (-1) or right (+1). */
   onStep: (step: -1 | 1) => void;
+  /** The user turns the head in the seat view (drag, one finger, arrow keys). */
+  onLook: () => void;
   /** Increment to glide back to the opening view ("Rikthe pamjen"). */
   resetSignal: number;
   /** Increment to turn the head back to the screen ("Shiko ekranin"). */
@@ -112,9 +120,14 @@ interface Rig {
   look: { yaw: number; pitch: number };
   recenter: { from: { yaw: number; pitch: number }; start: number } | null;
   fov: number;
+  /** The point the camera looks at (the seating's middle in the hall view, the screen in a seat). */
+  gazeAt: Vec3;
 }
 
-const FLIGHT_MS = 2300;
+/** A flight: where it looks at the end; the rest as in FlightPlan. */
+type FlyPlan = Omit<FlightPlan, 'look'> & { lookAt: Vec3 };
+
+const FLIGHT_MS = 2500;
 const SEAT_TO_SEAT_MS = 1000;
 const RESET_MS = 1300;
 const SETTLE_MS = 1600;
@@ -137,14 +150,6 @@ function modelOf(seat: SeatMapSeat, suite: boolean): ModelKey | null {
   if (seat.type === 'VIP') return 'vip';
   if (seat.type === 'COUPLE') return 'couple';
   return seat.type === 'COMPANION' ? 'companion' : 'standard';
-}
-
-/** Box around a seated person, for framing the opening view. */
-function seatPoints(seats: readonly SeatMapSeat[]): Vec3[] {
-  return seats.flatMap((s): Vec3[] => [
-    [s.x - 0.45 * s.widthUnits, s.z, s.y - 0.5],
-    [s.x + 0.45 * s.widthUnits, s.z + 1.15, s.y + 0.5],
-  ]);
 }
 
 interface Bounds {
@@ -241,6 +246,11 @@ function Seats({ map, selected, hovered, interactive, lite, onHover, onPick }: S
       velvet,
       leather,
       piping: new THREE.MeshStandardMaterial({ color: IVORY, roughness: 0.6 }),
+      gold: new THREE.MeshStandardMaterial({
+        color: token('--color-seat-piping', '#c9a46a'),
+        roughness: 0.35,
+        metalness: 0.3,
+      }),
       wood: new THREE.MeshStandardMaterial({
         vertexColors: true,
         color: '#4a2e1c',
@@ -249,9 +259,9 @@ function Seats({ map, selected, hovered, interactive, lite, onHover, onPick }: S
       colors: {
         standard: token('--color-seat-standard', '#8e1023'),
         companion: token('--color-seat-standard', '#8e1023'),
-        vip: token('--color-seat-vip', '#5a1a24'),
+        vip: token('--color-seat-vip', '#7c2a3a'),
         couple: token('--color-seat-couple', '#a3354b'),
-        sofa: token('--color-seat-vip', '#5a1a24'),
+        sofa: token('--color-seat-vip', '#7c2a3a'),
       } satisfies Record<ModelKey, string>,
       crimson: token('--color-crimson', '#b3132f'),
       decal: iconDecalTexture('wheelchair', IVORY),
@@ -260,7 +270,9 @@ function Seats({ map, selected, hovered, interactive, lite, onHover, onPick }: S
   }, [lite]);
   useEffect(
     () => () => {
-      for (const m of [assets.velvet, assets.leather, assets.piping, assets.wood]) m.dispose();
+      for (const m of [assets.velvet, assets.leather, assets.piping, assets.gold, assets.wood]) {
+        m.dispose();
+      }
       assets.decal.dispose();
       assets.glow.dispose();
     },
@@ -355,10 +367,17 @@ function Seats({ map, selected, hovered, interactive, lite, onHover, onPick }: S
           <Extra key={key} seats={seats} suite={suite} material={assets.piping}>
             {companionPiping(pitch)}
           </Extra>
-        ) : key === 'vip' && pitch >= 0.8 ? (
-          <Extra key={key} seats={seats} suite={suite} material={assets.wood}>
-            {sideTable(pitch)}
-          </Extra>
+        ) : key === 'vip' ? (
+          <Fragment key={key}>
+            <Extra seats={seats} suite={suite} material={assets.gold}>
+              {reclinerPiping(pitch)}
+            </Extra>
+            {pitch >= 0.8 && (
+              <Extra seats={seats} suite={suite} material={assets.wood}>
+                {sideTable(pitch)}
+              </Extra>
+            )}
+          </Fragment>
         ) : null,
       )}
       {rowEnds.length > 0 && (
@@ -563,8 +582,8 @@ interface Light {
 interface Glow {
   at: Vec3;
   size: [number, number];
-  /** 'floor' lies flat; 'left'/'right' wall faces point into the room; 'front' faces +Z. */
-  facing: 'floor' | 'ceiling' | 'left' | 'right' | 'front';
+  /** 'floor' lies flat; 'left'/'right' wall faces point into the room; 'back' faces the screen. */
+  facing: 'floor' | 'ceiling' | 'left' | 'right' | 'back';
   color: string;
   power: number;
 }
@@ -617,12 +636,15 @@ function roomLights(map: SeatMapResponse, b: Bounds, suite: boolean) {
       glows.push({ at, size: [0.9, 0.9], facing: 'ceiling', color: WARM, power: 0.35 });
     }
   }
-  // The projection booth window high in the back wall.
-  lights.push({
-    at: [booth(b)[0], booth(b)[1], b.depth - 0.012],
-    size: [1.1, 0.55, 0.02],
-    color: '#fff3e2',
-    power: 1.6,
+  // The projection booth window high in the back wall: small and warm, in a soft halo.
+  const [bx, by] = booth(b);
+  lights.push({ at: [bx, by, b.depth - 0.012], size: BOOTH_WINDOW, color: '#ffc58c', power: 0.85 });
+  glows.push({
+    at: [bx, by, b.depth - 0.03],
+    size: [2.4, 1.6],
+    facing: 'back',
+    color: AMBER,
+    power: 0.3,
   });
   // Screen light spilling onto the floor in front of the screen.
   const { screen } = map.hall;
@@ -664,12 +686,13 @@ function panelGaps(b: Bounds): number[] {
 }
 
 const booth = (b: Bounds): Vec3 => [b.halfWidth * 0.18, b.height - 1.15, b.depth - 0.05];
+const BOOTH_WINDOW: Vec3 = [0.62, 0.3, 0.02];
 
 const GLOW_ROTATION: Record<Glow['facing'], [number, number]> = {
   floor: [-Math.PI / 2, 0],
   left: [0, Math.PI / 2],
   right: [0, -Math.PI / 2],
-  front: [0, 0],
+  back: [0, Math.PI],
   ceiling: [Math.PI / 2, 0],
 };
 
@@ -756,8 +779,8 @@ function Room({ map, bounds: b, lite }: { map: SeatMapResponse; bounds: Bounds; 
     corners.forEach(([cx, cy], i) => {
       const [nx, ny] = corners[(i + 1) % 4] ?? corners[0];
       const quad = [
-        [bx + cx * 0.4, by + cy * 0.2, bz, 0],
-        [bx + nx * 0.4, by + ny * 0.2, bz, 0],
+        [bx + (cx * BOOTH_WINDOW[0]) / 2, by + (cy * BOOTH_WINDOW[1]) / 2, bz, 0],
+        [bx + (nx * BOOTH_WINDOW[0]) / 2, by + (ny * BOOTH_WINDOW[1]) / 2, bz, 0],
         [screen.x + nx * sw, screen.z + ny * sh, 0.2, 1],
         [screen.x + cx * sw, screen.z + cy * sh, 0.2, 1],
       ] as const;
@@ -1084,9 +1107,10 @@ function CameraRig(props: RigProps) {
   const invalidate = useThree((s) => s.invalidate);
   const aspect = useThree((s) => s.size.width / Math.max(1, s.size.height));
   const curved = layout.hall.hallType.code === 'PREMIUM_LARGE_FORMAT';
+  const screenCenter = useMemo(() => screenCenterOf(layout.hall.screen), [layout.hall.screen]);
   const overview = useMemo(
-    () => overviewPose(seatPoints(layout.seats), aspect),
-    [layout.seats, aspect],
+    () => overviewPose(seatPoints(layout.seats), aspect, [screenCenter]),
+    [layout.seats, aspect, screenCenter],
   );
   const controls = useRef<OrbitControlsImpl>(null);
   const fadeTimer = useRef<number | undefined>(undefined);
@@ -1097,6 +1121,7 @@ function CameraRig(props: RigProps) {
     look: { yaw: 0, pitch: 0 },
     recenter: null,
     fov: SEAT_FOV_RANGE.min,
+    gazeAt: [0, 0, 0],
   });
 
   const switchMode = useCallback(
@@ -1128,6 +1153,7 @@ function CameraRig(props: RigProps) {
   const toOverview = useCallback(() => {
     const c = controls.current;
     rig.current.base = null;
+    rig.current.gazeAt = overview.target;
     if (c) {
       c.target.set(...overview.target);
       c.enabled = true;
@@ -1137,8 +1163,10 @@ function CameraRig(props: RigProps) {
   }, [overview, switchMode]);
 
   const fly = useCallback(
-    (to: Pose, duration: number, lift: number, done: () => void) => {
+    (to: Pose, duration: number, { lookAt, ...plan }: FlyPlan, done: () => void) => {
       const r = rig.current;
+      const lookFrom = r.gazeAt;
+      r.gazeAt = lookAt;
       if (controls.current) controls.current.enabled = false;
       r.base = null;
       r.recenter = null;
@@ -1156,11 +1184,15 @@ function CameraRig(props: RigProps) {
         }, FADE_MS);
         return;
       }
-      const plan = planFlight(currentPose(camera), to, lift, overview.target);
-      r.flight = { plan, start: performance.now(), duration, done };
+      r.flight = {
+        plan: planFlight(currentPose(camera), to, { ...plan, look: [lookFrom, lookAt] }),
+        start: performance.now(),
+        duration,
+        done,
+      };
       invalidate();
     },
-    [camera, invalidate, overview.target, reducedMotion, setFade, switchMode],
+    [camera, invalidate, reducedMotion, setFade, switchMode],
   );
   useEffect(
     () => () => {
@@ -1183,7 +1215,8 @@ function CameraRig(props: RigProps) {
     const [px, py, pz] = overview.pose.position;
     const start: Vec3 = [tx + (px - tx) * 1.12 + 1.2, ty + (py - ty) * 1.1, tz + (pz - tz) * 1.12];
     apply(camera, { ...overview.pose, position: start, ...lookAngles(start, overview.target) });
-    fly(overview.pose, SETTLE_MS, 0, toOverview);
+    rig.current.gazeAt = overview.target;
+    fly(overview.pose, SETTLE_MS, { lift: 0, lookAt: overview.target }, toOverview);
   }, [camera, fly, overview, reducedMotion, toOverview]);
 
   // A new aspect ratio while resting in the front view: frame the seats again.
@@ -1204,7 +1237,11 @@ function CameraRig(props: RigProps) {
     if (viewSeat) {
       const to = seatPose(viewSeat, layout.hall.screen, aspect, curved);
       const neighbour = previous !== null;
-      fly(to, neighbour ? SEAT_TO_SEAT_MS : FLIGHT_MS, neighbour ? 0.12 : 1.1, () => {
+      const keep = { end: 1, aspect } as const;
+      const plan: FlyPlan = neighbour
+        ? { lift: 0.12, lookAt: screenCenter, keep }
+        : { ...TO_SEAT, lookAt: screenCenter, keep };
+      fly(to, neighbour ? SEAT_TO_SEAT_MS : FLIGHT_MS, plan, () => {
         const r = rig.current;
         r.base = to;
         r.look = { yaw: 0, pitch: 0 };
@@ -1213,7 +1250,18 @@ function CameraRig(props: RigProps) {
         onArrive(viewSeat.id);
       });
     } else {
-      fly(overview.pose, FLIGHT_MS, 1.1, toOverview);
+      const { gaze } = TO_SEAT;
+      fly(
+        overview.pose,
+        FLIGHT_MS,
+        {
+          ...TO_SEAT,
+          gaze: [1 - gaze[1], 1 - gaze[0]],
+          lookAt: overview.target,
+          keep: { end: 0, aspect },
+        },
+        toOverview,
+      );
     }
     // Only a different seat starts a flight (a resize keeps the seat).
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1224,7 +1272,7 @@ function CameraRig(props: RigProps) {
     if (resetSignal === lastReset.current) return;
     lastReset.current = resetSignal;
     if (shownSeat.current) return;
-    fly(overview.pose, RESET_MS, 0.3, toOverview);
+    fly(overview.pose, RESET_MS, { lift: 0.3, lookAt: overview.target }, toOverview);
   }, [resetSignal, fly, overview, toOverview]);
 
   const lastRecenter = useRef(recenterSignal);
@@ -1425,7 +1473,7 @@ export function HallScene(props: HallSceneProps) {
 }
 
 export default function Hall3D(props: Hall3DProps) {
-  const { map, onView, onStep } = props;
+  const { map, onView, onStep, onLook } = props;
   const [mode, setMode] = useState<Mode>('flight');
   const [fade, setFade] = useState(false);
   const wrapper = useRef<HTMLDivElement>(null);
@@ -1454,8 +1502,10 @@ export default function Hall3D(props: Hall3DProps) {
     if (!el || !scope || !seated) return;
     const onKey = (event: KeyboardEvent) => {
       const move = KEY_LOOK[event.key];
-      if (move) rigApi.current?.look(...move);
-      else if (event.key === '[') onStep(-1);
+      if (move) {
+        rigApi.current?.look(...move);
+        onLook();
+      } else if (event.key === '[') onStep(-1);
       else if (event.key === ']') onStep(1);
       else return;
       event.preventDefault();
@@ -1470,7 +1520,7 @@ export default function Hall3D(props: Hall3DProps) {
       scope.removeEventListener('keydown', onKey);
       el.removeEventListener('wheel', onWheel);
     };
-  }, [seated, onStep]);
+  }, [seated, onStep, onLook]);
 
   // One finger or the mouse turns the head (like grabbing the view); a second finger is
   // ignored, so there is no pinch zoom in the seat.
@@ -1509,6 +1559,7 @@ export default function Hall3D(props: Hall3DProps) {
         const d = drag.current;
         if (!d || d.id !== event.pointerId) return;
         rigApi.current?.look((event.clientX - d.x) * 0.0045, (event.clientY - d.y) * 0.0045);
+        onLook();
         drag.current = { id: d.id, x: event.clientX, y: event.clientY };
       }}
       onPointerUp={() => {

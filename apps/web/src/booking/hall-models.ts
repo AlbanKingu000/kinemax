@@ -66,19 +66,43 @@ export function companionPiping(w: number): THREE.BufferGeometry {
   ]);
 }
 
-/** Dark-burgundy leather recliner with a raised footrest. */
+/**
+ * Burgundy leather recliner with a raised footrest. The armrests narrow with the seat width, so a
+ * recliner in a standard hall's row keeps a wide cushion and back.
+ */
 export function recliner(w: number): THREE.BufferGeometry {
+  const { arm, cushion, back, head } = reclinerParts(w);
   return merge([
     { geometry: box(w - 0.08, 0.3, 0.78, 0.04), at: [0, 0.15, 0.02], shade: 0.45 },
-    { geometry: box(w - 0.3, 0.16, 0.62, 0.07), at: [0, 0.38, -0.02] },
-    { geometry: box(w - 0.26, 0.78, 0.2, 0.08), at: [0, 0.83, 0.38], tilt: 0.32, shade: 0.94 },
-    { geometry: box(w - 0.38, 0.18, 0.12, 0.05), at: [0, 1.22, 0.55], tilt: 0.32 },
-    { geometry: box(w - 0.32, 0.09, 0.46, 0.04), at: [0, 0.28, -0.58], tilt: -0.3, shade: 0.88 },
-    ...mirror(w / 2 - 0.09).map((x): Part => ({
-      geometry: box(0.15, 0.26, 0.86, 0.06),
+    { geometry: box(cushion, 0.16, 0.62, 0.07), at: [0, 0.38, -0.02] },
+    { geometry: box(back, 0.78, 0.2, 0.08), at: [0, 0.83, 0.38], tilt: 0.32, shade: 0.94 },
+    { geometry: box(head, 0.18, 0.12, 0.05), at: [0, 1.22, 0.55], tilt: 0.32 },
+    {
+      geometry: box(cushion - 0.02, 0.09, 0.46, 0.04),
+      at: [0, 0.28, -0.58],
+      tilt: -0.3,
+      shade: 0.88,
+    },
+    ...mirror(w / 2 - arm / 2 - 0.015).map((x): Part => ({
+      geometry: box(arm, 0.26, 0.86, Math.min(0.06, arm / 2 - 0.005)),
       at: [x, 0.5, 0.02],
       shade: 0.7,
     })),
+  ]);
+}
+
+function reclinerParts(w: number) {
+  const arm = Math.min(0.15, w * 0.16);
+  const cushion = w - 2 * arm - 0.02;
+  return { arm, cushion, back: cushion + 0.04, head: cushion - 0.08 };
+}
+
+/** The recliner's thin gold piping: along the headrest and the front of the cushion. */
+export function reclinerPiping(w: number): THREE.BufferGeometry {
+  const { cushion, head } = reclinerParts(w);
+  return merge([
+    { geometry: box(head + 0.02, 0.025, 0.14, 0.01), at: [0, 1.31, 0.58], tilt: 0.32 },
+    { geometry: box(cushion - 0.02, 0.025, 0.025, 0.01), at: [0, 0.46, -0.33] },
   ]);
 }
 

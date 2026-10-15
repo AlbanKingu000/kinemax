@@ -36,9 +36,18 @@ test('keyboard pick in 2D → Vazhdo → login → back with the same seats', as
 
   await panel.getByRole('button', { name: 'Vazhdo' }).click();
   await expect(page).toHaveURL(new RegExp(`/login\\?next=%2Fbooking%2F${id}$`));
+  // Waits on the login answer itself: under load the argon2 check is the slow step, and a
+  // refused login (rate limit, server error) fails here with its status.
+  const login = page.waitForResponse(
+    (r) => r.url().endsWith('/api/auth/login') && r.request().method() === 'POST',
+  );
   await signIn(page, e2eAccount(test.info().project.name));
+  expect((await login).status()).toBe(200);
 
   await expect(page).toHaveURL(new RegExp(`/booking/${id}$`));
+  // Back in the 2D map the visitor chose: the page does not load the 3D hall again (that second
+  // software-rendered 3D start was what made this test slow under parallel load).
+  await expect(page.getByRole('group', { name: /^Ulëset në / })).toBeVisible();
   await expect(page.getByRole('complementary').getByText(seatText)).toBeVisible();
   expect(problems).toEqual([]);
 });

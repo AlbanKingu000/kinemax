@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seat, standardMap, suiteMap } from '../test/seatmap';
 import { HallScene, type HallSceneProps } from './Hall3D';
+import { token } from './hall-textures';
 
 type Renderer = ReactThreeTest.Renderer;
 type ReactThreeTestInstance = ReactThreeTest.ReactThreeTestInstance;
@@ -305,7 +306,7 @@ describe('HallScene seats', () => {
     await renderer.unmount();
   });
 
-  it('draws recliners with side tables in a VIP hall, in the simple materials when lite', async () => {
+  it('draws recliners with gold piping and side tables in a VIP hall, simple materials when lite', async () => {
     const seats = [1, 2, 3, 4].map((n) => seat('C', n, { type: 'VIP' }));
     const map = standardMap({
       seats,
@@ -317,10 +318,29 @@ describe('HallScene seats', () => {
     const { renderer } = await mount({ map, lite: true });
     const recliners = seatMesh(renderer, seats).instance as THREE.InstancedMesh;
     expect((recliners.material as THREE.Material).type).toBe('MeshLambertMaterial');
-    // The side tables share the seat placement.
+    // The gold piping and the side tables share the seat placement.
+    const extras = meshesOf(renderer).filter(
+      (n) => n !== seatMesh(renderer, seats) && (n.instance as THREE.InstancedMesh).count === 4,
+    );
+    expect(extras).toHaveLength(2);
+    const gold = token('--color-seat-piping', '#c9a46a');
     expect(
-      meshesOf(renderer).filter((n) => (n.instance as THREE.InstancedMesh).count === 4),
-    ).toHaveLength(2);
+      extras.some((n) => {
+        const material = (n.instance as THREE.InstancedMesh).material as THREE.MeshStandardMaterial;
+        return `#${material.color.getHexString()}` === gold;
+      }),
+    ).toBe(true);
+    await renderer.unmount();
+  });
+
+  it('keeps the gold piping on VIP recliners in a standard hall, without side tables', async () => {
+    const vip = [1, 2, 3].map((n) => seat('D', n, { type: 'VIP', x: n * 0.55 }));
+    const map = standardMap({ seats: [...standardMap().seats, ...vip] });
+    const { renderer } = await mount({ map });
+    const extras = meshesOf(renderer).filter(
+      (n) => !n.props.onClick && (n.instance as THREE.InstancedMesh).count === 3,
+    );
+    expect(extras).toHaveLength(1);
     await renderer.unmount();
   });
 });

@@ -129,48 +129,59 @@
   right: var(--space-3);
 }
 
-/* View from a seat: a compact card low over the 3D view (the rows in front stay visible) */
+/* View from a seat: a compact strip low over the 3D view (the rows in front stay visible). It
+   fades out while the user looks around and back in when the view is still (hidden visually
+   only: it stays in the accessibility tree). */
 .overlay {
   position: absolute;
-  right: var(--space-3);
-  bottom: var(--space-3);
-  left: var(--space-3);
-  display: grid;
-  grid-template-columns: 1fr auto;
+  right: var(--space-2);
+  bottom: var(--space-2);
+  left: var(--space-2);
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2) var(--space-3);
-  padding: var(--space-3) var(--space-4);
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border);
   border-top: 2px solid var(--color-crimson);
   border-radius: var(--radius-md);
-  background: rgb(var(--rgb-black) / 90%);
+  background: rgb(var(--rgb-black) / 88%);
   box-shadow: var(--shadow-3);
   backdrop-filter: blur(8px);
+  transition: opacity var(--duration-overlay-in) var(--ease-standard);
+}
+
+.overlay[data-hidden],
+.lookHint[data-hidden] {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-overlay-out) var(--ease-exit);
+}
+
+.overlayText {
+  min-width: 0;
 }
 
 .overlayTitle {
   font-family: var(--font-display);
-  font-size: var(--text-h4);
-  line-height: 1.2;
+  font-size: var(--text-body-lg);
+  line-height: 1.15;
 }
 
-.overlayActions,
-.overlayNav {
+.overlayDistance {
+  color: var(--color-text-muted);
+  font-size: var(--text-caption);
+}
+
+.overlayActions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
 }
 
-.overlayActions {
-  justify-content: flex-end;
-}
-
-.overlayNav {
-  grid-column: 1 / -1;
-}
-
-/* How to look around, top left of the seat view */
+/* How to look around, top left of the seat view (the first seconds of the first seat view) */
 .lookHint {
   position: absolute;
   top: var(--space-3);
@@ -183,19 +194,35 @@
   color: var(--color-text-secondary);
   font-size: var(--text-caption);
   pointer-events: none;
+  transition: opacity var(--duration-overlay-in) var(--ease-standard);
 }
 
-/* Phones: the card sits under the view instead of covering most of it */
+/* The seat ("M14") in the corner while the panel is hidden */
+.seatTag {
+  position: absolute;
+  top: var(--space-3);
+  left: var(--space-3);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background: rgb(var(--rgb-black) / 70%);
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-bold);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-overlay-out) var(--ease-exit);
+}
+
+.seatTag[data-shown] {
+  opacity: 1;
+  transition: opacity var(--duration-overlay-in) var(--ease-standard);
+}
+
+/* Phones: the strip sits under the view instead of covering it */
 @media (max-width: 767px) {
   .overlay {
     position: static;
-    grid-template-columns: 1fr;
     margin-top: var(--space-2);
-    padding: var(--space-3);
-  }
-
-  .overlayActions {
-    justify-content: flex-start;
   }
 }
 
