@@ -103,7 +103,7 @@ function Dashboard({ stats, showCinema }: { stats: StatsResponse; showCinema: bo
         <StatTile label={a.dashboard.ticketsSold} value={String(stats.ticketsSold)} />
         <StatTile
           label={a.dashboard.occupancy}
-          value={percent(occupancy.soldSeats, occupancy.capacity)}
+          value={percent(locale, occupancy.soldSeats, occupancy.capacity)}
           detail={a.dashboard.occupancyDetail(occupancy.soldSeats, occupancy.capacity)}
         />
         <StatTile

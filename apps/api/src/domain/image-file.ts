@@ -1,10 +1,9 @@
 // Upload validation for movie images, from the bytes only (never the file name or the MIME type the
 // client sends). Each format is walked structurally from its signature to its end marker: a file
-// with bytes after the end (an appended script or archive, a "polyglot") is rejected. Metadata
-// (EXIF with GPS positions, XMP, comments) is removed without re-encoding the pixels.
-//
-// shortcut: no re-encoding (would need sharp, an install-script package: decision 10 of task 9);
-// pixel data is kept as uploaded. Upgrade by re-encoding once sharp is approved.
+// with bytes after the end (an appended script or archive, a "polyglot") is rejected. Accepted
+// images are then decoded and re-encoded to WebP with sharp, which drops every metadata block
+// (EXIF with GPS positions, XMP, comments) and anything hidden in the pixel data's container.
+import sharp from 'sharp';
 
 export type ImageType = 'jpeg' | 'png' | 'webp';
 
@@ -22,13 +21,6 @@ export class ImageRejectedError extends Error {
     super(`Image rejected: ${reason}`);
   }
 }
-
-export const IMAGE_MIME: Record<ImageType, string> = {
-  jpeg: 'image/jpeg',
-  png: 'image/png',
-  webp: 'image/webp',
-};
-export const IMAGE_EXTENSION: Record<ImageType, string> = { jpeg: 'jpg', png: 'png', webp: 'webp' };
 
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const bad = (): never => {
@@ -54,15 +46,12 @@ export function sniffImageType(bytes: Buffer): ImageType | undefined {
 interface Part {
   start: number;
   end: number;
-  keep: boolean;
 }
 
 // --- PNG: signature, then chunks (length, type, data, CRC) from IHDR to IEND ------------------
 
-const PNG_METADATA = new Set(['tEXt', 'zTXt', 'iTXt', 'eXIf', 'tIME']);
-
 function walkPng(bytes: Buffer): { image: ProbedImage; parts: Part[] } {
-  const parts: Part[] = [{ start: 0, end: 8, keep: true }];
+  const parts: Part[] = [{ start: 0, end: 8 }];
   let pos = 8;
   let image: ProbedImage | undefined;
   for (;;) {
@@ -79,7 +68,7 @@ function walkPng(bytes: Buffer): { image: ProbedImage; parts: Part[] } {
         height: bytes.readUInt32BE(pos + 12),
       };
     }
-    parts.push({ start: pos, end, keep: !PNG_METADATA.has(type) });
+    parts.push({ start: pos, end });
     pos = end;
     if (type === 'IEND') break;
   }
@@ -90,18 +79,16 @@ function walkPng(bytes: Buffer): { image: ProbedImage; parts: Part[] } {
 // --- JPEG: SOI, marker segments, entropy-coded scans, EOI --------------------------------------
 
 const SOF = new Set([0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf]);
-/** APP1 (EXIF, XMP), APP13 (Photoshop/IPTC) and comments; APP0, ICC (APP2) and APP14 stay. */
-const JPEG_METADATA = new Set([0xe1, 0xed, 0xfe]);
 
 function walkJpeg(bytes: Buffer): { image: ProbedImage; parts: Part[] } {
-  const parts: Part[] = [{ start: 0, end: 2, keep: true }];
+  const parts: Part[] = [{ start: 0, end: 2 }];
   let pos = 2;
   let image: ProbedImage | undefined;
   for (;;) {
     if (pos + 2 > bytes.length || bytes[pos] !== 0xff) bad();
     const marker = bytes[pos + 1] ?? 0;
     if (marker === 0xd9) {
-      parts.push({ start: pos, end: pos + 2, keep: true });
+      parts.push({ start: pos, end: pos + 2 });
       pos += 2;
       break;
     }
@@ -110,7 +97,7 @@ function walkJpeg(bytes: Buffer): { image: ProbedImage; parts: Part[] } {
       continue;
     }
     if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
-      parts.push({ start: pos, end: pos + 2, keep: true });
+      parts.push({ start: pos, end: pos + 2 });
       pos += 2;
       continue;
     }
@@ -137,7 +124,7 @@ function walkJpeg(bytes: Buffer): { image: ProbedImage; parts: Part[] } {
       }
       if (end + 1 >= bytes.length) bad();
     }
-    parts.push({ start: pos, end, keep: !JPEG_METADATA.has(marker) });
+    parts.push({ start: pos, end });
     pos = end;
   }
   if (pos !== bytes.length || !image) bad();
@@ -145,10 +132,6 @@ function walkJpeg(bytes: Buffer): { image: ProbedImage; parts: Part[] } {
 }
 
 // --- WebP: RIFF container with even-padded chunks ---------------------------------------------
-
-const WEBP_METADATA = new Set(['EXIF', 'XMP ']);
-const VP8X_EXIF = 0x08;
-const VP8X_XMP = 0x04;
 
 function walkWebp(bytes: Buffer): { image: ProbedImage; parts: Part[] } {
   if (bytes.readUInt32LE(4) + 8 !== bytes.length) bad();
@@ -184,7 +167,7 @@ function walkWebp(bytes: Buffer): { image: ProbedImage; parts: Part[] } {
         bad();
       }
     }
-    parts.push({ start: pos, end, keep: !WEBP_METADATA.has(type) });
+    parts.push({ start: pos, end });
     pos = end;
   }
   if (!image) bad();
@@ -212,20 +195,17 @@ export function probeImage(bytes: Buffer): ProbedImage {
   return image;
 }
 
-/** The same image without its metadata chunks/segments (pixels untouched). */
-export function stripImageMetadata(bytes: Buffer): Buffer {
-  const { image, parts } = walk(bytes);
-  const kept = parts
-    .filter((part) => part.keep)
-    .map((part) => bytes.subarray(part.start, part.end));
-  if (image.type !== 'webp') return Buffer.concat(kept);
-  const body = Buffer.concat(kept);
-  const header = Buffer.from(bytes.subarray(0, 12));
-  header.writeUInt32LE(body.length + 4, 4);
-  const out = Buffer.concat([header, body]);
-  // The VP8X header announces EXIF/XMP chunks; they are gone now.
-  if (out.toString('latin1', 12, 16) === 'VP8X') {
-    out[20] = (out[20] ?? 0) & ~(VP8X_EXIF | VP8X_XMP);
+/**
+ * Decodes the (already checked) image and re-encodes it as WebP: EXIF orientation applied, no
+ * metadata kept. Pixel data that cannot be decoded is rejected like a broken structure.
+ */
+export async function reencodeToWebp(bytes: Buffer, maxSide: number): Promise<Buffer> {
+  try {
+    return await sharp(bytes, { failOn: 'error', limitInputPixels: maxSide * maxSide })
+      .rotate()
+      .webp({ quality: 86 })
+      .toBuffer();
+  } catch {
+    throw new ImageRejectedError('structure');
   }
-  return out;
 }

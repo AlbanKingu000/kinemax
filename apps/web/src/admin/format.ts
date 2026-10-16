@@ -17,7 +17,10 @@ export function formatEuros(locale: Locale, cents: number): string {
   return locale === 'sq' ? `${sign}${digits} €` : `${sign}€${digits}`;
 }
 
-/** "62%" (0% when there is nothing to fill). */
-export function percent(part: number, whole: number): string {
-  return `${String(whole > 0 ? Math.round((part / whole) * 100) : 0)}%`;
+/** Occupancy with one decimal ("57,1%" / "57.1%"); "<0,1%" for a tiny share that is not zero. */
+export function percent(locale: Locale, part: number, whole: number): string {
+  const value = whole > 0 && part > 0 ? (part / whole) * 100 : 0;
+  const comma = (text: string) => (locale === 'sq' ? text.replace('.', ',') : text);
+  if (value > 0 && value < 0.1) return `<${comma('0.1')}%`;
+  return `${comma(value.toFixed(1))}%`;
 }

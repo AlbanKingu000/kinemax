@@ -13,7 +13,8 @@ import {
   type Role,
 } from '../support/admin.js';
 import { APP_ORIGIN, makeTestApp, testPrisma } from '../support/app.js';
-import { makeJpeg, makePng, makeWebp } from '../support/images.js';
+import sharp from 'sharp';
+import { makeJpeg, makePng } from '../support/images.js';
 
 // Movie management and the secure poster/backdrop upload (super admin only).
 
@@ -182,7 +183,7 @@ describe('movies CRUD', () => {
 });
 
 describe('poster and backdrop upload', () => {
-  it('stores a valid poster under a random name without its metadata and serves it safely', async () => {
+  it('re-encodes a valid poster to WebP without metadata and serves it safely', async () => {
     const movie = await create();
     const res = await upload(
       clients.superAdmin,
@@ -192,10 +193,11 @@ describe('poster and backdrop upload', () => {
       'application/octet-stream',
     ).expect(200);
     const { posterPath } = adminMovieResponseSchema.parse(res.body).movie;
-    expect(posterPath).toMatch(/^\/api\/media\/[0-9a-f-]{36}\.png$/);
+    expect(posterPath).toMatch(/^\/api\/media\/[0-9a-f-]{36}\.webp$/);
 
     const media = await clients.anonymous.get(posterPath ?? '').expect(200);
-    expect(media.headers['content-type']).toBe('image/png');
+    expect(media.headers['content-type']).toBe('image/webp');
+    expect((await sharp(media.body as Buffer).metadata()).format).toBe('webp');
     expect(media.headers['x-content-type-options']).toBe('nosniff');
     expect(media.headers['content-security-policy']).toContain("default-src 'none'");
     expect(media.headers['cache-control']).toBe('public, max-age=31536000, immutable');
@@ -203,17 +205,31 @@ describe('poster and backdrop upload', () => {
     expect((await auditOf(movie.id)).map((row) => row.action)).toContain('movie.poster');
   });
 
-  it('decides the type from the bytes: a JPEG sent as PNG is stored as .jpg', async () => {
+  it('decides the type from the bytes and strips the EXIF of a real JPEG', async () => {
     const movie = await create();
-    const res = await upload(
-      clients.superAdmin,
-      movie.id,
-      'backdrop',
-      makeJpeg(1920, 1080, { exif: 'Camera' }),
-      'image/png',
-    ).expect(200);
-    expect(adminMovieResponseSchema.parse(res.body).movie.backdropPath).toMatch(/\.jpg$/);
-    await upload(clients.superAdmin, movie.id, 'poster', makeWebp(600, 900)).expect(200);
+    const color = { width: 1920, height: 1080, channels: 3 as const, background: '#b3132f' };
+    const jpeg = await sharp({ create: color })
+      .jpeg()
+      .withExif({ IFD0: { Copyright: 'Camera 42.6 21.1' } })
+      .toBuffer();
+    expect(jpeg.toString('latin1')).toContain('Camera 42.6');
+    const res = await upload(clients.superAdmin, movie.id, 'backdrop', jpeg, 'image/png').expect(
+      200,
+    );
+    const path = adminMovieResponseSchema.parse(res.body).movie.backdropPath ?? '';
+    expect(path).toMatch(/\.webp$/);
+    const stored = (await clients.anonymous.get(path).expect(200)).body as Buffer;
+    expect(stored.toString('latin1')).not.toContain('Camera 42.6');
+    expect(await sharp(stored).metadata()).toMatchObject({ width: 1920, height: 1080 });
+    expect((await sharp(stored).metadata()).exif).toBeUndefined();
+    const webp = await sharp({ create: { ...color, width: 600, height: 900 } })
+      .webp()
+      .toBuffer();
+    await upload(clients.superAdmin, movie.id, 'poster', webp).expect(200);
+    // A file that passes the structure checks but whose pixels cannot be decoded is refused.
+    const broken = await upload(clients.superAdmin, movie.id, 'poster', makeJpeg(600, 900));
+    expect(broken.status).toBe(422);
+    expect(broken.body).toMatchObject({ error: { fields: [{ code: 'structure' }] } });
   });
 
   it('rejects SVG, fake extensions, polyglots, wrong sizes and oversized files', async () => {

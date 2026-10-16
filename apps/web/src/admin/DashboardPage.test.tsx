@@ -38,7 +38,7 @@ describe('the admin dashboard', () => {
     expect(await screen.findByText('144,50 €')).toBeInTheDocument();
     expect(screen.getByText(/Bileta 141,50 € · Ushqim 3,00 €/)).toBeInTheDocument();
     expect(screen.getByText(/Rimbursime të zbritura: 4,50 €/)).toBeInTheDocument();
-    expect(screen.getByText('57%')).toBeInTheDocument();
+    expect(screen.getByText('57,1%')).toBeInTheDocument();
     expect(screen.getByText('4 nga 7 ulëse')).toBeInTheDocument();
     expect(screen.getByRole('img', { name: /^Të ardhurat sipas ditës/ })).toBeInTheDocument();
     const types = screen.getByRole('list', { name: 'Shitjet sipas llojit të sallës' });
@@ -95,5 +95,17 @@ describe('the admin dashboard', () => {
     fireEvent.click(retry);
     expect(await screen.findByText('Asnjë shitje në këtë periudhë.')).toBeInTheDocument();
     expect(screen.getByText('Asnjë shfaqje në 24 orët e ardhshme.')).toBeInTheDocument();
+  });
+});
+
+describe('occupancy precision', () => {
+  it('shows one decimal and "<0,1%" for a tiny share', async () => {
+    const { percent } = await import('./format');
+    expect(percent('sq', 4, 7)).toBe('57,1%');
+    expect(percent('en', 4, 7)).toBe('57.1%');
+    expect(percent('sq', 3, 80866)).toBe('<0,1%');
+    expect(percent('en', 3, 80866)).toBe('<0.1%');
+    expect(percent('sq', 0, 100)).toBe('0,0%');
+    expect(percent('sq', 0, 0)).toBe('0,0%');
   });
 });

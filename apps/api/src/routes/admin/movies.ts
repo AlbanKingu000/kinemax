@@ -14,12 +14,7 @@ import {
 } from '@kinemax/shared';
 import express, { Router, type Request } from 'express';
 import { z } from 'zod';
-import {
-  IMAGE_EXTENSION,
-  ImageRejectedError,
-  probeImage,
-  stripImageMetadata,
-} from '../../domain/image-file.js';
+import { ImageRejectedError, probeImage, reencodeToWebp } from '../../domain/image-file.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { requireRole } from '../../http/auth-middleware.js';
 import { HttpError, parseInput } from '../../http/errors.js';
@@ -222,7 +217,7 @@ export function createMoviesRouter({
       if (!exists) throw notFound();
 
       let bytes: Buffer;
-      let type: keyof typeof IMAGE_EXTENSION;
+      let type: string;
       try {
         const image = probeImage(req.body);
         const rules = MOVIE_IMAGE_RULES[kind];
@@ -234,14 +229,15 @@ export function createMoviesRouter({
         ) {
           throw unprocessableImage('dimensions');
         }
-        bytes = stripImageMetadata(req.body);
+        // Stored as WebP whatever was uploaded; the original type goes to the audit log.
+        bytes = await reencodeToWebp(req.body, MOVIE_IMAGE_RULES.maxSide);
         type = image.type;
       } catch (error) {
         if (error instanceof ImageRejectedError) throw unprocessableImage(error.reason);
         throw error;
       }
 
-      const file = `${randomUUID()}.${IMAGE_EXTENSION[type]}`;
+      const file = `${randomUUID()}.webp`;
       await writeFile(join(uploadsDir, file), bytes, { flag: 'wx' });
       const column = kind === 'poster' ? 'posterPath' : 'backdropPath';
       let previous: string | null;

@@ -219,6 +219,7 @@ Dependency install scripts are restricted with npm's `allowScripts` policy (root
 | `prisma@7.10.0`          | Node version check only; denying it would also stop npm linking the CLI    |
 | `esbuild@0.28.2`         | Verifies/installs the platform binary used by `tsx`                        |
 | `argon2@0.45.1`          | argon2id password hashing; loads its prebuilt binary or builds it          |
+| `sharp@0.35.5`           | Re-encodes uploaded posters to WebP (approved by the owner in task 10)     |
 | `fsevents` → `false`     | macOS-only optional dependency; ships a prebuilt binary, script not needed |
 
 Entries are pinned, so upgrading one of these packages needs a new approval. Any other dependency

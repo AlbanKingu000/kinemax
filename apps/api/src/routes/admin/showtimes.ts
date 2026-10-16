@@ -386,13 +386,16 @@ export function createShowtimesRouter({
     await prisma.$transaction(async (tx) => {
       // Serializes with holds (they lock the show FOR SHARE) and deactivations.
       await tx.$queryRaw`SELECT 1 FROM "Showtime" WHERE "id" = ${id}::uuid FOR UPDATE`;
-      if (timing) {
-        const active = await tx.booking.count({
-          where: { showtimeId: id, status: { in: ['HELD', 'CONFIRMED'] } },
-        });
-        if (active > 0) {
-          throw conflict('Tickets were sold: only format and language can change.', 'tickets_sold');
-        }
+      // Any booking locks every field customers bought (movie, hall, time, format, language):
+      // the only way to change it is to deactivate the show (refunds) and create a new one.
+      const active = await tx.booking.count({
+        where: { showtimeId: id, status: { in: ['HELD', 'CONFIRMED'] } },
+      });
+      if (active > 0) {
+        throw conflict(
+          'Tickets were sold: deactivate the show and create a new one.',
+          'tickets_sold',
+        );
       }
       const after = await tx.showtime.update({
         where: { id },

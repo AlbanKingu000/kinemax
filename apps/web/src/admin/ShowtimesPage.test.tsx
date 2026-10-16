@@ -163,7 +163,7 @@ describe('the showtimes page', () => {
     });
   });
 
-  it('locks time, hall and movie once tickets are sold', async () => {
+  it('locks every field once tickets are sold and points to deactivate + new', async () => {
     stubShowtimes();
     renderApp('/admin/showtimes');
     fireEvent.click(
@@ -171,10 +171,14 @@ describe('the showtimes page', () => {
     );
     const dialog = screen.getByRole('dialog', { name: 'Ndrysho shfaqjen' });
     expect(
-      within(dialog).getByText(/mund të ndryshohen vetëm formati dhe gjuha/),
+      within(dialog).getByText(
+        'Kjo shfaqje ka bileta të shitura: për ndryshime çaktivizoje dhe krijo një të re.',
+      ),
     ).toBeInTheDocument();
-    expect(within(dialog).getByLabelText(/^Ora e fillimit/)).toBeDisabled();
-    expect(within(dialog).getByLabelText(/^Formati/)).toBeEnabled();
+    for (const label of [/^Filmi/, /^Salla/, /^Data/, /^Ora e fillimit/, /^Formati/, /^Versioni/]) {
+      expect(within(dialog).getByLabelText(label)).toBeDisabled();
+    }
+    expect(within(dialog).queryByRole('button', { name: 'Ruaj' })).toBeNull();
   });
 
   it('deactivates after a dialog that states the refunds and cancellations', async () => {

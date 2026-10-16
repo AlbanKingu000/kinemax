@@ -53,7 +53,8 @@
     "prisma@7.10.0": true,
     "esbuild@0.28.2": true,
     "argon2@0.45.1": true,
-    "fsevents": false
+    "fsevents": false,
+    "sharp@0.35.5": true
   },
   "overrides": {
     "three": "0.182.0"

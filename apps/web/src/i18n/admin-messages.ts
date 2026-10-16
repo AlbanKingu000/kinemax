@@ -215,7 +215,7 @@ const sq = {
       choose: 'Zgjidh…',
       ends: (time: string, minutes: number, buffer: number) =>
         `Mbaron në ${time} (filmi ${String(minutes)} min + ${String(buffer)} min pastrim).`,
-      locked: 'Për këtë shfaqje janë shitur bileta: mund të ndryshohen vetëm formati dhe gjuha.',
+      locked: 'Kjo shfaqje ka bileta të shitura: për ndryshime çaktivizoje dhe krijo një të re.',
       create: 'Krijo shfaqjen',
       save: 'Ruaj',
       cancel: 'Anulo',
@@ -227,7 +227,8 @@ const sq = {
       overlap:
         'Salla është e zënë në këtë orë: përplaset me një shfaqje tjetër (përfshirë pastrimin). Zgjidh një orë tjetër.',
       past: 'Kjo orë ka kaluar. Zgjidh një orë në të ardhmen.',
-      ticketsSold: 'Janë shitur bileta: ora, salla dhe filmi nuk ndryshojnë më.',
+      ticketsSold:
+        'Kjo shfaqje ka bileta të shitura: për ndryshime çaktivizoje dhe krijo një të re.',
       unavailable: 'Ky film ose kjo sallë nuk mund të përdoret.',
       started: 'Shfaqja ka filluar dhe nuk ndryshohet më.',
       generic: 'Veprimi nuk u krye. Provo përsëri.',
@@ -563,7 +564,7 @@ const en: AdminMessages = {
       choose: 'Choose…',
       ends: (time: string, minutes: number, buffer: number) =>
         `Ends at ${time} (movie ${String(minutes)} min + ${String(buffer)} min cleaning).`,
-      locked: 'Tickets were sold for this show: only the format and language can change.',
+      locked: 'This show has sold tickets: to change it, deactivate it and create a new one.',
       create: 'Create the show',
       save: 'Save',
       cancel: 'Cancel',
@@ -575,7 +576,7 @@ const en: AdminMessages = {
       overlap:
         'The hall is taken at this time: it overlaps another show (including cleaning). Choose another time.',
       past: 'This time has passed. Choose a time in the future.',
-      ticketsSold: 'Tickets were sold: the time, hall and movie can no longer change.',
+      ticketsSold: 'This show has sold tickets: to change it, deactivate it and create a new one.',
       unavailable: 'This movie or hall cannot be used.',
       started: 'The show has started and can no longer change.',
       generic: 'That did not work. Please try again.',

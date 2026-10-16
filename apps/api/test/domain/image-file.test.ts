@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   ImageRejectedError,
   probeImage,
+  reencodeToWebp,
   sniffImageType,
-  stripImageMetadata,
 } from '../../src/domain/image-file.js';
 import { makeJpeg, makePng, makeWebp } from '../support/images.js';
 
@@ -54,27 +54,16 @@ describe('probeImage', () => {
   });
 });
 
-describe('stripImageMetadata', () => {
-  it('removes EXIF and text metadata and keeps a valid image of the same size', () => {
-    const secret = 'GPS 42.66 21.16';
-    for (const original of [
-      makePng(300, 450, { text: secret }),
-      makeJpeg(300, 450, { exif: secret }),
-      makeWebp(300, 450, { exif: secret }),
-    ]) {
-      expect(original.toString('latin1')).toContain(secret);
-      const stripped = stripImageMetadata(original);
-      expect(stripped.toString('latin1')).not.toContain(secret);
-      expect(probeImage(stripped)).toEqual(probeImage(original));
-      expect(stripped.length).toBeLessThan(original.length);
-    }
-    // WebP: the header no longer announces an EXIF chunk.
-    const webp = stripImageMetadata(makeWebp(300, 450, { exif: secret }));
-    expect((webp[20] ?? 0) & 0x08).toBe(0);
+describe('reencodeToWebp', () => {
+  it('re-encodes to WebP of the same size and drops text metadata', async () => {
+    const webp = await reencodeToWebp(makePng(300, 450, { text: 'GPS 42.66 21.16' }), 8000);
+    expect(probeImage(webp)).toEqual({ type: 'webp', width: 300, height: 450 });
+    expect(webp.toString('latin1')).not.toContain('GPS');
   });
 
-  it('keeps a file without metadata byte for byte', () => {
-    const png = makePng(10, 10);
-    expect(stripImageMetadata(png).equals(png)).toBe(true);
+  it('rejects pixel data that cannot be decoded', async () => {
+    await expect(reencodeToWebp(makeJpeg(300, 450), 8000)).rejects.toMatchObject({
+      reason: 'structure',
+    });
   });
 });

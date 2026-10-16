@@ -67,10 +67,14 @@ export function ShowtimeDialog({ showtime, date, day, onClose, onSaved }: Showti
     setBusy(true);
     setError(null);
     try {
-      const input = locked
-        ? { format, languageVersion: language }
-        : { movieId, hallId, date: showDate, time, format, languageVersion: language };
-      await saveShowtime(showtime?.id ?? null, input);
+      await saveShowtime(showtime?.id ?? null, {
+        movieId,
+        hallId,
+        date: showDate,
+        time,
+        format,
+        languageVersion: language,
+      });
       toast.show({ tone: 'success', title: showtime ? s.form.saved : s.form.created });
       onSaved();
     } catch (err) {
@@ -91,9 +95,11 @@ export function ShowtimeDialog({ showtime, date, day, onClose, onSaved }: Showti
           <Button variant="secondary" onClick={onClose}>
             {s.form.cancel}
           </Button>
-          <Button type="submit" form={formId} loading={busy} icon="check">
-            {showtime ? s.form.save : s.form.create}
-          </Button>
+          {!locked && (
+            <Button type="submit" form={formId} loading={busy} icon="check">
+              {showtime ? s.form.save : s.form.create}
+            </Button>
+          )}
         </div>
       }
     >
@@ -182,6 +188,7 @@ export function ShowtimeDialog({ showtime, date, day, onClose, onSaved }: Showti
               <Select
                 {...props}
                 value={format}
+                disabled={locked}
                 onChange={(e) => {
                   setFormat(movieFormatSchema.parse(e.target.value));
                 }}
@@ -199,6 +206,7 @@ export function ShowtimeDialog({ showtime, date, day, onClose, onSaved }: Showti
               <Select
                 {...props}
                 value={language}
+                disabled={locked}
                 onChange={(e) => {
                   setLanguage(languageVersionSchema.parse(e.target.value));
                 }}

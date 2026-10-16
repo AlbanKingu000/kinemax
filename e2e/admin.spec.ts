@@ -205,9 +205,9 @@ test.describe('the super admin', () => {
     const image = page.getByRole('img', { name: 'Posteri aktual' });
     await expect(image).toBeVisible();
     const src = (await image.getAttribute('src')) ?? '';
-    expect(src).toMatch(/^\/api\/media\/[0-9a-f-]{36}\.png$/);
+    expect(src).toMatch(/^\/api\/media\/[0-9a-f-]{36}\.webp$/);
     const served = await page.request.get(src);
-    expect(served.headers()['content-type']).toBe('image/png');
+    expect(served.headers()['content-type']).toBe('image/webp');
     expect(served.headers()['x-content-type-options']).toBe('nosniff');
     await expectNoAxe(page);
 

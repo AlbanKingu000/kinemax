@@ -250,15 +250,25 @@ describe('editing shows', () => {
     expect(log.before).toMatchObject({ hallId: fx.hall.id });
   });
 
-  it('only allows format and language once tickets are sold', async () => {
+  it('locks every field once a ticket is sold (deactivate and create a new show instead)', async () => {
     const show = await create({ time: '18:00' });
     await paidBooking(show.id, fx.seats.hall[0]?.id ?? '');
-    const moved = await clients.manager.patch(`/api/admin/showtimes/${show.id}`, { time: '19:00' });
-    expect(moved.status).toBe(409);
-    expect(moved.body).toMatchObject({ error: { fields: [{ code: 'tickets_sold' }] } });
-    await clients.manager
-      .patch(`/api/admin/showtimes/${show.id}`, { languageVersion: 'ORIGINAL_SQ_SUBTITLES' })
-      .expect(200);
+    for (const change of [
+      { time: '19:00' },
+      { hallId: fx.otherHall.id },
+      { format: '3D' },
+      { languageVersion: 'ORIGINAL_SQ_SUBTITLES' },
+    ]) {
+      const res = await clients.manager.patch(`/api/admin/showtimes/${show.id}`, change);
+      expect(res.status, JSON.stringify(change)).toBe(409);
+      expect(res.body).toMatchObject({ error: { fields: [{ code: 'tickets_sold' }] } });
+    }
+    const row = await prisma.showtime.findUniqueOrThrow({ where: { id: show.id } });
+    expect([row.format, row.languageVersion, row.hallId]).toEqual([
+      'FORMAT_2D',
+      'DUBBED_SQ',
+      fx.hall.id,
+    ]);
   });
 
   it('keeps started shows read-only', async () => {
