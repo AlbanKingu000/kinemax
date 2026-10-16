@@ -1,5 +1,5 @@
 // Fakes for admin panel tests: staff users, their cinemas and a default /api/admin answer.
-import type { AdminLocation, AuthUser } from '@kinemax/shared';
+import type { AdminLocation, AuthUser, StatsResponse } from '@kinemax/shared';
 import { stubAuth, testUser } from './auth';
 import type { CatalogStub } from './catalog';
 
@@ -51,4 +51,51 @@ export function stubAdmin(user: AuthUser | null, handler: AdminHandler = () => u
       return handler(request);
     },
   });
+}
+
+/** A dashboard answer for tests (one show tonight, a refund, two hall types). */
+export function statsFixture(overrides: Partial<StatsResponse> = {}): StatsResponse {
+  return {
+    range: 'today',
+    timeZone: 'Europe/Belgrade',
+    from: '2026-10-16',
+    to: '2026-10-16',
+    revenue: { ticketsCents: 14_150, foodCents: 300, totalCents: 14_450, refundsCents: 450 },
+    ticketsSold: 3,
+    occupancy: { soldSeats: 4, capacity: 7 },
+    daily: [{ date: '2026-10-16', ticketsCents: 14_150, foodCents: 300, totalCents: 14_450 }],
+    topMovies: [
+      {
+        movieId: '0190f0a0-0000-7000-8000-00000000b001',
+        titleSq: 'Fanari i heshtur',
+        titleEn: 'The Silent Lighthouse',
+        ticketsSold: 3,
+        revenueCents: 14_150,
+      },
+    ],
+    hallTypes: [
+      { code: 'STANDARD', nameSq: 'Standard', nameEn: null, ticketsSold: 1, revenueCents: 150 },
+      {
+        code: 'PRIVATE_SUITE',
+        nameSq: 'Suitë private',
+        nameEn: 'Private suite',
+        ticketsSold: 2,
+        revenueCents: 14_000,
+      },
+    ],
+    upcoming: [
+      {
+        showtimeId: '0190f0a0-0000-7000-8000-00000000c001',
+        startsAt: new Date(Date.now() + 2 * 3_600_000).toISOString(),
+        movieTitleSq: 'Fanari i heshtur',
+        movieTitleEn: 'The Silent Lighthouse',
+        hallName: 'Salla 1',
+        locationName: 'Kinemax Prizren',
+        soldSeats: 3,
+        capacity: 12,
+      },
+    ],
+    seatDeliveryOrdersToday: 1,
+    ...overrides,
+  };
 }

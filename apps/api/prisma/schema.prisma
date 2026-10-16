@@ -662,4 +662,7 @@ model DemoPayment {
   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Restrict)
 
   @@index([bookingId])
+  // Dashboard revenue: payments and refunds by date (admin stats).
+  @@index([succeededAt])
+  @@index([refundedAt])
 }

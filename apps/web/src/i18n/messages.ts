@@ -26,6 +26,12 @@ const sq = {
     region: 'Njoftimet',
     dismiss: 'Mbyll njoftimin',
   },
+  chart: {
+    showTable: 'Shfaq të dhënat si tabelë',
+    hideTable: 'Fshih tabelën',
+    summary: (title: string, columns: number) =>
+      `${title}: grafik me ${String(columns)} kolona. Vlerat janë në tabelën poshtë.`,
+  },
   meta: {
     titleSuffix: 'Kinemax',
     homeTitle: 'Kinemax · Kinema premium',
@@ -515,6 +521,12 @@ const en: Messages = {
   toast: {
     region: 'Notifications',
     dismiss: 'Dismiss notification',
+  },
+  chart: {
+    showTable: 'Show the data as a table',
+    hideTable: 'Hide the table',
+    summary: (title: string, columns: number) =>
+      `${title}: chart with ${String(columns)} columns. The values are in the table below.`,
   },
   meta: {
     titleSuffix: 'Kinemax',

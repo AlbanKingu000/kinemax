@@ -9,6 +9,12 @@ import {
   type BadgeTone,
 } from '../components/Badge/Badge';
 import { AGE_RATINGS, LANGUAGE_VERSIONS } from '../components/Badge/movie-labels';
+import { BarList } from '../components/BarList/BarList';
+import { ColumnChart } from '../components/ColumnChart/ColumnChart';
+import { DataTable } from '../components/DataTable/DataTable';
+import { FillBar } from '../components/FillBar/FillBar';
+import { StatTile } from '../components/StatTile/StatTile';
+import { formatPrice } from '../i18n/format';
 import { Button, ButtonLink } from '../components/Button/Button';
 import { Card } from '../components/Card/Card';
 import { Checkbox } from '../components/Choice/Checkbox';
@@ -85,7 +91,19 @@ const SECTION_IDS = [
   'shell',
   'home',
   'booking',
+  'admin',
 ] as const;
+
+/** Demo days for the admin column chart: [day, tickets cents, food cents]. */
+const ADMIN_DEMO_DAYS: readonly (readonly [number, number, number])[] = [
+  [10, 41_000, 9_500],
+  [11, 38_500, 7_250],
+  [12, 52_000, 12_400],
+  [13, 61_500, 15_100],
+  [14, 0, 0],
+  [15, 47_250, 8_800],
+  [16, 58_000, 13_000],
+];
 
 const SWATCH_GROUPS = {
   backgrounds: [
@@ -105,6 +123,7 @@ const SWATCH_GROUPS = {
   ],
   status: ['color-success', 'color-warning', 'color-error', 'color-info'],
   seats: ['color-seat-standard', 'color-seat-vip', 'color-seat-couple', 'color-seat-piping'],
+  chart: ['color-chart-1', 'color-chart-2', 'color-chart-track'],
 } as const;
 
 const TYPE_SCALE = [
@@ -1230,6 +1249,91 @@ export function StyleguidePage() {
                     if (result.ok) setDemoSeats(result.selected);
                   }}
                 />
+              </Sub>
+            </Section>
+
+            <Section id="admin" title={s.sections.admin}>
+              <Sub title={s.admin.tiles} note={s.admin.tilesNote}>
+                <div className={styles.adminTiles}>
+                  <StatTile
+                    label={s.admin.revenue}
+                    value={formatPrice(locale, 184_250)}
+                    detail={`${s.admin.tickets} ${formatPrice(locale, 151_000)} · ${s.admin.food} ${formatPrice(locale, 33_250)}`}
+                  />
+                  <StatTile label={s.admin.occupancy} value="58%" detail={s.admin.sold} />
+                </div>
+              </Sub>
+              <Sub title={s.admin.chart} note={s.admin.chartNote}>
+                <ColumnChart
+                  title={s.admin.revenue}
+                  series={[
+                    { key: 'tickets', label: s.admin.tickets, slot: 1 },
+                    { key: 'food', label: s.admin.food, slot: 2 },
+                  ]}
+                  data={ADMIN_DEMO_DAYS.map(([day, tickets, food]) => ({
+                    label: `${s.admin.day} ${String(day)}`,
+                    short: String(day),
+                    values: { tickets, food },
+                  }))}
+                  formatValue={(cents) => formatPrice(locale, cents)}
+                  categoryLabel={s.admin.day}
+                  totalLabel={s.admin.total}
+                />
+              </Sub>
+              <Sub title={s.admin.bars}>
+                <BarList
+                  label={s.admin.hallTypes}
+                  items={[
+                    {
+                      key: 'std',
+                      label: 'Standard',
+                      value: 92_000,
+                      display: formatPrice(locale, 92_000),
+                    },
+                    {
+                      key: 'vip',
+                      label: 'VIP Recliner',
+                      value: 61_500,
+                      display: formatPrice(locale, 61_500),
+                    },
+                    {
+                      key: 'suite',
+                      label: 'Private Suite',
+                      value: 14_000,
+                      display: formatPrice(locale, 14_000),
+                    },
+                  ]}
+                />
+                <FillBar value={312} max={540} label={s.admin.occupancy} />
+              </Sub>
+              <Sub title={s.admin.table} note={s.admin.tableNote}>
+                <DataTable caption={s.admin.shows}>
+                  <thead>
+                    <tr>
+                      <th scope="col">{s.admin.time}</th>
+                      <th scope="col">{s.admin.movie}</th>
+                      <th scope="col">{s.admin.fill}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ['18:30', 'Fanari i heshtur', 41],
+                      ['21:00', 'Kalldrem dhe neon', 87],
+                    ].map(([time, movie, sold]) => (
+                      <tr key={String(time)}>
+                        <td data-align="end">{time}</td>
+                        <th scope="row">{movie}</th>
+                        <td>
+                          <FillBar
+                            value={Number(sold)}
+                            max={100}
+                            label={`${s.admin.fill}: ${String(movie)}`}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </DataTable>
               </Sub>
             </Section>
           </div>

@@ -693,3 +693,9 @@
   gap: var(--space-5);
   max-width: 28rem;
 }
+
+.adminTiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  gap: var(--space-3);
+}

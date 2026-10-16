@@ -49,7 +49,7 @@ describe('StyleguidePage', { timeout: 30_000 }, () => {
     ).toBeInTheDocument();
     const toc = screen.getByRole('navigation', { name: 'Përmbajtja' });
     const links = within(toc).getAllByRole('link');
-    expect(links).toHaveLength(16);
+    expect(links).toHaveLength(17);
     // Every entry leads to its section, titled like the entry (demos add more h2 elements).
     for (const link of links) {
       const section = document.getElementById(link.getAttribute('href')?.slice(1) ?? '');
@@ -83,7 +83,9 @@ describe('StyleguidePage', { timeout: 30_000 }, () => {
 
   it('lists every contrast pair and all of them pass', () => {
     renderPage();
-    const table = screen.getByRole('table');
+    // The first table on the page; the admin demo table comes later.
+    const [table] = screen.getAllByRole('table');
+    if (!table) throw new Error('no contrast table');
     expect(within(table).getAllByRole('row')).toHaveLength(CONTRAST_PAIRS.length + 1);
     expect(within(table).queryByText('Nuk kalon')).toBeNull();
     expect(within(table).getAllByText('Kalon')).toHaveLength(CONTRAST_PAIRS.length);

@@ -28,6 +28,22 @@ tick items (with the file-editing tool) as they are finished.
    from .env, so no password is ever typed into a tool call or printed.
 6. **Styleguide.** Part A has only the frame; the admin components (KPI tile, charts, dense table,
    fill bar, confirmation dialog) get their own /styleguide section from part B on.
+7. **B1, what the numbers mean.** Revenue = demo payments by the time they succeeded, minus
+   refunds by the time they were refunded (so a refund lowers the day it happened), split into
+   food (the booking's food lines) and tickets (the rest). Tickets sold is net the same way; a
+   suite booking counts its active seats. Occupancy = seats of CONFIRMED bookings / active seats,
+   over the active shows starting on the range's local days (whole days, so later shows of today
+   count with what they sold so far). Top movies and hall types are ranked by ticket revenue.
+   "Today" is the cinema's local day; "all cinemas" uses the first cinema's time zone (all
+   seeded cinemas share Europe/Belgrade; a `shortcut:` comment marks it). The upcoming list shows
+   at most 20 shows. New migration `admin_stats_indexes`: indexes on `DemoPayment.succeededAt`
+   and `refundedAt`; five set-based queries per request, no per-row queries.
+8. **B2, charts without a library.** Own SVG components (no new dependency): `ColumnChart`
+   (stacked tickets + food, legend, hover tooltip, "Shfaq të dhënat si tabelë"), `BarList`,
+   `FillBar` (role meter), `StatTile`, `DataTable` (wide tables scroll inside their frame). Chart
+   colours `--color-chart-1` #e6566a and `--color-chart-2` #b88524, checked with a colour-vision
+   validator on the dark surfaces (the pair is in the "needs a second cue" band, so stacks have a
+   2 px gap, a legend and the table); both are in `CONTRAST_PAIRS` (3:1 for graphics).
 
 ## Progress (keep up to date)
 
@@ -45,6 +61,17 @@ tick items (with the file-editing tool) as they are finished.
   `admin-shell-manager-{desktop,mobile-390}.png`, `admin-shell-nav-drawer-mobile-390.png`,
   `admin-shell-customer-404-{desktop,mobile-390}.png`. Committed as "feat: admin shell and
   access control" (hash in docs/roadmap.md).
+- Part B: done. `GET /api/admin/stats` + migration `admin_stats_indexes` (no drift). Tests: API
+  6 (pinned clock: net revenue with a refund, suite seats, occupancy, 7/30 days, scope per role,
+  IDOR, validation); web 4 dashboard + 4 chart + 5 widgets; e2e: the manager journey now checks
+  the dashboard (period, data table, fill bars). `npm run verify` green (shared 26, api 319, web
+  407, scripts 10; coverage api 95.52% / 85.51%, web 92.10% / 82.74%; e2e 75 passed; audit
+  passed). Chrome check (dev server, Prizren manager): figures, 30 days with the data table,
+  console clean after a reload (earlier errors were hot-reload noise from mid-edit). Screenshots
+  (Playwright, installed Chrome, console clean, no overflow):
+  `admin-dashboard-30d-{desktop,mobile-390}.png`, `admin-dashboard-manager-{desktop,mobile-390}.png`,
+  `admin-dashboard-table-desktop.png`. Committed as "feat: admin dashboard with sales and
+  occupancy stats".
 
 ## Checklist
 
@@ -59,12 +86,12 @@ tick items (with the file-editing tool) as they are finished.
 
 ### Part B: Dashboard
 
-- [ ] B1 GET /api/admin/stats?location=&range=today|7d|30d (revenue, tickets, occupancy, top 5
+- [x] B1 GET /api/admin/stats?location=&range=today|7d|30d (revenue, tickets, occupancy, top 5
       movies, sales by hall type, upcoming 24 h with fill %, seat-delivery orders today; efficient
       SQL, indexes if needed)
-- [ ] B2 UI: KPI tiles, revenue chart, sales by hall type, top movies, upcoming showtimes with fill
+- [x] B2 UI: KPI tiles, revenue chart, sales by hall type, top movies, upcoming showtimes with fill
       bars; accessible charts with a data table toggle
-- [ ] Part B: verify + Chrome check + screenshots + roadmap + commit "feat: admin dashboard with
+- [x] Part B: verify + Chrome check + screenshots + roadmap + commit "feat: admin dashboard with
       sales and occupancy stats"
 
 ### Part C: Movies and poster upload (SUPER_ADMIN)

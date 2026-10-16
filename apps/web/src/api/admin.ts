@@ -1,6 +1,12 @@
 // The admin panel's API client: every call goes through the one fetch wrapper (CSRF, errors) and
 // validates the answer with the shared schemas. The server re-checks role and cinema every time.
-import { adminLocationsResponseSchema, type AdminLocation } from '@kinemax/shared';
+import {
+  adminLocationsResponseSchema,
+  statsResponseSchema,
+  type AdminLocation,
+  type StatsRange,
+  type StatsResponse,
+} from '@kinemax/shared';
 import { apiRequest } from './http';
 
 const opts = (signal?: AbortSignal) => (signal ? { signal } : {});
@@ -21,4 +27,16 @@ export async function fetchAdminLocations(signal?: AbortSignal): Promise<AdminLo
     ...opts(signal),
   });
   return res.locations;
+}
+
+/** Dashboard numbers for one cinema, or all the caller's cinemas when `location` is null. */
+export function fetchStats(
+  location: string | null,
+  range: StatsRange,
+  signal?: AbortSignal,
+): Promise<StatsResponse> {
+  return apiRequest(`/api/admin/stats${adminQuery({ location, range })}`, {
+    schema: statsResponseSchema,
+    ...opts(signal),
+  });
 }

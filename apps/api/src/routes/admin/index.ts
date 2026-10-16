@@ -5,9 +5,10 @@ import type { AdminLocationsResponse } from '@kinemax/shared';
 import { Router } from 'express';
 import { requireRole } from '../../http/auth-middleware.js';
 import { type AdminDeps, locationScope, staffUser } from './common.js';
+import { createStatsHandler } from './stats.js';
 
 export function createAdminRouter(deps: AdminDeps): Router {
-  const { prisma } = deps;
+  const { prisma, now } = deps;
   const router = Router();
   router.use(requireRole('SUPER_ADMIN', 'LOCATION_MANAGER'));
 
@@ -21,6 +22,8 @@ export function createAdminRouter(deps: AdminDeps): Router {
     const body: AdminLocationsResponse = { locations };
     res.json(body);
   });
+
+  router.get('/stats', createStatsHandler(prisma, now));
 
   return router;
 }

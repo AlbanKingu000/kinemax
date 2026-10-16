@@ -22,6 +22,25 @@ test.describe('a cinema manager', () => {
     const switcher = page.getByRole('combobox', { name: 'Kinemaja' });
     await expect(switcher).toBeVisible();
     await expect(switcher.getByRole('option')).toHaveText(['Kinemax Ferizaj']);
+    // The dashboard of their cinema: key figures, the chart with its table, the next shows.
+    await expect(page.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeVisible();
+    await expect(page.getByText('Kinemaja: Kinemax Ferizaj')).toBeVisible();
+    await expect(page.getByText('Bileta të shitura')).toBeVisible();
+    await page.getByRole('button', { name: '7 ditë' }).click();
+    await expect(page.getByRole('button', { name: '7 ditë' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await page.getByRole('button', { name: 'Shfaq të dhënat si tabelë' }).click();
+    await expect(
+      page.getByRole('table', { name: 'Të ardhurat sipas ditës' }).getByRole('row'),
+    ).toHaveCount(8);
+    await expect(
+      page
+        .getByRole('table', { name: 'Shfaqjet në 24 orët e ardhshme' })
+        .getByRole('meter')
+        .first(),
+    ).toBeVisible();
     if (isMobile) {
       await page.getByRole('button', { name: 'Hap menynë e administrimit' }).click();
     }

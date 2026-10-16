@@ -32,6 +32,12 @@
   --color-seat-piping: #c9a46a; /* gold piping of the VIP recliners (3D only) */
   --color-seat-couple: #a3354b; /* rose velvet loveseat */
 
+  /* Admin charts: categorical series in a fixed order (1 = tickets, 2 = food), validated for
+     colour-vision deficiencies on the dark surfaces; stacks always add a 2px gap and a legend. */
+  --color-chart-1: #e6566a;
+  --color-chart-2: #b88524;
+  --color-chart-track: #2a2427; /* unfilled part of a fill bar */
+
   /* Status (tuned for dark backgrounds) */
   --color-success: #4fbf8a;
   --color-warning: #e3b341;

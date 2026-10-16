@@ -55,7 +55,8 @@ export type ContrastUse =
   | 'deepPanel'
   | 'toast'
   | 'badge'
-  | 'seat';
+  | 'seat'
+  | 'chart';
 
 export interface ContrastPair {
   foreground: string;
@@ -109,4 +110,7 @@ export const CONTRAST_PAIRS: readonly ContrastPair[] = [
   pair('color-on-crimson', 'color-seat-standard', 'seat'),
   pair('color-on-crimson', 'color-seat-vip', 'seat'),
   pair('color-on-crimson', 'color-seat-couple', 'seat'),
+  // Admin charts: the two series (tickets, food) and the fill bars are graphics (3:1).
+  ...onPageBackgrounds('color-chart-1', AA_NON_TEXT, 'chart'),
+  ...onPageBackgrounds('color-chart-2', AA_NON_TEXT, 'chart'),
 ];

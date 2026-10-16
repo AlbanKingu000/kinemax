@@ -1,0 +1,37 @@
+.tile {
+  display: grid;
+  gap: var(--space-1);
+  align-content: start;
+  min-width: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-top: 2px solid var(--color-crimson);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.label,
+.value,
+.detail {
+  margin: 0;
+}
+
+.label {
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
+}
+
+/* Same sans as everything else; proportional figures for one big number. */
+.value {
+  color: var(--color-text);
+  font-size: var(--text-h4);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+  overflow-wrap: anywhere;
+}
+
+.detail {
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
+}

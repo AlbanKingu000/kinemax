@@ -26,6 +26,7 @@ const sq = {
     shell: 'Pjesët e faqes',
     home: 'Faqja kryesore',
     booking: 'Zgjedhja e ulëseve',
+    admin: 'Paneli i administrimit',
   },
   logo: {
     full: 'Logoja e plotë',
@@ -47,6 +48,7 @@ const sq = {
       crimson: 'E kuqja',
       status: 'Gjendjet',
       seats: 'Ulëset (harta 2D, legjenda, salla 3D)',
+      chart: 'Grafikët e panelit (bileta, ushqim, sfondi i shiritave)',
     },
     contrastHeading: 'Kontrasti (WCAG AA)',
     contrastIntro:
@@ -74,6 +76,7 @@ const sq = {
       toast: 'Njoftimet',
       badge: 'Etiketat',
       seat: 'Ulëset në hartë',
+      chart: 'Grafikët e panelit',
     },
   },
   typography: {
@@ -282,6 +285,28 @@ const sq = {
     mapNote:
       'Të gjitha gjendjet: e lirë, VIP, divan për dy, hapësirë për karrige me rrota, ulëse shoqëruese, e zgjedhur dhe e zënë. Shigjetat lëvizin, Enter/Space zgjedh.',
   },
+  admin: {
+    tiles: 'Shifrat kryesore',
+    tilesNote: 'Etiketa, vlera dhe një rresht shpjegues; e njëjta shkronjë si teksti.',
+    chart: 'Grafiku me kolona',
+    chartNote:
+      'SVG i yni: dy seri me një hapësirë 2 px mes tyre, legjendë, shpjegim kur kalon miun dhe tabelë me të dhënat.',
+    bars: 'Lista me shirita dhe mbushja',
+    table: 'Tabela e dendur',
+    tableNote: 'Tabelat e gjera rrëshqasin brenda kornizës së tyre, jo e gjithë faqja.',
+    revenue: 'Të ardhurat',
+    tickets: 'Bileta',
+    food: 'Ushqim',
+    total: 'Gjithsej',
+    day: 'Dita',
+    occupancy: 'Mbushja',
+    sold: '312 nga 540 ulëse',
+    hallTypes: 'Shitjet sipas llojit të sallës',
+    shows: 'Shfaqjet e ardhshme',
+    time: 'Ora',
+    movie: 'Filmi',
+    fill: 'Mbushja',
+  },
   hero: {
     eyebrow: 'Tani në kinema',
     title: 'Drita e projektorit, vetëm për ty',
@@ -316,6 +341,7 @@ const en: StyleguideMessages = {
     shell: 'Page parts',
     home: 'Home page',
     booking: 'Seat selection',
+    admin: 'Admin panel',
   },
   logo: {
     full: 'Full logo',
@@ -337,6 +363,7 @@ const en: StyleguideMessages = {
       crimson: 'Crimson',
       status: 'Status',
       seats: 'Seats (2D map, legend, 3D hall)',
+      chart: 'Admin charts (tickets, food, bar track)',
     },
     contrastHeading: 'Contrast (WCAG AA)',
     contrastIntro: 'Every color pair the interface uses. The same check runs as an automated test.',
@@ -363,6 +390,7 @@ const en: StyleguideMessages = {
       toast: 'Toasts',
       badge: 'Badges',
       seat: 'Seat map',
+      chart: 'Admin charts',
     },
   },
   typography: {
@@ -570,6 +598,28 @@ const en: StyleguideMessages = {
     map: '2D seat map',
     mapNote:
       'Every state: available, VIP, couple sofa, wheelchair space, companion seat, selected and taken. Arrow keys move, Enter/Space selects.',
+  },
+  admin: {
+    tiles: 'Key figures',
+    tilesNote: 'A label, a value and an explaining line; the same typeface as the text.',
+    chart: 'Column chart',
+    chartNote:
+      'Our own SVG: two series with a 2 px gap, a legend, a hover tooltip and a data table.',
+    bars: 'Bar list and fill',
+    table: 'Dense table',
+    tableNote: 'Wide tables scroll inside their own frame, never the whole page.',
+    revenue: 'Revenue',
+    tickets: 'Tickets',
+    food: 'Food',
+    total: 'Total',
+    day: 'Day',
+    occupancy: 'Occupancy',
+    sold: '312 of 540 seats',
+    hallTypes: 'Sales by hall type',
+    shows: 'Upcoming shows',
+    time: 'Time',
+    movie: 'Movie',
+    fill: 'Fill',
   },
   hero: {
     eyebrow: 'Now showing',
