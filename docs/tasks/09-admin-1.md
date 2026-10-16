@@ -263,7 +263,7 @@ with the file-editing tool.
 WORKING RULES: work autonomously; when a decision would need me, take the safest option and record
 it under "DECISIONS TO CONFIRM" at the top of the task file. Never do anything destructive. After
 EACH part: npm run verify, real Chrome check (desktop + ~390px, console clean), screenshots into
-C:\Users\albanme\Desktop\kinemax-screenshots\ prefixed "admin-", update docs/roadmap.md, commit the
+%USERPROFILE%\Desktop\kinemax-screenshots\ prefixed "admin-", update docs/roadmap.md, commit the
 part. When ALL parts are done and verify is green, push to origin (per CLAUDE.md).
 
 SECURITY (strict, this is the most sensitive area):

@@ -57,5 +57,6 @@ export default defineConfig({
   },
   server: { port: 5180, strictPort: true, proxy },
   preview: { port: 4173, strictPort: true, proxy },
-  build: { sourcemap: true },
+  // No source maps in production: the public repo is the source, the bundle stays minified only.
+  build: { sourcemap: false },
 });

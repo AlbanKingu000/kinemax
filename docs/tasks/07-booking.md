@@ -187,7 +187,7 @@ WORKING RULES FOR THIS TASK
   docs/tasks/07-booking.md, and continue. Never do anything destructive (deleting data, resetting
   databases other than kinemax_test, force operations) without me.
 - After EACH part: npm run verify must pass, then the real Chrome check (desktop + ~390px, console
-  clean), screenshots into C:\Users\albanme\Desktop\kinemax-screenshots\, update docs/roadmap.md,
+  clean), screenshots into %USERPROFILE%\Desktop\kinemax-screenshots\, update docs/roadmap.md,
   and commit that part on its own.
 - Design: premium dark, black + deep crimson, design-system components only. Security: CLAUDE.md
   rules strictly.

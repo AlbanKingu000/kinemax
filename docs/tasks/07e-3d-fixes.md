@@ -98,7 +98,7 @@ items as they are finished.
   390 px were checked with the Playwright script driving the installed Google Chrome (headed,
   GPU) against the dev server: console clean at 1440 and 390 px; at 390 px the panel sits under
   the view and fades without moving the page.
-- Screenshots in `C:\Users\albanme\Desktop\kinemax-screenshots\`: `polish2-3d-{standard,vip,grand,
+- Screenshots in `%USERPROFILE%\Desktop\kinemax-screenshots\`: `polish2-3d-{standard,vip,grand,
 suite}.png`, `polish2-seat-{…}.png`, `polish2-seat-hidden-panel.png` (mid-drag, panel hidden, tag
   "H9"), `polish2-transition-1/2/3.png` (start, 50%, arrival).
 
@@ -183,7 +183,7 @@ e2e: drag in the seat view hides the panel and it returns after stopping; keyboa
 panel keeps it visible.
 
 DEFINITION OF DONE: npm run verify passes. Chrome check (console clean). New screenshots in
-C:\Users\albanme\Desktop\kinemax-screenshots\: polish2-3d-<type>.png and polish2-seat-<type>.png
+%USERPROFILE%\Desktop\kinemax-screenshots\: polish2-3d-<type>.png and polish2-seat-<type>.png
 for standard, vip, grand, suite, plus polish2-seat-hidden-panel.png (mid-drag, panel hidden) and
 polish2-transition-1/2/3.png. Update docs/roadmap.md. Commit: "fix: auto-hiding seat view panel,
 framing, transition path and VIP readability"

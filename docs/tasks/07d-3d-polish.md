@@ -91,7 +91,7 @@ finished.
   and the screenshots were done with a Playwright script driving the installed Google Chrome
   (headed, GPU) against the dev server; console clean there too.
 - Screenshots: `polish-3d-{standard,vip,grand,suite}.png`, `polish-seat-{…}.png`,
-  `polish-transition-1/2/3.png` in `C:\Users\albanme\Desktop\kinemax-screenshots\`.
+  `polish-transition-1/2/3.png` in `%USERPROFILE%\Desktop\kinemax-screenshots\`.
 
 ## Checklist
 
@@ -201,7 +201,7 @@ TESTS
 - Keep everything else green.
 
 DEFINITION OF DONE: npm run verify passes. Real Chrome check at desktop and ~390px (console clean).
-Screenshots in C:\Users\albanme\Desktop\kinemax-screenshots\: for each hall type (standard, vip,
+Screenshots in %USERPROFILE%\Desktop\kinemax-screenshots\: for each hall type (standard, vip,
 grand, suite) the overview ("polish-3d-<type>.png") and the seat view ("polish-seat-<type>.png"),
 plus 3 frames of one seat transition at the start, middle and end ("polish-transition-1/2/3.png").
 Update docs/roadmap.md. Commit: "feat: cinematic 3D hall and locked seat view"

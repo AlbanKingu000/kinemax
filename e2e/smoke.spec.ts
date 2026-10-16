@@ -8,6 +8,11 @@ test('home page loads in Albanian with the site shell', async ({ page }) => {
     }
   });
   page.on('pageerror', (error) => problems.push(`pageerror: ${error.message}`));
+  await page.addInitScript(() => {
+    document.addEventListener('securitypolicyviolation', (event) => {
+      console.error(`CSP violation: ${event.violatedDirective}`);
+    });
+  });
 
   await page.goto('/');
 

@@ -204,7 +204,7 @@ unchecked item. Tick items with the file-editing tool (not shell commands) as yo
 WORKING RULES: work autonomously. When a decision would normally need me, take the safest option
 and record it under "DECISIONS TO CONFIRM" at the top of the task file. Never do anything
 destructive. After EACH part: npm run verify passes, real Chrome check (desktop + ~390px, console
-clean), screenshots into C:\Users\albanme\Desktop\kinemax-screenshots\ with the prefix "checkout-",
+clean), screenshots into %USERPROFILE%\Desktop\kinemax-screenshots\ with the prefix "checkout-",
 update docs/roadmap.md, commit that part on its own. Security rules from CLAUDE.md apply strictly:
 the client never sends prices, every write needs auth + CSRF + ownership checks, other users'
 bookings → 404.
