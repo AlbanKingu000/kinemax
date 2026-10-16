@@ -15,6 +15,8 @@ import {
 } from './admin-location';
 import { AdminLayout } from './AdminLayout';
 import { DashboardPage } from './DashboardPage';
+import { MovieEditPage } from './MovieEditPage';
+import { MoviesPage } from './MoviesPage';
 
 /** Loads the cinemas the user may manage and keeps the switcher's choice. */
 function AdminLocationProvider({ children }: { children: ReactNode }) {
@@ -93,7 +95,13 @@ export default function AdminApp() {
       <Routes>
         <Route element={<AdminLayout />}>
           <Route index element={<DashboardPage />} />
-          {superAdmin && <Route path="movies" element={<AdminPlaceholder section="movies" />} />}
+          {superAdmin && (
+            <>
+              <Route path="movies" element={<MoviesPage />} />
+              <Route path="movies/new" element={<MovieEditPage />} />
+              <Route path="movies/:id" element={<MovieEditPage />} />
+            </>
+          )}
           <Route path="showtimes" element={<AdminPlaceholder section="showtimes" />} />
           <Route path="halls" element={<AdminPlaceholder section="halls" />} />
           <Route path="*" element={<AdminNotFound />} />

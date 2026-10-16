@@ -1,4 +1,6 @@
 import { randomBytes } from 'node:crypto';
+import { mkdirSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { createApp } from './app.js';
 import { SESSION_CLEANUP_INTERVAL_MS } from './auth/auth-config.js';
 import { createSessionService, startSessionCleanup } from './auth/sessions.js';
@@ -29,6 +31,10 @@ if (csrfSecret === undefined) {
   logger.info('CSRF_SECRET not set: using a random key for this process');
 }
 
+// Uploaded images live outside the web build and outside the repository's tracked files.
+const uploadsDir = resolve(env.UPLOADS_DIR ?? resolve(dirname(rootEnvPath), 'uploads'));
+mkdirSync(uploadsDir, { recursive: true });
+
 const prisma = createPrismaClient(env.DATABASE_URL);
 const sessions = createSessionService(prisma);
 const app = createApp({
@@ -36,6 +42,7 @@ const app = createApp({
   checkDatabase: createDatabaseCheck(prisma),
   logger,
   corsAllowedOrigins: env.CORS_ALLOWED_ORIGINS,
+  uploadsDir,
   auth: {
     sessions,
     cookieSecure: env.COOKIE_SECURE,

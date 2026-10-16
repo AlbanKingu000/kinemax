@@ -50,6 +50,8 @@ const envSchema = z
     CSRF_SECRET: z.string().min(CSRF_SECRET_MIN_LENGTH).optional(),
     /** Number of reverse proxies in front of the API whose X-Forwarded-For is trusted. */
     TRUST_PROXY: z.coerce.number().int().min(0).max(10).default(0),
+    /** Directory for uploaded movie images; default: uploads/ in the repository (git-ignored). */
+    UPLOADS_DIR: z.string().trim().min(1).optional(),
   })
   .superRefine((env, ctx) => {
     const name = databaseNameFromUrl(env.DATABASE_URL);

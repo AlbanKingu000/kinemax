@@ -102,6 +102,8 @@ become invalid after an API restart, the client fetches a new one).
   | demo payment per IP         | 120 per 10 minutes | `POST /api/payments/:id/simulate`   |
   | cancellation per user       | 10 per 10 minutes  | `POST /api/bookings/:id/cancel`     |
   | cancellation per IP         | 60 per 10 minutes  | `POST /api/bookings/:id/cancel`     |
+  | admin writes per staff user | 300 per 10 minutes | every admin POST/PATCH/PUT/DELETE   |
+  | sensitive admin actions     | 30 per 10 minutes  | uploads, deletes, refunds, layouts  |
 
   Behind a reverse proxy set `TRUST_PROXY` to the number of proxies, or every client shares the
   proxy's IP.

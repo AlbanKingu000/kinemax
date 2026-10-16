@@ -81,6 +81,8 @@ export default defineConfig({
         PORT: String(API_PORT),
         // State-changing requests must come from the web origin (the preview server).
         APP_ORIGIN: `http://localhost:${String(WEB_PORT)}`,
+        // Uploads of the admin specs stay in the run's output, never in the dev uploads folder.
+        UPLOADS_DIR: 'test-results/e2e-uploads',
       },
       reuseExistingServer: false,
       timeout: 120_000,

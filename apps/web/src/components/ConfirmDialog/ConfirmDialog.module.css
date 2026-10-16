@@ -1,0 +1,22 @@
+.body {
+  display: grid;
+  gap: var(--space-3);
+  color: var(--color-text);
+}
+
+.body p {
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+.error {
+  margin: var(--space-3) 0 0;
+  color: var(--color-error);
+  font-size: var(--text-body-sm);
+}

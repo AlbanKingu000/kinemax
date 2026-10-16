@@ -99,7 +99,10 @@ erDiagram
 
 - `Movie`: slug, titles and synopses (sq/en), duration, age rating, genres, release date, poster and
   backdrop paths, optional YouTube trailer id (played via youtube-nocookie.com only after a click),
-  director, cast, status (COMING_SOON, NOW_SHOWING, ARCHIVED).
+  director, cast, status (COMING_SOON, NOW_SHOWING, ARCHIVED). Seed images live in the web app
+  (`/seed/...`); images uploaded in the admin panel are files in `UPLOADS_DIR` (outside the web
+  build, git-ignored), served as `/api/media/<uuid>.<jpg|png|webp>`. A movie with showtimes is
+  archived, never deleted (the showtime foreign key is RESTRICT as well).
 - `Showtime`: movie, hall, `startsAt`, `endsAt` (duration + cleaning buffer), format (2D/3D),
   language version, active flag.
 

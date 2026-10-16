@@ -14,6 +14,7 @@ import { createBookingsRouter, type BookingRateLimits } from './routes/bookings.
 import { createCatalogRouter } from './routes/catalog.js';
 import { createCheckoutRouter, type CheckoutRateLimits } from './routes/checkout.js';
 import { createHealthRouter } from './routes/health.js';
+import { createMediaRouter } from './routes/media.js';
 import { createMenuRouter } from './routes/menu.js';
 import { createMyBookingsRouter, type CancelRateLimits } from './routes/my-bookings.js';
 import { ADMIN_RATE_LIMITS, type AdminRateLimits } from './routes/admin/common.js';
@@ -52,6 +53,8 @@ export interface AppDeps {
   checkoutRateLimits?: CheckoutRateLimits;
   /** Cancellation rate limits (default CANCEL_RATE_LIMITS). */
   cancelRateLimits?: CancelRateLimits;
+  /** Directory of uploaded movie images (outside the web build). */
+  uploadsDir: string;
   /** Admin write rate limits (default ADMIN_RATE_LIMITS). */
   adminRateLimits?: AdminRateLimits;
 }
@@ -67,6 +70,7 @@ export function createApp({
   checkoutRateLimits,
   cancelRateLimits,
   adminRateLimits = ADMIN_RATE_LIMITS,
+  uploadsDir,
 }: AppDeps): Express {
   const app = express();
   const cookies = cookieSettings(auth.cookieSecure);
@@ -139,7 +143,11 @@ export function createApp({
       ...(cancelRateLimits ? { rateLimits: cancelRateLimits } : {}),
     }),
   );
-  app.use('/api/admin', createAdminRouter({ prisma, logger, now, rateLimits: adminRateLimits }));
+  app.use('/api', createMediaRouter(uploadsDir));
+  app.use(
+    '/api/admin',
+    createAdminRouter({ prisma, logger, now, rateLimits: adminRateLimits, uploadsDir }),
+  );
   app.use('/api', createProtectedExamplesRouter(prisma));
 
   app.use(notFoundHandler);

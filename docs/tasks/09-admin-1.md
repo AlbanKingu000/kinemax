@@ -44,6 +44,33 @@ tick items (with the file-editing tool) as they are finished.
    colours `--color-chart-1` #e6566a and `--color-chart-2` #b88524, checked with a colour-vision
    validator on the dark surfaces (the pair is in the "needs a second cue" band, so stacks have a
    2 px gap, a legend and the table); both are in `CONTRAST_PAIRS` (3:1 for graphics).
+9. **C1, movie rules.** Movie routes are SUPER_ADMIN only (managers get 403 like customers;
+   "Filmat" is hidden for them). Delete is allowed only for a movie that never had a showtime
+   (409 otherwise); "archive" sets the status ARCHIVED after a dialog that says how many
+   upcoming shows **stay active**: archiving does not cancel bookings (deactivating shows with
+   refunds is part D's job, done show by show). Changing the duration does not move existing
+   shows. The slug is filled from the Albanian title until edited; a duplicate is 409.
+10. **C2, no re-encoding (TO CONFIRM).** Re-encoding would need `sharp`, which has an install
+    script, so it was not added. Instead every upload is checked from its bytes: JPEG/PNG/WebP
+    signature, a full structural walk to the format's end marker (any byte after it, e.g. an
+    appended script, is rejected: polyglots), dimensions (poster at least 300 × 450, backdrop at
+    least 1280 × 720, at most 8000 px a side), 5 MB (413 above). Metadata is removed without
+    touching the pixels (JPEG APP1/APP13/comments, PNG text/eXIf/tIME chunks, WebP EXIF/XMP
+    chunks). Limit: pixel data is not decoded, so a structurally valid file with broken pixels is
+    accepted (the browser shows nothing). If you approve `sharp`, re-encoding replaces this.
+11. **C2, storage and serving.** Files get random UUID names with the extension of the detected
+    type, live in `UPLOADS_DIR` (default `uploads/` in the repository, git-ignored; tests use a
+    temp folder, e2e `test-results/e2e-uploads`), and are served only by
+    `GET /api/media/<uuid>.<ext>` with the type of that extension, `nosniff`,
+    `Content-Security-Policy: default-src 'none'; sandbox` and a one-year immutable cache.
+    Replaced files are deleted after the database change; a deleted movie takes its files along.
+    Upload rate limit: the "sensitive" admin limit (30 per 10 minutes per admin).
+12. **C2, client.** The panel uploads the file's bytes as the request body (the one fetch
+    wrapper now sends a `Blob` as is), with the same CSRF header as every write.
+13. **Overflow checks at 390 px.** Mobile emulation zooms out to fit a page that is too wide, so
+    `scrollWidth <= innerWidth` never fails there. The admin e2e and the screenshot script now
+    compare with the configured width; that found a visually hidden table header escaping its
+    scroll frame (fixed in `DataTable`).
 
 ## Progress (keep up to date)
 
@@ -72,6 +99,22 @@ tick items (with the file-editing tool) as they are finished.
   `admin-dashboard-30d-{desktop,mobile-390}.png`, `admin-dashboard-manager-{desktop,mobile-390}.png`,
   `admin-dashboard-table-desktop.png`. Committed as "feat: admin dashboard with sales and
   occupancy stats".
+- Part C: done. API: `/api/admin/movies` (list/search/filter, detail, create, edit, delete or
+  archive), `POST /api/admin/movies/:id/images/:kind`, `GET /api/media/:file`, `UPLOADS_DIR`;
+  domain `image-file.ts` (signature, structure, size, metadata stripping). Tests: API 11 movies
+  integration (CRUD + audit, validation, archive rules, every role refused incl. both managers,
+  SVG/fake extension/polyglot/sizes/empty/oversized, metadata gone, media headers, no
+  traversal, cleanup, rate limit) + 6 image domain; shared 4; web 7 (list, filters, error
+  summary, create, slug conflict, archive dialog, upload errors) + new components; e2e 1 × 2
+  (create archived movie → SVG rejected → PNG poster served with nosniff → delete, file gone).
+  `npm run verify` green (shared 30 at 100%, api 336, web 414, scripts 10; coverage api 94.93% /
+  84.73%, web 91.57% / 82.04%; e2e 77 passed; audit passed). Chrome check (dev server, seed
+  super admin): list, form error summary, create "Drita e Veriut" (archived), real PNG upload
+  with preview, delete dialog → deleted, the file removed from `uploads/`; console clean.
+  Screenshots (console clean, no overflow with the strict check): `admin-movies-list-{desktop,mobile-390}.png`,
+  `admin-movie-edit-{desktop,mobile-390}.png`, `admin-movie-delete-dialog-desktop.png`,
+  `admin-movie-form-errors-desktop.png`; the 390 px shots of parts A/B were retaken with the
+  strict check. Committed as "feat: admin movies with secure poster upload".
 
 ## Checklist
 
@@ -96,11 +139,11 @@ tick items (with the file-editing tool) as they are finished.
 
 ### Part C: Movies and poster upload (SUPER_ADMIN)
 
-- [ ] C1 List/search/filter movies; create/edit; archive instead of delete when it has showtimes
-- [ ] C2 Secure poster/backdrop upload (magic bytes, 5 MB, dimensions, no SVG, random names,
+- [x] C1 List/search/filter movies; create/edit; archive instead of delete when it has showtimes
+- [x] C2 Secure poster/backdrop upload (magic bytes, 5 MB, dimensions, no SVG, random names,
       stored outside the build, controlled route with nosniff + caching, old files cleaned up)
-- [ ] C3 Tests (fake extension, polyglot, oversized, wrong dimensions, svg, IDOR/role, archive)
-- [ ] Part C: verify + Chrome check + screenshots + roadmap + commit "feat: admin movies with
+- [x] C3 Tests (fake extension, polyglot, oversized, wrong dimensions, svg, IDOR/role, archive)
+- [x] Part C: verify + Chrome check + screenshots + roadmap + commit "feat: admin movies with
       secure poster upload"
 
 ### Part D: Showtimes (managers for their locations)

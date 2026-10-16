@@ -1,5 +1,5 @@
 import { fireEvent, screen, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   ADMIN_LOCATIONS,
   managerUser,
@@ -9,6 +9,11 @@ import {
 } from '../test/admin';
 import { renderApp } from '../test/catalog';
 import { LOCATION_STORAGE_KEY } from '../location/location-storage';
+
+// The panel is a lazy chunk: load it once, so the first test does not spend its wait on it.
+beforeAll(async () => {
+  await import('./AdminApp');
+});
 
 beforeEach(() => {
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);

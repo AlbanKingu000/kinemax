@@ -1,6 +1,9 @@
 // Builds the real app for tests (against kinemax_test) plus small helpers for authenticated and
 // CSRF-protected requests with Supertest.
 import { randomBytes } from 'node:crypto';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { CSRF_HEADER } from '@kinemax/shared';
 import request from 'supertest';
 import { inject, vi, type Mock } from 'vitest';
@@ -56,6 +59,8 @@ export function makeTestApp(
     checkDatabase: options.checkDatabase ?? (() => Promise.resolve()),
     logger,
     corsAllowedOrigins: options.corsAllowedOrigins ?? [],
+    // A fresh directory per app: uploads never reach the repository.
+    uploadsDir: mkdtempSync(join(tmpdir(), 'kinemax-uploads-')),
     auth: {
       sessions: createSessionService(prisma, options.now),
       cookieSecure: options.cookieSecure ?? false,
@@ -70,7 +75,7 @@ export function makeTestApp(
     ...(options.cancelRateLimits ? { cancelRateLimits: options.cancelRateLimits } : {}),
     ...(options.adminRateLimits ? { adminRateLimits: options.adminRateLimits } : {}),
   };
-  return { app: createApp(deps), logger, prisma };
+  return { app: createApp(deps), logger, prisma, uploadsDir: deps.uploadsDir };
 }
 
 /** A cookie-keeping client with the CSRF token of its current session. */

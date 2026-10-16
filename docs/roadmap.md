@@ -25,7 +25,8 @@ task is finished, move it to DONE with its commit hash.
 | Demo payment + booking confirmation with QR (task 8 part B)          | `0affa34`            |
 | My tickets with QR codes + cancellation with refund (task 8 part C)  | `1b1f76e`            |
 | Admin shell + access control (task 9 part A)                         | `df5c1de`            |
-| Admin dashboard: sales and occupancy stats (task 9 part B)           | this commit          |
+| Admin dashboard: sales and occupancy stats (task 9 part B)           | `004687b`            |
+| Admin movies + secure poster/backdrop upload (task 9 part C)         | this commit          |
 
 ## Next (in this order)
 

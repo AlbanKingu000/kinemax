@@ -65,6 +65,7 @@ const STATE_CHANGING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 interface RequestOptions<T> {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  /** JSON-encoded, or sent as is when it is a Blob/File (uploads; the server reads the bytes). */
   body?: unknown;
   /** Validates a JSON answer; omit for empty answers (204). */
   schema?: ZodType<T>;
@@ -78,14 +79,17 @@ export async function apiRequest<T = undefined>(
 ): Promise<T> {
   const send = async (token: string | null) => {
     const headers: Record<string, string> = { Accept: 'application/json' };
-    if (body !== undefined) headers['Content-Type'] = 'application/json';
+    const raw = body instanceof Blob;
+    if (body !== undefined) {
+      headers['Content-Type'] = raw ? body.type || 'application/octet-stream' : 'application/json';
+    }
     if (token) headers[CSRF_HEADER] = token;
     try {
       return await fetch(path, {
         method,
         headers,
         credentials: 'same-origin',
-        ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+        ...(body !== undefined ? { body: raw ? body : JSON.stringify(body) } : {}),
         ...(signal ? { signal } : {}),
       });
     } catch (error) {

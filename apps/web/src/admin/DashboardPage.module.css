@@ -1,5 +1,7 @@
 .page {
   display: grid;
+  /* minmax(0, …): wide tables scroll inside their frame instead of widening the page. */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-5);
   min-width: 0;
 }

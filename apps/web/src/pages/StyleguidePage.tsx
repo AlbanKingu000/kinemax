@@ -11,9 +11,11 @@ import {
 import { AGE_RATINGS, LANGUAGE_VERSIONS } from '../components/Badge/movie-labels';
 import { BarList } from '../components/BarList/BarList';
 import { ColumnChart } from '../components/ColumnChart/ColumnChart';
+import { ConfirmDialog } from '../components/ConfirmDialog/ConfirmDialog';
 import { DataTable } from '../components/DataTable/DataTable';
 import { FillBar } from '../components/FillBar/FillBar';
 import { StatTile } from '../components/StatTile/StatTile';
+import { Textarea } from '../components/Textarea/Textarea';
 import { formatPrice } from '../i18n/format';
 import { Button, ButtonLink } from '../components/Button/Button';
 import { Card } from '../components/Card/Card';
@@ -194,6 +196,7 @@ function Token({ children }: { children: ReactNode }) {
 
 export function StyleguidePage() {
   const { locale } = useLocale();
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const s = styleguideMessages[locale];
   const toast = useToast();
   const t = messages[locale];
@@ -1305,6 +1308,40 @@ export function StyleguidePage() {
                   ]}
                 />
                 <FillBar value={312} max={540} label={s.admin.occupancy} />
+              </Sub>
+              <Sub title={s.admin.textarea}>
+                <FormField label={s.admin.synopsis}>
+                  {(props) => (
+                    <Textarea {...props} rows={3} defaultValue="Një roje fari dhe një stuhi." />
+                  )}
+                </FormField>
+              </Sub>
+              <Sub title={s.admin.confirm} note={s.admin.confirmNote}>
+                <div>
+                  <Button
+                    variant="secondary"
+                    icon="warning"
+                    onClick={() => {
+                      setConfirmOpen(true);
+                    }}
+                  >
+                    {s.admin.confirmOpen}
+                  </Button>
+                </div>
+                <ConfirmDialog
+                  open={confirmOpen}
+                  title={s.admin.confirmTitle}
+                  confirmLabel={s.admin.confirmYes}
+                  cancelLabel={s.admin.cancel}
+                  onConfirm={() => {
+                    setConfirmOpen(false);
+                  }}
+                  onCancel={() => {
+                    setConfirmOpen(false);
+                  }}
+                >
+                  <p>{s.admin.confirmBody}</p>
+                </ConfirmDialog>
               </Sub>
               <Sub title={s.admin.table} note={s.admin.tableNote}>
                 <DataTable caption={s.admin.shows}>

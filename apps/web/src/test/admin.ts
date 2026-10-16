@@ -1,5 +1,5 @@
 // Fakes for admin panel tests: staff users, their cinemas and a default /api/admin answer.
-import type { AdminLocation, AuthUser, StatsResponse } from '@kinemax/shared';
+import type { AdminLocation, AdminMovie, AuthUser, StatsResponse } from '@kinemax/shared';
 import { stubAuth, testUser } from './auth';
 import type { CatalogStub } from './catalog';
 
@@ -96,6 +96,31 @@ export function statsFixture(overrides: Partial<StatsResponse> = {}): StatsRespo
       },
     ],
     seatDeliveryOrdersToday: 1,
+    ...overrides,
+  };
+}
+
+/** An admin movie for tests (a released movie with shows). */
+export function adminMovie(overrides: Partial<AdminMovie> = {}): AdminMovie {
+  return {
+    id: '0190f0a0-0000-7000-8000-00000000d001',
+    slug: 'fanari-i-heshtur',
+    titleSq: 'Fanari i Heshtur',
+    titleEn: 'The Silent Lighthouse',
+    synopsisSq: 'Një roje fari dhe një stuhi.',
+    synopsisEn: null,
+    durationMinutes: 112,
+    ageRating: 'AGE_12',
+    genres: ['DRAMA'],
+    releaseDate: '2026-09-01',
+    director: 'Regjisore Demo',
+    cast: ['Aktore Një'],
+    status: 'NOW_SHOWING',
+    trailerYoutubeId: null,
+    posterPath: null,
+    backdropPath: null,
+    showtimeCount: 12,
+    upcomingShowtimeCount: 4,
     ...overrides,
   };
 }

@@ -1,4 +1,6 @@
 .frame {
+  /* Containing block for visually hidden header text, so it cannot widen the page. */
+  position: relative;
   max-width: 100%;
   overflow-x: auto;
   border: 1px solid var(--color-border);

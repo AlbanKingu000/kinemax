@@ -25,6 +25,8 @@ export interface AdminDeps {
   logger: Logger;
   now: () => Date;
   rateLimits: AdminRateLimits;
+  /** Where uploaded movie images are stored (outside the web build). */
+  uploadsDir: string;
 }
 
 /** The signed-in staff member (admin routers run after requireRole). */
