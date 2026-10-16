@@ -34,13 +34,25 @@ task is finished, move it to DONE with its commit hash.
 | Admin food management and seat-delivery list (task 10 part B)        | `d317819`            |
 | QR ticket check-in at the entrance (task 10 part C)                  | `4d6d1e6`            |
 | Admin users and audit log (task 10 part D)                           | `e48cf2a`            |
+| Security review, route inventory test, strict CSP (task 11)          | `56a9a3b`            |
+| Production readiness: API serves the web build (task 11)             | `a0b7e51`            |
+| Cleanup, dev database reset, portfolio README, v1.0.0 (task 11)      | `a7b27cb`, `0729733` |
 
-## Next (in this order)
+## Next
 
-1. Final security review + README
+Nothing planned: v1.0.0 (tag `v1.0.0`) is the portfolio release. Production TODOs are listed in
+[security.md](security.md#production-todos-known-not-done).
 
-Out of scope for now (task 8): sending emails (confirmations, tickets), real payment providers
-(payments stay DEMO).
+## Future ideas
+
+- Email: booking confirmations with the ticket, email verification, password reset, 2FA for staff.
+- A real payment provider (hosted fields, signed webhooks, idempotency keys).
+- A shared store (Redis or a table) for rate limits and holds, for more than one API instance.
+- Notify customers when a booked show is deactivated.
+- Admin choice of the featured movie; per-cinema time zones in reports and the audit log.
+- Loyalty points, gift cards and promo codes.
+- Trailer ids for the seed movies; an opening 3D view from the middle of the hall.
+- A CSP report endpoint and error monitoring in production.
 
 ## Known open points
 
