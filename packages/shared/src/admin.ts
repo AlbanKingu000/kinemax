@@ -625,3 +625,67 @@ export type DeliveriesResponse = z.infer<typeof deliveriesResponseSchema>;
 export const deliveredInputSchema = z.object({ serveTiming: serveTimingSchema }).strict();
 
 export const adminMenuItemResponseSchema = z.object({ item: adminMenuItemSchema });
+
+// ---------------------------------------------------------------------------------------------
+// QR check-in at the entrance
+// ---------------------------------------------------------------------------------------------
+
+/** Check-in opens 90 minutes before the start and closes 30 minutes after it. */
+export const CHECKIN_WINDOW = { beforeMinutes: 90, afterMinutes: 30 } as const;
+
+/** "KINEMAX:ABCD 1234 …" or a typed code → the 16-character booking code. */
+export function normalizeTicketCode(input: string): string {
+  return input
+    .trim()
+    .replace(/^KINEMAX:/i, '')
+    .replace(/[\s-]/g, '')
+    .toUpperCase();
+}
+
+export const checkinInputSchema = z
+  .object({ code: z.string().min(1).max(64), locationId: z.uuid() })
+  .strict();
+export type CheckinInput = z.infer<typeof checkinInputSchema>;
+
+export const checkinRejectionSchema = z.enum([
+  'not_found',
+  'wrong_location',
+  'not_paid',
+  'cancelled',
+  'not_today',
+  'too_early',
+  'too_late',
+]);
+export type CheckinRejection = z.infer<typeof checkinRejectionSchema>;
+
+export const checkinResponseSchema = z.discriminatedUnion('result', [
+  z.object({
+    result: z.literal('ok'),
+    /** Scanned before: the same answer again, with the first scan's time. */
+    already: z.boolean(),
+    checkedInAt: z.iso.datetime({ offset: true }),
+    ticket: z.object({
+      code: z.string(),
+      movieTitleSq: z.string(),
+      movieTitleEn: z.string().nullable(),
+      ageRating: ageRatingSchema,
+      hallName: z.string(),
+      startsAt: z.iso.datetime({ offset: true }),
+      timeZone: z.string(),
+      wholeHall: z.boolean(),
+      seats: z.array(z.string()),
+      /** Food to collect at the counter. */
+      food: z.array(
+        z.object({ nameSq: z.string(), nameEn: z.string().nullable(), quantity: z.int() }),
+      ),
+    }),
+  }),
+  z.object({
+    result: z.literal('rejected'),
+    reason: checkinRejectionSchema,
+    /** The show's start, when the reason is about time. */
+    startsAt: z.iso.datetime({ offset: true }).nullable(),
+    timeZone: z.string().nullable(),
+  }),
+]);
+export type CheckinResponse = z.infer<typeof checkinResponseSchema>;

@@ -31,7 +31,7 @@ const ADMIN_NAV: readonly NavItem[] = [
   { key: 'halls', icon: 'seat', to: '/admin/halls' },
   { key: 'prices', icon: 'ticket', to: '/admin/prices', superAdminOnly: true },
   { key: 'food', icon: 'cup', to: '/admin/food' },
-  { key: 'scan', icon: 'scan' },
+  { key: 'scan', icon: 'scan', to: '/admin/scan' },
   { key: 'users', icon: 'user' },
 ];
 

@@ -21,6 +21,7 @@ import { HallsPage } from './HallsPage';
 import { MovieEditPage } from './MovieEditPage';
 import { MoviesPage } from './MoviesPage';
 import { PricesPage } from './PricesPage';
+import { ScanPage } from './ScanPage';
 import { ShowtimesPage } from './ShowtimesPage';
 
 /** Loads the cinemas the user may manage and keeps the switcher's choice. */
@@ -100,6 +101,7 @@ export default function AdminApp() {
           )}
           <Route path="showtimes" element={<ShowtimesPage />} />
           <Route path="food" element={<FoodPage />} />
+          <Route path="scan" element={<ScanPage />} />
           <Route path="halls" element={<HallsPage />} />
           <Route path="halls/:id" element={<HallEditorPage />} />
           <Route path="*" element={<AdminNotFound />} />

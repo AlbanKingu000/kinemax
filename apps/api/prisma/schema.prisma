@@ -414,6 +414,7 @@ model User {
   auditLogs        AuditLog[]
   settingsUpdates  AppSettings[]
   foodDelivered    BookingFoodItem[] @relation("FoodDeliveredBy")
+  checkIns         Booking[]         @relation("BookingCheckedInBy")
 }
 
 /// Which locations a LOCATION_MANAGER manages.
@@ -500,8 +501,12 @@ model Booking {
   updatedAt           DateTime      @updatedAt @db.Timestamptz(3)
   confirmedAt         DateTime?     @db.Timestamptz(3)
   cancelledAt         DateTime?     @db.Timestamptz(3)
+  /// Scanned at the entrance (admin check-in), and by whom.
+  checkedInAt         DateTime?     @db.Timestamptz(3)
+  checkedInById       String?       @db.Uuid
 
   user                  User                   @relation(fields: [userId], references: [id], onDelete: Restrict)
+  checkedInBy           User?                  @relation("BookingCheckedInBy", fields: [checkedInById], references: [id], onDelete: SetNull)
   showtime              Showtime               @relation(fields: [showtimeId], references: [id], onDelete: Restrict)
   seats                 BookingSeat[]
   seatReservations      SeatReservation[]

@@ -91,6 +91,10 @@ npm run dev                 # http://localhost:5180
 Missing `SEED_*` passwords are generated randomly into `.env` and never printed. Integration tests
 use their own small fixture in `kinemax_test`.
 
+The ticket scanner at `/admin/scan` uses the phone camera, which browsers only allow on **https or
+localhost** (and after the user grants permission). Elsewhere the page falls back to typing the
+ticket code.
+
 Passwords are hashed with **argon2id** via the `argon2` package: argon2id is the OWASP-recommended
 password hash, the package is widely used and ships prebuilt binaries, and Node's own
 `crypto.argon2` is still experimental and missing on Node 22.

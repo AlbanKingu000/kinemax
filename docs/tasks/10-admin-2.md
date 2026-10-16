@@ -15,8 +15,8 @@ in docs/roadmap.md.
 - [x] B per-location availability and price (manager)
 - [x] B seat-delivery list with "Dorëzuar" (migration)
 - [x] B commit "feat: admin food management and delivery list"
-- [ ] C check-in API (migration) + /admin/scan with camera and manual entry
-- [ ] C commit "feat: QR ticket check-in"
+- [x] C check-in API (migration) + /admin/scan with camera and manual entry
+- [x] C commit "feat: QR ticket check-in"
 - [ ] D users (search, role, locations, deactivate) with safeguards
 - [ ] D audit log table
 - [ ] D commit "feat: admin users and audit log"

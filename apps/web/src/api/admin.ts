@@ -14,6 +14,7 @@ import {
   adminShowtimesResponseSchema,
   bulkCreateResponseSchema,
   bulkPreviewResponseSchema,
+  checkinResponseSchema,
   deactivateResponseSchema,
   hallLayoutResponseSchema,
   statsResponseSchema,
@@ -21,6 +22,7 @@ import {
   type AdminShowtimesResponse,
   type BulkPreviewResponse,
   type BulkShowtimesInput,
+  type CheckinResponse,
   type DeactivateResponse,
   type HallLayoutInput,
   type HallLayoutResponse,
@@ -319,5 +321,13 @@ export function markDelivered(bookingId: string, serveTiming: ServeTiming): Prom
   return apiRequest(`/api/admin/deliveries/${encodeURIComponent(bookingId)}/delivered`, {
     method: 'POST',
     body: { serveTiming },
+  });
+}
+
+export function checkIn(code: string, locationId: string): Promise<CheckinResponse> {
+  return apiRequest('/api/admin/checkin', {
+    method: 'POST',
+    body: { code, locationId },
+    schema: checkinResponseSchema,
   });
 }
