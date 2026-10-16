@@ -29,15 +29,18 @@ task is finished, move it to DONE with its commit hash.
 | Admin movies + secure poster/backdrop upload (task 9 part C)         | `9ac116d`            |
 | Admin showtimes; deactivation cancels + refunds (task 9 part D)      | `506531d`            |
 | Admin hall and seat editor with 3D preview (task 9 part E)           | `383af31`            |
+| Sold shows locked, WebP re-encoding, occupancy precision (task 10/0) | `0fbf826`            |
+| Admin prices (versioned) and settings (task 10 part A)               | `b16b495`            |
+| Admin food management and seat-delivery list (task 10 part B)        | `d317819`            |
+| QR ticket check-in at the entrance (task 10 part C)                  | `4d6d1e6`            |
+| Admin users and audit log (task 10 part D)                           | `e48cf2a`            |
 
 ## Next (in this order)
 
-1. Admin panel part 2: prices & settings, food management, QR check-in ("Skano"), users & audit
-   log (the sidebar already lists them as "Së shpejti")
-2. Security review + full e2e pass
+1. Final security review + README
 
 Out of scope for now (task 8): sending emails (confirmations, tickets), real payment providers
-(payments stay DEMO), and QR scanning by staff at the entrance.
+(payments stay DEMO).
 
 ## Known open points
 
@@ -49,8 +52,8 @@ Out of scope for now (task 8): sending emails (confirmations, tickets), real pay
   processes, the in-memory hold rate limits are not (production needs a shared store).
 - The featured movie is a fixed rule (most showtimes in the next 7 days); an admin choice comes with the admin panel (task 5).
 - Seed movies have no trailer ids, so the trailer modal is only covered by unit tests.
-- Uploaded posters are validated and stripped of metadata but not re-encoded: re-encoding needs
-  `sharp` (an install-script package), task 9 decision 10, to confirm.
+- Audit-log date filters and the dashboard use one time zone (Europe/Belgrade); cinemas in
+  other zones would need per-cinema days.
 - Customers are not told when a show they booked is deactivated (refunded automatically; emails
   are out of scope).
 - Rate limits need a shared store with multiple API instances (production).

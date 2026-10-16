@@ -20,4 +20,4 @@ in docs/roadmap.md.
 - [x] D users (search, role, locations, deactivate) with safeguards
 - [x] D audit log table
 - [x] D commit "feat: admin users and audit log"
-- [ ] End: verify, Chrome check + screenshots, roadmap, push, report
+- [x] End: verify, Chrome check + screenshots, roadmap, push, report
