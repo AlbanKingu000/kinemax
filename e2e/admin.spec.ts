@@ -63,6 +63,29 @@ test.describe('a cinema manager', () => {
   });
 });
 
+test.describe('a cinema manager at the door', () => {
+  test.use({ storageState: STAFF_STATE.manager });
+
+  test('checks a typed ticket code and scans the next one', async ({ page }) => {
+    const problems = watchConsole(page);
+    await page.goto('/admin/scan');
+    await expect(page.getByRole('heading', { level: 1, name: 'Skano biletat' })).toBeVisible();
+    // Headless Chromium has no camera: the page says so and keeps the manual entry.
+    await page.getByRole('button', { name: 'Hap kamerën' }).click();
+    await expect(page.getByText(/vetëm në https ose në localhost/)).toBeVisible();
+    await page.getByLabel(/^Kodi i biletës/).fill('ZZZZ ZZZZ ZZZZ ZZZZ');
+    await page.getByRole('button', { name: 'Kontrollo' }).click();
+    await expect(page.getByRole('alert')).toContainText('Bileta nuk u gjet');
+    await expectNoAxe(page);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      page.viewportSize()?.width ?? 0,
+    );
+    await page.getByRole('button', { name: 'Skano tjetrën' }).click();
+    await expect(page.getByLabel(/^Kodi i biletës/)).toHaveValue('');
+    expect(problems).toEqual([]);
+  });
+});
+
 test.describe('a cinema manager planning shows', () => {
   test.use({ storageState: STAFF_STATE.manager });
 
@@ -222,6 +245,36 @@ test.describe('the super admin', () => {
     );
     expect((await page.request.get(src)).status()).toBe(404);
     expect(problems.filter((p) => !p.includes('422'))).toEqual([]);
+  });
+
+  test('reads prices, the menu, the users and the audit log', async ({ page }) => {
+    const problems = watchConsole(page);
+    await page.goto('/admin/prices');
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Çmimet dhe cilësimet' }),
+    ).toBeVisible();
+    await expect(page.getByLabel(/^Koha e mbajtjes/)).not.toHaveValue('');
+    await expectNoAxe(page);
+
+    await page.goto('/admin/food');
+    await expect(page.getByRole('tab', { name: 'Dorëzimet sot' })).toBeVisible();
+    await expectNoAxe(page);
+
+    await page.goto('/admin/users');
+    await page.getByLabel('Kërko emër ose email').fill('admin@');
+    const self = page.getByRole('row', { name: /Ti/ });
+    await expect(self).toContainText('Super administrator');
+    await expect(self.getByRole('button')).toHaveCount(0);
+    await expectNoAxe(page);
+
+    await page.goto('/admin/audit');
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Regjistri i ndryshimeve' }),
+    ).toBeVisible();
+    await page.getByLabel('Nga data').fill('2026-01-01');
+    await expect(page.getByLabel('Lloji')).toBeVisible();
+    await expectNoAxe(page);
+    expect(problems).toEqual([]);
   });
 
   test('switches between all cinemas and goes back to the site', async ({ page }) => {

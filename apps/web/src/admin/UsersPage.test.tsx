@@ -93,6 +93,57 @@ describe('the users page', () => {
   });
 });
 
+describe('the users page, more', () => {
+  it('reactivates an account, pages through results and filters by role', async () => {
+    const queries: string[] = [];
+    const inactive = user('a4', 'Besa Gashi', { isActive: false });
+    stubAdmin(me, (req) => {
+      if (req.path === '/api/admin/users') {
+        queries.push(req.url.search);
+        return { users: [inactive], total: 120 };
+      }
+      if (req.method === 'PATCH') {
+        return {
+          status: 409,
+          body: {
+            error: { code: 'conflict', message: 'x', fields: [{ path: 'isActive', code: 'self' }] },
+          },
+        };
+      }
+      return undefined;
+    });
+    renderApp('/admin/users');
+    const row = await screen.findByRole('row', { name: /Besa Gashi/ });
+    expect(row).toHaveTextContent('Joaktiv');
+    expect(screen.getByText('Faqja 1 nga 3')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Mbrapa' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Para' }));
+    expect(await screen.findByText('Faqja 2 nga 3')).toBeInTheDocument();
+    expect(queries.at(-1)).toContain('page=2');
+    fireEvent.click(screen.getByRole('button', { name: 'Mbrapa' }));
+    expect(await screen.findByText('Faqja 1 nga 3')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Roli'), { target: { value: 'SUPER_ADMIN' } });
+    fireEvent.change(screen.getByLabelText('Kërko emër ose email'), { target: { value: 'besa' } });
+    await vi.waitFor(() => {
+      expect(queries.at(-1)).toBe('?q=besa&role=SUPER_ADMIN&page=1');
+    });
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Aktivizo: Besa Gashi' }));
+    const confirm = screen.getByRole('dialog', { name: 'Aktivizo llogarinë?' });
+    expect(confirm).toHaveTextContent('do të mund të hyjë përsëri');
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Aktivizo' }));
+    expect(await within(confirm).findByText(/rolin tënd/)).toBeInTheDocument();
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Anulo' }));
+  });
+
+  it('offers a retry when the users cannot be loaded', async () => {
+    stubAdmin(me, () => ({ status: 500, body: { error: { code: 'internal', message: 'x' } } }));
+    renderApp('/admin/users');
+    expect(await screen.findByText('Përdoruesit nuk u ngarkuan.')).toBeInTheDocument();
+  });
+});
+
 describe('the audit log page', () => {
   it('lists changes and filters by type', async () => {
     const audit: AuditResponse = {

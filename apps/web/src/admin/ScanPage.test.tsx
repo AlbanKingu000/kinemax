@@ -2,7 +2,7 @@ import type { CheckinResponse } from '@kinemax/shared';
 import { fireEvent, screen } from '@testing-library/react';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LOCATION_STORAGE_KEY } from '../location/location-storage';
-import { ADMIN_LOCATIONS, managerUser, must, stubAdmin } from '../test/admin';
+import { ADMIN_LOCATIONS, managerUser, must, stubAdmin, superAdminUser } from '../test/admin';
 import { renderApp } from '../test/catalog';
 
 beforeAll(async () => {
@@ -86,5 +86,40 @@ describe('the scan page', () => {
     expect(card).toHaveAttribute('data-tone', 'error');
     expect(card).toHaveTextContent('Hyrja nuk lejohet');
     expect(card).toHaveTextContent(/Shumë herët: hyrja hapet 90 minuta.*19:00/);
+  });
+
+  it('shows a repeat scan in amber, a whole suite, and a failed check', async () => {
+    stubScan([
+      {
+        ...ok,
+        already: true,
+        ticket: { ...ok.ticket, ageRating: 'AGE_15', wholeHall: true, food: [] },
+      },
+      { result: 'rejected', reason: 'cancelled', startsAt: null, timeZone: null },
+    ]);
+    renderApp('/admin/scan');
+    await screen.findByLabelText(/^Kodi i biletës/);
+    enter('ABCD1234EFGH5678');
+    const card = must((await screen.findByText(/^Tashmë e skanuar në 18:50/)).parentElement);
+    expect(card).toHaveAttribute('data-tone', 'warning');
+    expect(card).toHaveTextContent('15+ – kontrollo dokumentin');
+    expect(card).toHaveTextContent('Suita e plotë');
+    expect(card).not.toHaveTextContent('banak');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Skano tjetrën' }));
+    enter('ABCD1234EFGH5679');
+    expect(await screen.findByRole('alert')).toHaveTextContent('anuluar dhe rimbursuar');
+    fireEvent.click(screen.getByRole('button', { name: 'Skano tjetrën' }));
+    // No answer left: the request fails and the code stays for another try.
+    enter('ABCD1234EFGH5670');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Kontrolli nuk u krye');
+    expect(screen.getByLabelText(/^Kodi i biletës/)).toHaveValue('ABCD1234EFGH5670');
+  });
+
+  it('asks a super admin to pick one cinema first', async () => {
+    window.localStorage.removeItem(LOCATION_STORAGE_KEY);
+    stubAdmin(superAdminUser());
+    renderApp('/admin/scan');
+    expect(await screen.findByText(/Zgjidh kineman ku je/)).toBeInTheDocument();
   });
 });
