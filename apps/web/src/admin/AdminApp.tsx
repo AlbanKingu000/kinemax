@@ -6,7 +6,7 @@ import { Button, ButtonLink } from '../components/Button/Button';
 import { EmptyState } from '../components/EmptyState/EmptyState';
 import { useMessages } from '../i18n/use-messages';
 import { useAsync } from '../hooks/use-async';
-import { useAdminMessages, type AdminMessages } from '../i18n/admin-messages';
+import { useAdminMessages } from '../i18n/admin-messages';
 import {
   AdminLocationContext,
   initialAdminLocation,
@@ -58,16 +58,6 @@ function AdminLocationProvider({ children }: { children: ReactNode }) {
     },
   };
   return <AdminLocationContext value={value}>{children}</AdminLocationContext>;
-}
-
-/** A section of the panel that a later part of the task builds. */
-export function AdminPlaceholder({ section }: { section: keyof AdminMessages['nav'] }) {
-  const a = useAdminMessages();
-  return (
-    <EmptyState icon="info" title={a.placeholder.title(a.nav[section])} headingLevel="h1">
-      <p>{a.placeholder.body}</p>
-    </EmptyState>
-  );
 }
 
 function AdminNotFound() {

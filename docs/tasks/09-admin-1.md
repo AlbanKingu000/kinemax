@@ -247,7 +247,7 @@ verify` green (shared 35 at 100% branches, api 362, web 435, scripts 10; coverag
 
 ### Final
 
-- [ ] Roadmap (next: admin part 2 = prices & settings, food, QR check-in, users & audit log),
+- [x] Roadmap (next: admin part 2 = prices & settings, food, QR check-in, users & audit log),
       every box ticked, push to origin, final report
 
 ## The task (as given)

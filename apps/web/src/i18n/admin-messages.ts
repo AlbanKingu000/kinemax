@@ -342,10 +342,6 @@ const sq = {
       generic: 'Ruajtja nuk u krye. Provo përsëri.',
     },
   },
-  placeholder: {
-    title: (section: string) => `${section}: në ndërtim`,
-    body: 'Kjo pjesë e panelit vjen së shpejti.',
-  },
   notFound: {
     title: 'Faqja nuk u gjet',
     body: 'Kjo faqe e panelit nuk ekziston.',
@@ -693,10 +689,6 @@ const en: AdminMessages = {
       duplicate: 'Row names must be different.',
       generic: 'Saving failed. Please try again.',
     },
-  },
-  placeholder: {
-    title: (section: string) => `${section}: under construction`,
-    body: 'This part of the panel is coming soon.',
   },
   notFound: {
     title: 'Page not found',

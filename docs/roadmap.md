@@ -28,7 +28,7 @@ task is finished, move it to DONE with its commit hash.
 | Admin dashboard: sales and occupancy stats (task 9 part B)           | `004687b`            |
 | Admin movies + secure poster/backdrop upload (task 9 part C)         | `9ac116d`            |
 | Admin showtimes; deactivation cancels + refunds (task 9 part D)      | `506531d`            |
-| Admin hall and seat editor with 3D preview (task 9 part E)           | this commit          |
+| Admin hall and seat editor with 3D preview (task 9 part E)           | `383af31`            |
 
 ## Next (in this order)
 
