@@ -37,6 +37,7 @@ task is finished, move it to DONE with its commit hash.
 | Security review, route inventory test, strict CSP (task 11)          | `56a9a3b`            |
 | Production readiness: API serves the web build (task 11)             | `a0b7e51`            |
 | Cleanup, dev database reset, portfolio README, v1.0.0 (task 11)      | `a7b27cb`, `0729733` |
+| Public repo prep, no source maps, CSP eval fix (task 12)             | `305aa31`            |
 
 ## Next
 
