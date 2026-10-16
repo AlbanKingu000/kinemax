@@ -42,11 +42,11 @@ describe('the admin shell', () => {
     stubAdmin(superAdminUser());
     renderApp('/admin');
     const nav = await screen.findByRole('navigation', { name: 'Navigimi i administrimit' });
-    for (const name of ['Dashboard', 'Filmat', 'Shfaqjet', 'Sallat', 'Çmimet']) {
+    for (const name of ['Dashboard', 'Filmat', 'Shfaqjet', 'Sallat', 'Çmimet', 'Ushqimi']) {
       expect(within(nav).getByRole('link', { name })).toBeInTheDocument();
     }
     // Later parts are listed, but not links yet.
-    for (const name of ['Ushqimi', 'Skano', 'Përdoruesit']) {
+    for (const name of ['Skano', 'Përdoruesit']) {
       expect(within(nav).queryByRole('link', { name: new RegExp(name) })).toBeNull();
       expect(within(nav).getByText(name)).toBeInTheDocument();
     }

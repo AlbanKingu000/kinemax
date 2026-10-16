@@ -11,10 +11,10 @@ in docs/roadmap.md.
 - [x] A pricing rules with versioning (base, surcharges, time adjustments, discounts, suites)
 - [x] A app settings (hold minutes, cancellation cutoff)
 - [x] A commit "feat: admin prices and settings"
-- [ ] B menu items CRUD + image upload (super admin)
-- [ ] B per-location availability and price (manager)
-- [ ] B seat-delivery list with "Dorëzuar" (migration)
-- [ ] B commit "feat: admin food management and delivery list"
+- [x] B menu items CRUD + image upload (super admin)
+- [x] B per-location availability and price (manager)
+- [x] B seat-delivery list with "Dorëzuar" (migration)
+- [x] B commit "feat: admin food management and delivery list"
 - [ ] C check-in API (migration) + /admin/scan with camera and manual entry
 - [ ] C commit "feat: QR ticket check-in"
 - [ ] D users (search, role, locations, deactivate) with safeguards

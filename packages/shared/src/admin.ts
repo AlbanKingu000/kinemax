@@ -7,6 +7,7 @@ import {
   seatTypeSchema,
   slugSchema,
 } from './catalog.js';
+import { menuCategorySchema, serveTimingSchema } from './food.js';
 
 // Admin panel (/api/admin/*): staff only (SUPER_ADMIN everywhere, LOCATION_MANAGER for their
 // locations). The server re-checks every id against the caller's scope.
@@ -529,3 +530,98 @@ export const appSettingsSchema = z
   })
   .strict();
 export type AppSettingsInput = z.infer<typeof appSettingsSchema>;
+
+// ---------------------------------------------------------------------------------------------
+// Food: menu items (SUPER_ADMIN), per-cinema offer (managers), seat-delivery list
+// ---------------------------------------------------------------------------------------------
+
+export const MENU_IMAGE_RULES = { minWidth: 300, minHeight: 300 } as const;
+
+const optionalMenuText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .nullable()
+    .transform((value) => (value === '' ? null : value));
+
+/** A combo (category COMBO) lists its contents; any other item has none. */
+export const menuItemInputSchema = z
+  .object({
+    slug: slugSchema,
+    nameSq: z.string().trim().min(1).max(100),
+    nameEn: optionalMenuText(100),
+    descriptionSq: optionalMenuText(300),
+    descriptionEn: optionalMenuText(300),
+    category: menuCategorySchema,
+    isActive: z.boolean(),
+    components: z
+      .array(z.object({ componentId: z.uuid(), quantity: z.int().min(1).max(10) }).strict())
+      .max(10),
+  })
+  .strict()
+  .refine((item) => (item.category === 'COMBO') === item.components.length > 0, {
+    path: ['components'],
+    message: 'combo',
+  })
+  .refine(
+    (item) => new Set(item.components.map((c) => c.componentId)).size === item.components.length,
+    {
+      path: ['components'],
+      message: 'duplicate',
+    },
+  );
+export type MenuItemInput = z.input<typeof menuItemInputSchema>;
+
+export const adminMenuItemSchema = z.object({
+  id: z.uuid(),
+  slug: z.string(),
+  nameSq: z.string(),
+  nameEn: z.string().nullable(),
+  descriptionSq: z.string().nullable(),
+  descriptionEn: z.string().nullable(),
+  category: menuCategorySchema,
+  imagePath: z.string().nullable(),
+  isCombo: z.boolean(),
+  isActive: z.boolean(),
+  components: z.array(z.object({ componentId: z.uuid(), nameSq: z.string(), quantity: z.int() })),
+  /** Ordered at least once: deactivate instead of deleting. */
+  hasOrders: z.boolean(),
+  /** The cinema's offer when the list was asked for one cinema (null: not offered there). */
+  offer: z.object({ priceCents: z.int(), isAvailable: z.boolean() }).nullable(),
+});
+export type AdminMenuItem = z.infer<typeof adminMenuItemSchema>;
+
+export const adminMenuResponseSchema = z.object({ items: z.array(adminMenuItemSchema) });
+
+export const menuOfferInputSchema = z
+  .object({ isAvailable: z.boolean(), priceCents: z.int().min(0).max(100_000) })
+  .strict();
+
+export const deliveryOrderSchema = z.object({
+  bookingId: z.uuid(),
+  code: z.string(),
+  serveTiming: serveTimingSchema,
+  /** Before the film: the show's start; during: about 20 minutes after it. */
+  dueAt: z.iso.datetime({ offset: true }),
+  startsAt: z.iso.datetime({ offset: true }),
+  movieTitleSq: z.string(),
+  movieTitleEn: z.string().nullable(),
+  hallName: z.string(),
+  seats: z.array(z.string()),
+  items: z.array(
+    z.object({ nameSq: z.string(), nameEn: z.string().nullable(), quantity: z.int() }),
+  ),
+  deliveredAt: z.iso.datetime({ offset: true }).nullable(),
+});
+export type DeliveryOrder = z.infer<typeof deliveryOrderSchema>;
+
+export const deliveriesResponseSchema = z.object({
+  timeZone: z.string(),
+  orders: z.array(deliveryOrderSchema),
+});
+export type DeliveriesResponse = z.infer<typeof deliveriesResponseSchema>;
+
+export const deliveredInputSchema = z.object({ serveTiming: serveTimingSchema }).strict();
+
+export const adminMenuItemResponseSchema = z.object({ item: adminMenuItemSchema });

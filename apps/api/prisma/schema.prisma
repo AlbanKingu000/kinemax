@@ -413,6 +413,7 @@ model User {
   bookings         Booking[]
   auditLogs        AuditLog[]
   settingsUpdates  AppSettings[]
+  foodDelivered    BookingFoodItem[] @relation("FoodDeliveredBy")
 }
 
 /// Which locations a LOCATION_MANAGER manages.
@@ -625,19 +626,23 @@ model LocationMenuItem {
 
 /// Food ordered with a booking (optional; a booking may have none). Price is a snapshot.
 model BookingFoodItem {
-  id             String      @id @default(uuid(7)) @db.Uuid
-  bookingId      String      @db.Uuid
-  menuItemId     String      @db.Uuid
+  id             String       @id @default(uuid(7)) @db.Uuid
+  bookingId      String       @db.Uuid
+  menuItemId     String       @db.Uuid
   /// Snapshot of the item name at order time.
   nameSq         String
   quantity       Int
   unitPriceCents Int
-  fulfillment    Fulfillment @default(PICKUP_AT_COUNTER)
+  fulfillment    Fulfillment  @default(PICKUP_AT_COUNTER)
   /// Required for DELIVER_TO_SEAT, null for PICKUP_AT_COUNTER (CHECK in migration food_serve_timing).
   serveTiming    ServeTiming?
+  /// Seat delivery: when staff brought it to the seat, and who (admin delivery list).
+  deliveredAt    DateTime?    @db.Timestamptz(3)
+  deliveredById  String?      @db.Uuid
 
-  booking  Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
+  booking     Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  menuItem    MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
+  deliveredBy User?    @relation("FoodDeliveredBy", fields: [deliveredById], references: [id], onDelete: SetNull)
 
   @@index([bookingId])
 }

@@ -2,6 +2,9 @@
 // validates the answer with the shared schemas. The server re-checks role and cinema every time.
 import {
   adminHallsResponseSchema,
+  adminMenuItemResponseSchema,
+  adminMenuResponseSchema,
+  deliveriesResponseSchema,
   adminLocationsResponseSchema,
   adminMovieResponseSchema,
   adminMoviesResponseSchema,
@@ -24,7 +27,11 @@ import {
   type ShowtimeInput,
   type AdminHallsResponse,
   type AdminLocation,
+  type AdminMenuItem,
   type AdminMovie,
+  type DeliveriesResponse,
+  type MenuItemInput,
+  type ServeTiming,
   type AdminPricesResponse,
   type AppSettingsInput,
   type PriceKind,
@@ -239,5 +246,78 @@ export function saveSettings(input: AppSettingsInput): Promise<AppSettingsInput>
     method: 'PUT',
     body: input,
     schema: appSettingsSchema,
+  });
+}
+
+export async function fetchAdminMenu(
+  location: string | null,
+  signal?: AbortSignal,
+): Promise<AdminMenuItem[]> {
+  return (
+    await apiRequest(`/api/admin/menu${adminQuery({ location })}`, {
+      schema: adminMenuResponseSchema,
+      ...opts(signal),
+    })
+  ).items;
+}
+
+export async function saveMenuItem(
+  id: string | null,
+  input: MenuItemInput,
+): Promise<AdminMenuItem> {
+  return (
+    await apiRequest(id ? `/api/admin/menu/${encodeURIComponent(id)}` : '/api/admin/menu', {
+      method: id ? 'PATCH' : 'POST',
+      body: input,
+      schema: adminMenuItemResponseSchema,
+    })
+  ).item;
+}
+
+export function deleteMenuItem(id: string): Promise<undefined> {
+  return apiRequest(`/api/admin/menu/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+export async function uploadMenuImage(id: string, file: Blob): Promise<AdminMenuItem> {
+  return (
+    await apiRequest(`/api/admin/menu/${encodeURIComponent(id)}/image`, {
+      method: 'POST',
+      body: file,
+      schema: adminMenuItemResponseSchema,
+    })
+  ).item;
+}
+
+export async function saveMenuOffer(
+  id: string,
+  locationId: string,
+  offer: { isAvailable: boolean; priceCents: number },
+): Promise<AdminMenuItem> {
+  return (
+    await apiRequest(
+      `/api/admin/menu/${encodeURIComponent(id)}/locations/${encodeURIComponent(locationId)}`,
+      {
+        method: 'PUT',
+        body: offer,
+        schema: adminMenuItemResponseSchema,
+      },
+    )
+  ).item;
+}
+
+export function fetchDeliveries(
+  location: string,
+  signal?: AbortSignal,
+): Promise<DeliveriesResponse> {
+  return apiRequest(`/api/admin/deliveries${adminQuery({ location })}`, {
+    schema: deliveriesResponseSchema,
+    ...opts(signal),
+  });
+}
+
+export function markDelivered(bookingId: string, serveTiming: ServeTiming): Promise<undefined> {
+  return apiRequest(`/api/admin/deliveries/${encodeURIComponent(bookingId)}/delivered`, {
+    method: 'POST',
+    body: { serveTiming },
   });
 }

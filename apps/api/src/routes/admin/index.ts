@@ -5,6 +5,7 @@ import type { AdminLocationsResponse } from '@kinemax/shared';
 import { Router } from 'express';
 import { requireRole } from '../../http/auth-middleware.js';
 import { type AdminDeps, createAdminLimiters, locationScope, staffUser } from './common.js';
+import { createFoodRouter } from './food.js';
 import { createHallsRouter } from './halls.js';
 import { createMoviesRouter } from './movies.js';
 import { createPricesRouter } from './prices.js';
@@ -33,6 +34,7 @@ export function createAdminRouter(deps: AdminDeps): Router {
   router.use(createShowtimesRouter({ ...deps, limit }));
   router.use(createHallsRouter({ ...deps, limit }));
   router.use(createPricesRouter({ ...deps, limit }));
+  router.use(createFoodRouter({ ...deps, limit }));
 
   return router;
 }

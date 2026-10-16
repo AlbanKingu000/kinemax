@@ -1,8 +1,5 @@
 // Movie management (SUPER_ADMIN only: movies are global, shared by every cinema), with the poster
 // and backdrop upload. Movies that have showtimes are archived, never deleted.
-import { randomUUID } from 'node:crypto';
-import { unlink, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import {
   adminMoviesQuerySchema,
   MOVIE_IMAGE_RULES,
@@ -12,15 +9,14 @@ import {
   type AdminMovie,
   type AdminMovieResponse,
 } from '@kinemax/shared';
-import express, { Router, type Request } from 'express';
+import { Router, type Request } from 'express';
 import { z } from 'zod';
-import { ImageRejectedError, probeImage, reencodeToWebp } from '../../domain/image-file.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { requireRole } from '../../http/auth-middleware.js';
 import { HttpError, parseInput } from '../../http/errors.js';
-import { MEDIA_URL_PREFIX, mediaFileOf } from '../media.js';
 import { idParams, notFound } from '../booking-common.js';
 import { audit, type AdminDeps } from './common.js';
+import { imageBody, removeMedia, storeUploadedImage } from './uploads.js';
 
 const movieSelect = {
   id: true,
@@ -48,12 +44,6 @@ const imageParams = z.object({ id: z.uuid(), kind: movieImageKindSchema });
 /** A movie's editable fields as stored in the audit log. */
 function snapshot(movie: MovieRow): Prisma.InputJsonObject {
   return { ...movie, releaseDate: movie.releaseDate.toISOString().slice(0, 10) };
-}
-
-function unprocessableImage(reason: string): HttpError {
-  return new HttpError(422, 'unprocessable', 'The image was not accepted.', {
-    fields: [{ path: 'file', code: reason }],
-  });
 }
 
 export function createMoviesRouter({
@@ -197,7 +187,7 @@ export function createMoviesRouter({
       });
       return movie;
     });
-    await removeMedia([removed.posterPath, removed.backdropPath]);
+    await removeMedia(uploadsDir, logger, [removed.posterPath, removed.backdropPath]);
     res.status(204).end();
   });
 
@@ -209,36 +199,12 @@ export function createMoviesRouter({
       next();
     },
     // Any content type: the type is decided by the bytes, never by the client's header.
-    express.raw({ type: () => true, limit: MOVIE_IMAGE_RULES.maxBytes }),
+    imageBody,
     async (req, res) => {
       const { id, kind } = parseInput(imageParams, req.params);
-      if (!Buffer.isBuffer(req.body) || req.body.length === 0) throw unprocessableImage('empty');
       const exists = await prisma.movie.findUnique({ where: { id }, select: { id: true } });
       if (!exists) throw notFound();
-
-      let bytes: Buffer;
-      let type: string;
-      try {
-        const image = probeImage(req.body);
-        const rules = MOVIE_IMAGE_RULES[kind];
-        if (
-          image.width < rules.minWidth ||
-          image.height < rules.minHeight ||
-          image.width > MOVIE_IMAGE_RULES.maxSide ||
-          image.height > MOVIE_IMAGE_RULES.maxSide
-        ) {
-          throw unprocessableImage('dimensions');
-        }
-        // Stored as WebP whatever was uploaded; the original type goes to the audit log.
-        bytes = await reencodeToWebp(req.body, MOVIE_IMAGE_RULES.maxSide);
-        type = image.type;
-      } catch (error) {
-        if (error instanceof ImageRejectedError) throw unprocessableImage(error.reason);
-        throw error;
-      }
-
-      const file = `${randomUUID()}.webp`;
-      await writeFile(join(uploadsDir, file), bytes, { flag: 'wx' });
+      const stored = await storeUploadedImage(req.body, MOVIE_IMAGE_RULES[kind], uploadsDir);
       const column = kind === 'poster' ? 'posterPath' : 'backdropPath';
       let previous: string | null;
       try {
@@ -250,41 +216,28 @@ export function createMoviesRouter({
           const old = before[column];
           await tx.movie.update({
             where: { id },
-            data: { [column]: `${MEDIA_URL_PREFIX}${file}` },
+            data: { [column]: stored.path },
           });
           await audit(tx, req, {
             action: `movie.${kind}`,
             entityType: 'Movie',
             entityId: id,
             before: { [column]: old },
-            after: { [column]: `${MEDIA_URL_PREFIX}${file}`, bytes: bytes.length, type },
+            after: { [column]: stored.path, bytes: stored.bytes, type: stored.type },
           });
           return old;
         });
       } catch (error) {
-        await removeMedia([`${MEDIA_URL_PREFIX}${file}`]);
+        await removeMedia(uploadsDir, logger, [stored.path]);
         throw error;
       }
       // The old upload is no longer referenced: remove it (seed images in the web app stay).
-      await removeMedia([previous]);
-      logger.info('movie.image', { movieId: id, kind, bytes: bytes.length, type });
+      await removeMedia(uploadsDir, logger, [previous]);
+      logger.info('movie.image', { movieId: id, kind, bytes: stored.bytes, type: stored.type });
       const body: AdminMovieResponse = { movie: await loadMovie(id) };
       res.json(body);
     },
   );
-
-  /** Deletes our uploaded files behind these paths (others, e.g. /seed/..., are ignored). */
-  async function removeMedia(paths: (string | null)[]) {
-    for (const path of paths) {
-      const file = path ? mediaFileOf(path) : undefined;
-      if (!file) continue;
-      await unlink(join(uploadsDir, file)).catch((error: unknown) => {
-        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-          logger.warn('media.unlink_failed', { file });
-        }
-      });
-    }
-  }
 
   return router;
 }

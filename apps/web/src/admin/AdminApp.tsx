@@ -15,6 +15,7 @@ import {
 } from './admin-location';
 import { AdminLayout } from './AdminLayout';
 import { DashboardPage } from './DashboardPage';
+import { FoodPage } from './FoodPage';
 import { HallEditorPage } from './HallEditorPage';
 import { HallsPage } from './HallsPage';
 import { MovieEditPage } from './MovieEditPage';
@@ -98,6 +99,7 @@ export default function AdminApp() {
             </>
           )}
           <Route path="showtimes" element={<ShowtimesPage />} />
+          <Route path="food" element={<FoodPage />} />
           <Route path="halls" element={<HallsPage />} />
           <Route path="halls/:id" element={<HallEditorPage />} />
           <Route path="*" element={<AdminNotFound />} />
