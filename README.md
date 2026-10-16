@@ -1,234 +1,198 @@
 # Kinemax
 
-Kinemax is a personal portfolio project: the website of a **fictional** premium cinema chain with
-locations in several cities. The look will be a luxury dark theme in black and red.
+> **Shqip:** Kinemax është uebfaqja e një zinxhiri kinemash premium **fiktiv** me katër lokacione
+> në Kosovë: filmat dhe orari, zgjedhja e ulëseve në një sallë 3D me pamjen nga ulësja, ushqimi i
+> porositur bashkë me biletat, pagesa DEMO me biletë QR, llogaritë e përdoruesve dhe një panel
+> administrimi (shfaqjet, sallat, çmimet, ushqimi, skanimi i biletave, përdoruesit). Në shqip dhe
+> anglisht, me çmime në EUR. Projekt portfolio, jo kinema e vërtetë.
 
-So far there is the project foundation, the full database model with realistic demo data
-(locations, halls with 3D seat layouts, movies, showtimes, prices, menus, users) and the visual
-identity with a design system (see [Design system](#design-system)). The web app has the site shell
-(header, mobile menu, footer, cinema picker), the home page, the movie pages and the schedule
-(7 days, filters in the URL), fed by the public read API (`GET /api/locations`, `/api/movies`,
-`/api/movies/:slug`, `/api/featured`, `/api/showtimes`, `/api/showtimes/:id`); a time leads to a
-booking placeholder, and the remaining pages show "coming soon". Seat selection, accounts, the admin panel
-and demo payments come in later tasks (see [docs/roadmap.md](docs/roadmap.md)). The site will be
-in Albanian (default) and English, with prices in EUR. See [docs/data-model.md](docs/data-model.md) for the data model.
+A full-stack cinema booking site for a fictional premium cinema chain: React 19 + Express 5 +
+PostgreSQL 18, TypeScript end to end, with the hard rules (no double booking, server-side prices)
+enforced in the database itself.
 
-## Stack
+![Kinemax home page: featured film, now showing and coming soon](docs/images/hero.webp)
 
-| Part              | Tech                                                          |
-| ----------------- | ------------------------------------------------------------- |
-| `apps/web`        | React 19, Vite, react-router, TypeScript                      |
-| `apps/api`        | Node, Express 5, Prisma 7 (pg driver adapter), TypeScript     |
-| `packages/shared` | zod schemas and types used by the web app and the API         |
-| Database          | PostgreSQL 18 (native Windows install, local connections)     |
-| Tooling           | ESLint (flat config), Prettier, Vitest, Supertest, Playwright |
+## Features
 
-In development the browser only talks to the Vite dev server; Vite proxies `/api` to the API, so the
-web app and API share one origin.
+- **Catalog**: four cinemas, now showing / coming soon, movie pages with trailers
+  (youtube-nocookie), a 7-day schedule with filters kept in the URL.
+- **3D seat selection** (three.js / react-three-fiber): every hall is a real 3D model (stadium
+  tiers, VIP recliners, couple sofas, private suites, a curved premium screen); pick a seat and
+  fly to the **view from that seat**. A 2D map does the same job on small screens and for
+  keyboard users.
+- **Booking flow**: timed seat holds, ticket categories, food & drinks served at the seat or
+  picked up, server-side prices, a DEMO payment (success or decline) and a ticket with a QR code.
+- **My tickets**: upcoming / past / cancelled, cancellation with an automatic refund before a
+  cutoff, add to calendar.
+- **Admin panel** (super admin and per-cinema managers): sales and occupancy dashboard, movies
+  with secure image upload, showtimes (single and bulk, overlap-proof), a hall and seat editor
+  with 3D preview, versioned prices, settings, the menu per cinema, a seat-delivery list, a QR
+  ticket scanner (camera or typed code), users and roles, and an audit log.
+- **Albanian (default) and English**, EUR, WCAG AA contrast, keyboard navigation, reduced motion.
 
-## Prerequisites
+| 3D hall                                                         | View from the seat                                                      |
+| --------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| ![3D model of the Kinemax Grand hall](docs/images/hall-3d.webp) | ![The screen seen from row J, seat 12](docs/images/view-from-seat.webp) |
 
-- Windows 10/11
-- Node.js 22.22 or newer (an active LTS; developed with Node 24)
-- npm 11.16 or newer (needed for the install-script policy, see below)
-- Git
-- PostgreSQL 18 (see below)
+| Ticket confirmation with QR                                                | Mobile ticket                                                           |
+| -------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| ![Booking confirmation with QR code](docs/images/ticket-confirmation.webp) | ![A ticket with QR code at phone width](docs/images/mobile-ticket.webp) |
 
-## PostgreSQL setup
+| Admin dashboard                                                                 | Seat editor                                                   |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| ![Admin dashboard with revenue and occupancy](docs/images/admin-dashboard.webp) | ![Admin seat editor for a hall](docs/images/seat-editor.webp) |
 
-PostgreSQL 18 is installed natively with the official EDB installer (for example
-`winget install --id PostgreSQL.PostgreSQL.18`). It is set up for local use only:
+## Tech stack
 
-- `listen_addresses = 'localhost'`
-- `pg_hba.conf` only allows `127.0.0.1/32` and `::1/128` with `scram-sha-256`
-- no Windows Firewall rule opens port 5432
+| Part              | Tech                                                                          |
+| ----------------- | ----------------------------------------------------------------------------- |
+| `apps/web`        | React 19, Vite, react-router, three.js + react-three-fiber, CSS modules       |
+| `apps/api`        | Node, Express 5, Prisma 7 (pg driver adapter), zod, argon2, sharp, helmet     |
+| `packages/shared` | zod schemas and types shared by the web app and the API                       |
+| Database          | PostgreSQL 18 (exclusion constraints, triggers, custom SQLSTATEs)             |
+| Tooling           | TypeScript strict, ESLint, Prettier, Vitest, Supertest, Playwright + axe-core |
 
-As the `postgres` superuser, create one app role and two databases (use your own strong password):
+No UI library or CSS framework: a small design system with tokens and components, shown on a
+living styleguide (`/styleguide`, development only).
 
-```sql
-CREATE ROLE kinemax WITH LOGIN PASSWORD 'CHANGE_ME' CREATEDB;  -- not a superuser
-CREATE DATABASE kinemax OWNER kinemax;       -- development
-CREATE DATABASE kinemax_test OWNER kinemax;  -- tests only
+## Architecture
+
+```mermaid
+flowchart LR
+  subgraph Browser
+    SPA["React SPA<br/>(sq / en, three.js hall)"]
+  end
+  subgraph API["Node · Express 5 (one origin)"]
+    MW["helmet + CSP · session · CSRF · rate limits"]
+    R["Routes: catalog, auth, bookings,<br/>checkout, my tickets, admin"]
+    D["Domain: pricing, seat layouts,<br/>image pipeline"]
+    S["Static web build"]
+  end
+  Shared["packages/shared<br/>zod schemas"]
+  DB[("PostgreSQL 18<br/>constraints + triggers G0-G13")]
+  Up[("UPLOADS_DIR<br/>WebP images")]
+
+  SPA -- "/api JSON + cookie" --> MW --> R --> D
+  R -- "Prisma (tagged SQL only)" --> DB
+  R --> Up
+  SPA -. "GET /" .-> S
+  Shared -.- SPA
+  Shared -.- R
 ```
 
-The app, tests and scripts only ever use the `kinemax` role. `CREATEDB` lets `prisma migrate dev`
-create and drop its temporary shadow database, so no `SHADOW_DATABASE_URL` is needed. The first
-migration creates the trusted `btree_gist` extension (allowed for the database owner) and sets the
-database's default time zone to UTC.
+In development Vite serves the web app and proxies `/api`; in production the API serves the
+built web app itself ([docs/deployment.md](docs/deployment.md)). Either way the browser talks to
+one origin.
+
+## Guarantees in the database
+
+The rules that must never break are enforced by PostgreSQL, not only by the code
+([docs/data-model.md](docs/data-model.md)):
+
+- **No double booking**: a seat can be held or sold only once per showtime (primary keys on live
+  seat locks, composite foreign keys, a guard trigger); private suites are only sold whole, once.
+- **No overlapping shows**: an `EXCLUDE USING gist` constraint keeps active showtimes in a hall
+  apart.
+- **A booking status machine** (HELD → CONFIRMED → CANCELLED/REFUNDED) in a trigger: expired holds
+  cannot be paid, released bookings never come back, and releasing frees the seats atomically.
+- **Couple sofas** take exactly two tickets with one surcharge (deferred count trigger).
+- **Money is integer cents in EUR**, never negative; prices are computed on the server only.
+- Trigger errors use their own SQLSTATEs (`KX001`-`KX006`), mapped to 409/422 by code, never by
+  message text.
+
+## Security highlights
+
+Details, threat model and the findings of the final review: [docs/security.md](docs/security.md).
+
+- argon2id passwords, server-side sessions (only token hashes stored), rotation on login,
+  `__Host-` Secure cookies in production.
+- CSRF tokens + Origin checks on every write; zod validation of every body, param and query.
+- Role and per-cinema authorization; other users' bookings answer 404 (IDOR-tested).
+- A **route inventory test** reads every registered API route and fails if one is reachable
+  without sign-in, lets a customer into `/api/admin`, skips CSRF or validation, or (for sensitive
+  writes) has no rate limit.
+- A strict Content-Security-Policy (no inline scripts or styles, only youtube-nocookie frames),
+  `frame-ancestors 'none'`, HSTS in production.
+- Uploads: type from magic bytes, re-encoded to WebP without metadata, random names, sandboxed.
+- Supply chain: pinned versions, an install-script allowlist and an `npm audit` gate.
 
 ## Quick start (Windows)
 
-```powershell
-git clone <repo> kinemax
-cd kinemax
-copy .env.example .env      # then put the kinemax role password into both URLs
-npm install                 # also generates the Prisma client
-npx playwright install chromium
-npm run db:migrate          # apply migrations to the development database
-npm run db:seed             # demo data; generates the demo passwords into .env
-npm run dev                 # http://localhost:5180
-```
+Prerequisites: Node.js 22.22+ (developed with Node 24), npm 11.16+, Git, PostgreSQL 18.
 
-## Demo data
+1. Install PostgreSQL 18 (for example `winget install --id PostgreSQL.PostgreSQL.18`), local
+   connections only (`listen_addresses = 'localhost'`, `pg_hba.conf` allows `127.0.0.1/32` and
+   `::1/128` with `scram-sha-256`). As the `postgres` superuser, create the app role and two
+   databases (use your own password):
 
-`npm run db:seed` fills the **development** database (it refuses `*_test` databases and
-`NODE_ENV=production`) and can be run again at any time:
+   ```sql
+   CREATE ROLE kinemax WITH LOGIN PASSWORD 'CHANGE_ME' CREATEDB;  -- not a superuser
+   CREATE DATABASE kinemax OWNER kinemax;       -- development
+   CREATE DATABASE kinemax_test OWNER kinemax;  -- tests only
+   ```
 
-- 4 locations (Prishtinë, Prizren, Pejë, Ferizaj) with 16 halls of 4 types, ~2,000 seats with 3D
-  coordinates (aisles, stadium tiers, VIP middle rows, couple sofas, wheelchair spaces with
-  companion seats, recliner and suite layouts)
-- 12 fictional movies with abstract placeholder art in `apps/web/public/seed/` (no real titles,
-  posters or trademarks) and 14 days of showtimes
-- price rules, ticket categories, per-location menus with combos
-- demo users (`.test` addresses, so no mail can ever reach anyone):
+2. Install and run:
 
-| Email                                                       | Role             | Password in `.env`          |
-| ----------------------------------------------------------- | ---------------- | --------------------------- |
-| `admin@kinemax.test`                                        | SUPER_ADMIN      | `SEED_SUPER_ADMIN_PASSWORD` |
-| `menaxher.<prishtine\|prizren\|peje\|ferizaj>@kinemax.test` | LOCATION_MANAGER | `SEED_MANAGER_PASSWORD`     |
-| `klient1@kinemax.test`, `klient2@kinemax.test`              | CUSTOMER         | `SEED_CUSTOMER_PASSWORD`    |
+   ```powershell
+   git clone <repo> kinemax
+   cd kinemax
+   copy .env.example .env      # put the kinemax password into both database URLs
+   npm install                 # also generates the Prisma client
+   npx playwright install chromium
+   npm run db:migrate          # migrations on the development database
+   npm run db:seed             # demo data; generates the demo passwords into .env
+   npm run dev                 # web http://localhost:5180, API http://127.0.0.1:3001
+   ```
 
-Missing `SEED_*` passwords are generated randomly into `.env` and never printed. Integration tests
-use their own small fixture in `kinemax_test`.
+The API checks its environment at startup and lists every missing or invalid variable
+(`.env.example` documents them; production rules are in [docs/deployment.md](docs/deployment.md)).
+`npm run db:reset` wipes and re-seeds the development database after you type its name; tests and
+scripts refuse to touch anything but `kinemax_test`.
 
-The ticket scanner at `/admin/scan` uses the phone camera, which browsers only allow on **https or
-localhost** (and after the user grants permission). Elsewhere the page falls back to typing the
-ticket code.
+### Demo accounts
 
-Passwords are hashed with **argon2id** via the `argon2` package: argon2id is the OWASP-recommended
-password hash, the package is widely used and ships prebuilt binaries, and Node's own
-`crypto.argon2` is still experimental and missing on Node 22.
+The seed creates these users (`.test` addresses, so no mail can reach anyone). Their passwords are
+generated into your `.env` (`SEED_SUPER_ADMIN_PASSWORD`, `SEED_MANAGER_PASSWORD`,
+`SEED_CUSTOMER_PASSWORD`) and never printed:
 
-The API validates its environment at startup and exits with a clear list of problems if something is
-missing or wrong.
+| Email                                                       | Role                        |
+| ----------------------------------------------------------- | --------------------------- |
+| `admin@kinemax.test`                                        | Super admin                 |
+| `menaxher.<prishtine\|prizren\|peje\|ferizaj>@kinemax.test` | Cinema manager (one cinema) |
+| `klient1@kinemax.test`, `klient2@kinemax.test`              | Customer                    |
 
-## Environment variables
+The ticket scanner (`/admin/scan`) uses the camera, which browsers only allow on https or
+localhost; elsewhere it falls back to typing the code.
 
-| Variable               | Purpose                                                                    |
-| ---------------------- | -------------------------------------------------------------------------- |
-| `DATABASE_URL`         | Development database (`kinemax`)                                           |
-| `DATABASE_URL_TEST`    | Test database; the name must end in `_test` or tests refuse to run         |
-| `HOST`, `PORT`         | API bind address (default `127.0.0.1:3001`)                                |
-| `CORS_ALLOWED_ORIGINS` | Extra exact origins allowed cross-origin (default: none, no wildcard ever) |
-| `APP_ORIGIN`           | Web app origin for the CSRF Origin check (default `http://localhost:5180`) |
-| `COOKIE_SECURE`        | Secure `__Host-` cookies (default: on in production only)                  |
-| `CSRF_SECRET`          | CSRF HMAC key, 32+ characters (required in production)                     |
-| `TRUST_PROXY`          | Number of reverse proxies in front of the API (default 0)                  |
-| `SEED_*_PASSWORD`      | Dev-only demo user passwords, generated by `npm run db:seed`               |
+## Tests
 
-`.env` is git-ignored; `.env.example` holds placeholders only.
+| Command            | What runs                                                                     | Count                                         |
+| ------------------ | ----------------------------------------------------------------------------- | --------------------------------------------- |
+| `npm test`         | Vitest: shared, API unit + integration (real PostgreSQL, `kinemax_test`), web | 892 (shared 39, API 393, web 450, scripts 10) |
+| `npm run test:cov` | The same with coverage (80% minimum)                                          |                                               |
+| `npm run e2e`      | Playwright on the production build: desktop + 390 px phone, axe accessibility | 89 (4 skipped per viewport by design)         |
+| `npm run verify`   | lint, typecheck, test:cov, build, e2e and the audit gate                      |                                               |
 
-## Scripts
+Other scripts: `npm run lint`, `npm run typecheck`, `npm run build`, `npm run audit`
+(`audit:dev` for the full report), `npm run db:studio`, `npm run brand:generate -w @kinemax/web`.
 
-| Script               | What it does                                                                          |
-| -------------------- | ------------------------------------------------------------------------------------- |
-| `npm run dev`        | API (watch mode) and web dev server together                                          |
-| `npm run db:migrate` | `prisma migrate dev` on the development database                                      |
-| `npm run db:seed`    | Idempotent demo data for the development database (refuses `*_test`)                  |
-| `npm run db:studio`  | Prisma Studio                                                                         |
-| `npm run db:reset`   | Wipes, re-migrates and re-seeds the development database after you type its name      |
-| `npm run lint`       | ESLint and Prettier check                                                             |
-| `npm run format`     | Prettier write                                                                        |
-| `npm run typecheck`  | TypeScript in every workspace                                                         |
-| `npm test`           | Vitest in shared, api (incl. integration tests on `kinemax_test`), web and `scripts/` |
-| `npm run test:cov`   | Same with coverage, 80% minimum                                                       |
-| `npm run build`      | Builds shared, api and web                                                            |
-| `npm run e2e`        | Builds, then runs Playwright against the production builds and `kinemax_test`         |
-| `npm run audit`      | Production audit gate (`npm audit --omit=dev`, fails on high/critical, see below)     |
-| `npm run audit:dev`  | Full `npm audit` including dev tooling; reports only, never fails                     |
-| `npm run verify`     | lint, typecheck, test:cov, build, e2e and audit (production dependencies)             |
+## Documentation
 
-## Design system
+- [docs/data-model.md](docs/data-model.md): tables, database guarantees, SQLSTATEs
+- [docs/auth.md](docs/auth.md): sessions, CSRF, roles, rate limits
+- [docs/security.md](docs/security.md): threat model, controls, review findings, production TODOs
+- [docs/deployment.md](docs/deployment.md): production checklist
+- [docs/roadmap.md](docs/roadmap.md): what was built, in order, and future ideas
 
-Luxury dark cinema in black and deep crimson, dark theme only.
+## Notes
 
-- **Styleguide:** `npm run dev`, then http://localhost:5180/styleguide. It shows the logos,
-  favicons, colors with contrast ratios, type, spacing, every component in every state and the hero
-  background, in Albanian and English. It exists only in development builds; production shows the
-  not-found page there.
-- **Tokens:** `apps/web/src/styles/tokens.css` (colors, type scale, spacing, radii, shadows and
-  glows, z-index, motion, focus ring). `src/styles/tokens.test.ts` checks every color pair listed in
-  `src/styles/contrast.ts` for WCAG AA.
-- **Fonts:** Cormorant Garamond (display) and Manrope (body), self-hosted variable fonts from
-  Fontsource, latin subset only (it covers ë, Ë, ç, Ç and €), `font-display: swap`, preloaded in
-  production builds. About 61 KB in total.
-- **Components:** `apps/web/src/components`, React with CSS modules: Button, Link, Input, Select,
-  Checkbox, Radio/RadioGroup, Switch, FormField, Tabs, Badge (age, format, language), Chip, Card,
-  MovieCard, Skeleton, Modal, Toast, Container/Grid, Icon, Logo, LanguageSwitch and
-  HeroBackground.
-- **Logo:** the KX monogram. All letters are outlines taken from Cormorant Garamond (SIL Open Font
-  License, see `apps/web/src/assets/brand/FONT-LICENSE.md`).
-  `npm run brand:generate -w @kinemax/web` regenerates the SVGs, `logo-data.ts` and the favicon
-  PNGs (it renders them with Playwright's Chromium).
-- **Languages:** a small typed i18n layer (`apps/web/src/i18n`), not a library. Translations are
-  plain objects; English must match the Albanian type, so a missing key fails `npm run typecheck`.
-  The SQ/EN switch remembers the choice in localStorage and sets `<html lang>`.
-
-## Security baseline
-
-helmet, no `x-powered-by`, strict CORS (no wildcard), a 100 kB JSON body limit, zod validation of the
-environment, and a central error handler that never sends stack traces or internals to the client.
-
-### Authentication
-
-Details in [docs/auth.md](docs/auth.md). In short:
-
-- `/api/auth`: `csrf`, `register` (always a CUSTOMER), `login`, `logout`, `logout-all`, `me`
-  (GET/PATCH), `change-password`.
-- Server-side sessions: a random 256-bit token in an `HttpOnly; SameSite=Lax` cookie
-  (`__Host-` + `Secure` in production); only its SHA-256 hash is stored. 7-day sliding idle
-  timeout, 30-day absolute lifetime, rotation on login/register/password change, hourly cleanup.
-- CSRF: every state-changing request needs the `X-CSRF-Token` header (HMAC token bound to the
-  session) and an allowed `Origin`/`Referer`.
-- argon2id passwords (10-128 characters, no common passwords, not the email), generic login errors
-  with similar timing, in-memory rate limits (single process; use a shared store with several
-  instances), masked security logs.
-- Authorization middleware `requireAuth`, `requireRole(...)`, `requireLocationAccess(...)` and a
-  central database-error mapping (409/422/500) shared by all routes.
-
-### Dependency audit
-
-The audit is split in two:
-
-- `npm run audit` (part of `verify`, `scripts/audit-gate.ts`) runs `npm audit --omit=dev` and fails
-  on any high or critical advisory in **production** dependencies, except the documented exceptions
-  below.
-- `npm run audit:dev` runs the full audit including dev-only tooling and only reports. Review its
-  findings when updating dependencies, but they do not block `verify`.
-
-Why the gate needs exceptions: `@prisma/client` (a production dependency) declares the Prisma CLI as
-an optional peer dependency, so npm counts the whole CLI tree as production-reachable (`devOptional`),
-and `--omit=dev` alone still reports it. The CLI pins `mysql2` and `deepmerge-ts` versions with
-high-severity advisories:
-
-| Advisory              | Package        | Why it is accepted                                                     |
-| --------------------- | -------------- | ---------------------------------------------------------------------- |
-| `GHSA-ggr8-5vv4-36mx` | `deepmerge-ts` | Only used by the Prisma CLI to merge its own config files              |
-| `GHSA-3f6p-5ww8-9rcr` | `mysql2`       | MySQL driver bundled with the Prisma CLI; Kinemax uses PostgreSQL only |
-
-Each exception only applies to that package inside the Prisma CLI (`node_modules/prisma/` or
-`node_modules/@prisma/config/`). Any other high/critical advisory, or the same package installed
-anywhere else, still fails the gate. The gate prints exceptions that are no longer reported as
-"stale" so they can be removed. We do not force other versions into the CLI with `overrides`; update
-Prisma when a release with fixed versions is available. Never run `npm audit fix --force`.
-
-### Install scripts
-
-Dependency install scripts are restricted with npm's `allowScripts` policy (root `package.json`) and
-`strict-allow-scripts=true` (`.npmrc`, needs npm 11.16 or newer). Only these may run install scripts:
-
-| Entry                    | Why                                                                        |
-| ------------------------ | -------------------------------------------------------------------------- |
-| `@prisma/engines@7.10.0` | Downloads the Prisma schema engine needed by `prisma migrate`              |
-| `prisma@7.10.0`          | Node version check only; denying it would also stop npm linking the CLI    |
-| `esbuild@0.28.2`         | Verifies/installs the platform binary used by `tsx`                        |
-| `argon2@0.45.1`          | argon2id password hashing; loads its prebuilt binary or builds it          |
-| `sharp@0.35.5`           | Re-encodes uploaded posters to WebP (approved by the owner in task 10)     |
-| `fsevents` → `false`     | macOS-only optional dependency; ships a prebuilt binary, script not needed |
-
-Entries are pinned, so upgrading one of these packages needs a new approval. Any other dependency
-with install scripts makes `npm install`/`npm ci` fail before anything runs. Review it, then approve
-it with `npm approve-scripts <pkg>` or deny it with `npm deny-scripts <pkg>`.
-
-Older npm versions silently ignore `strict-allow-scripts`, so the root `package.json` requires
-`"npm": ">=11.16.0"` in `engines`, and `engine-strict=true` (`.npmrc`) makes them refuse to install.
+- **Kinemax is fictional.** This is a personal portfolio project, not a real cinema. Movies,
+  posters, cinemas and people in the demo data are invented; the poster art is abstract and
+  generated. Payments are a demo: no card data is ever collected.
+- **Fonts**: Cormorant Garamond and Manrope, self-hosted from Fontsource under the
+  [SIL Open Font License 1.1](https://openfontlicense.org/) (see
+  `apps/web/src/assets/brand/FONT-LICENSE.md`). The KX logo letters are outlines taken from
+  Cormorant Garamond.
+- Dependency install scripts are restricted by npm's `allowScripts` policy (root `package.json`,
+  `strict-allow-scripts=true` in `.npmrc`); the accepted audit exceptions (Prisma CLI only) are
+  documented in `scripts/audit-gate-core.ts` and [docs/security.md](docs/security.md).

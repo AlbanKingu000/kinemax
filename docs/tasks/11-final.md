@@ -17,5 +17,5 @@ in docs/security.md.
 - [x] 3b .gitignore
 - [x] 3c dev database reset (approved)
 - [x] 3 commit
-- [ ] 4 README with screenshots + commit
-- [ ] 5 verify, roadmap, commit, tag v1.0.0, push
+- [x] 4 README with screenshots + commit
+- [x] 5 verify, roadmap, commit, tag v1.0.0, push
