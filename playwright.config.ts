@@ -34,8 +34,20 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   projects: [
-    { name: 'desktop-chromium', testIgnore: [EXPIRY_SPEC, HALL_SPEC], use: desktop },
-    { name: 'mobile-chromium', testIgnore: [EXPIRY_SPEC, HALL_SPEC], use: phone },
+    // Signs the e2e staff in once for the whole run (e2e/admin-helpers.ts).
+    { name: 'admin-setup', testMatch: /admin\.setup\.ts$/, use: desktop },
+    {
+      name: 'desktop-chromium',
+      testIgnore: [EXPIRY_SPEC, HALL_SPEC],
+      dependencies: ['admin-setup'],
+      use: desktop,
+    },
+    {
+      name: 'mobile-chromium',
+      testIgnore: [EXPIRY_SPEC, HALL_SPEC],
+      dependencies: ['admin-setup'],
+      use: phone,
+    },
     {
       name: 'hall-3d-desktop',
       testMatch: HALL_SPEC,

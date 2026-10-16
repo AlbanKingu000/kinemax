@@ -76,6 +76,8 @@ export interface CatalogStub {
   menu?: Record<string, Answer>;
   /** /api/bookings/* and /api/payments/*: answers by method and path (needs stubAuth). */
   bookings?: (request: { method: string; path: string; body: unknown }) => Answer;
+  /** /api/admin/*: answers by method, path and query (needs stubAuth). */
+  admin?: (request: { method: string; path: string; url: URL; body: unknown }) => Answer;
 }
 
 const isStatus = (value: unknown): value is { status: number; body: unknown } =>

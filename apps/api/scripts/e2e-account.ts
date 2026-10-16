@@ -23,3 +23,16 @@ export function e2eAccount(project: string, journey?: 'checkout') {
   if (!found) throw new Error(`No e2e account for ${key}`);
   return found;
 }
+
+/**
+ * The staff of the e2e test database: a super admin and the manager of one cinema that the
+ * customer journeys never book in (admin specs change its data). Test-only values, like above.
+ */
+export const E2E_STAFF = {
+  superAdmin: { ...account('e2e-admin@kinemax.test', 'Admin E2E'), role: 'SUPER_ADMIN' },
+  manager: {
+    ...account('e2e-menaxher@kinemax.test', 'Menaxher E2E'),
+    role: 'LOCATION_MANAGER',
+    locationSlug: 'ferizaj',
+  },
+} as const;

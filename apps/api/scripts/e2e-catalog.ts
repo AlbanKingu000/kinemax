@@ -1,7 +1,7 @@
 // Fills the TEST database (DATABASE_URL_TEST, name must end in "_test") with the demo catalog for
 // the Playwright e2e run: hall types, the 4 locations with their halls and seats, the 12 movies,
 // prices, the per-location menus and 14 days of showtimes from the same deterministic plan as the dev seed, plus the fixed
-// test customers (e2e-account.ts). No bookings, so every show is available. Wipes the test database first. Never touches DATABASE_URL.
+// test customers and staff (e2e-account.ts). No bookings, so every show is available. Wipes the test database first. Never touches DATABASE_URL.
 import { hashPassword } from '../src/auth/password.js';
 import { loadDotEnv, rootEnvPath } from '../src/config/load-dotenv.js';
 import { assertTestDatabaseUrl } from '../src/db/database-url.js';
@@ -21,7 +21,7 @@ import {
 } from '../prisma/seed/data.js';
 import { seedMenu } from '../prisma/seed/menu.js';
 import { planShowtimes } from '../prisma/seed/schedule.js';
-import { E2E_ACCOUNTS } from './e2e-account.js';
+import { E2E_ACCOUNTS, E2E_STAFF } from './e2e-account.js';
 
 const SCHEDULE_DAYS = 14;
 
@@ -108,6 +108,22 @@ try {
       l.id,
     ]),
   );
+  // The staff the admin specs sign in with (e2e-account.ts).
+  for (const staff of Object.values(E2E_STAFF)) {
+    const saved = await prisma.user.create({
+      data: {
+        email: staff.email,
+        name: staff.name,
+        role: staff.role,
+        passwordHash: await hashPassword(staff.password),
+      },
+    });
+    if ('locationSlug' in staff) {
+      await prisma.managerLocation.create({
+        data: { userId: saved.id, locationId: locationIds.get(staff.locationSlug) ?? '' },
+      });
+    }
+  }
   await seedMenu(prisma, locationIds);
   await prisma.hallTypePrice.createMany({
     data: BASE_PRICES.map((rule) => ({

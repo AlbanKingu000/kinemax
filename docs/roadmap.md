@@ -24,6 +24,7 @@ task is finished, move it to DONE with its commit hash.
 | Food & drinks ordering (task 8 part A)                               | `e490b4e`            |
 | Demo payment + booking confirmation with QR (task 8 part B)          | `0affa34`            |
 | My tickets with QR codes + cancellation with refund (task 8 part C)  | `1b1f76e`            |
+| Admin shell + access control (task 9 part A)                         | this commit          |
 
 ## Next (in this order)
 

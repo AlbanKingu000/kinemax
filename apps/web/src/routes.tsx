@@ -1,4 +1,5 @@
 import type { RouteObject } from 'react-router';
+import { AdminGate } from './admin/AdminGate';
 import { RequireAuth } from './auth/RequireAuth';
 import { AppShell } from './components/AppShell/AppShell';
 import { AccountPage } from './pages/AccountPage';
@@ -30,6 +31,8 @@ const devRoutes: RouteObject[] = import.meta.env.DEV
 
 // Paths are English and language-neutral; the UI language comes from the SQ/EN switch.
 export const routes: RouteObject[] = [
+  // Its own frame (sidebar, top bar), not the public shell; non-staff get the not-found page.
+  { path: '/admin/*', element: <AdminGate /> },
   {
     element: <AppShell />,
     children: [

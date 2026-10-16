@@ -132,6 +132,25 @@ assigned in `ManagerLocation`, a CUSTOMER never. Malformed or unknown ids get 40
 revealed. `req.auth` holds `{ sessionId, tokenHash, user: { id, email, name, role, preferredLocale } }`.
 Resource ownership checks (e.g. "this booking belongs to the user") belong in each handler.
 
+## Admin API (`/api/admin/*`)
+
+Code: `apps/api/src/routes/admin/`. The router itself starts with
+`requireRole('SUPER_ADMIN', 'LOCATION_MANAGER')`, so every admin path (also unknown ones) is 401
+for visitors and 403 for customers. On top of that:
+
+- **Location ids from the URL, query or body** go through `locationScope` / `canAccessLocation`
+  (the rule behind `requireLocationAccess`): 403 outside the caller's cinemas. Without a
+  `location` filter a manager sees their own cinemas, a super admin all of them.
+- **Resources found by id** (a hall, a showtime) answer 404 when they belong to another cinema
+  (`assertResourceScope`), so ids of other cinemas reveal nothing.
+- **Every write** is CSRF-protected (global), zod-validated, rate limited per staff member and
+  writes an `AuditLog` row (actor, action, entity, before/after) in its own transaction.
+- Tests reuse one harness (`apps/api/test/support/admin.ts`): a second cinema, one signed-in
+  client per role, and `expectRefused` (401/403/404 for everyone who must not, nothing changed).
+
+The web panel (`/admin`, a lazy chunk) is shown to staff only; everybody else gets the ordinary
+not-found page, never a login redirect.
+
 ## Error mapping
 
 The central error handler (`apps/api/src/http/errors.ts`) sends a generic `{ error: { code,

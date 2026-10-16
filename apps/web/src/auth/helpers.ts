@@ -1,4 +1,5 @@
 // Small helpers shared by the auth forms and the header.
+import type { AuthUser } from '@kinemax/shared';
 
 /** Splits zod issues into field codes (the first issue per field). */
 export function fieldIssues(
@@ -22,4 +23,9 @@ export function sameAsEmail(password: string, email: string): boolean {
 /** The first name for the header ("Ana Krasniqi" → "Ana"). */
 export function firstName(name: string): string {
   return name.trim().split(/\s+/)[0] ?? name;
+}
+
+/** Staff may open the admin panel (the API checks the role and the cinema on every request). */
+export function isStaff(user: AuthUser | null): boolean {
+  return user?.role === 'SUPER_ADMIN' || user?.role === 'LOCATION_MANAGER';
 }

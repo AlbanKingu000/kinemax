@@ -1,0 +1,243 @@
+/* Admin panel frame: compact and dense for work. Sidebar from 1024px (lg), a drawer below. */
+
+.shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 100vh;
+  background: var(--color-bg);
+}
+
+.skip {
+  position: fixed;
+  top: var(--space-3);
+  left: var(--space-3);
+  z-index: var(--z-toast);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-crimson);
+  color: var(--color-on-crimson);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+  transform: translateY(-200%);
+}
+
+.skip:focus-visible {
+  transform: none;
+}
+
+.sidebar {
+  display: none;
+}
+
+.brand {
+  display: inline-flex;
+  align-self: start;
+  margin: var(--space-2) var(--space-2) var(--space-6);
+  border-radius: var(--radius-sm);
+}
+
+.logo {
+  width: auto;
+  height: 1.75rem;
+}
+
+.navList {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.navLink,
+.navLater {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 2.5rem;
+  padding: 0 var(--space-3);
+  border-left: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
+}
+
+.navLink:hover {
+  background: rgb(var(--rgb-ivory) / 6%);
+  color: var(--color-text);
+}
+
+.navLink[aria-current='page'] {
+  border-left-color: var(--color-crimson);
+  background: rgb(var(--rgb-crimson) / 14%);
+  color: var(--color-text);
+}
+
+.navLink svg {
+  color: var(--color-crimson-text);
+}
+
+.navLater {
+  color: var(--color-text-muted);
+  cursor: default;
+}
+
+.laterTag {
+  margin-left: auto;
+  white-space: nowrap;
+  color: var(--color-text-muted);
+  font-size: var(--text-overline);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+
+.role {
+  margin: auto 0 0;
+  padding: var(--space-3);
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: var(--text-caption);
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  background: rgb(var(--rgb-black) / 92%);
+  backdrop-filter: blur(12px);
+}
+
+.navButton {
+  flex: none;
+}
+
+.location {
+  display: flex;
+  flex: 1 1 14rem;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  max-width: 22rem;
+}
+
+.locationLabel {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+
+.locationLabel svg {
+  color: var(--color-crimson-text);
+}
+
+.location > span {
+  flex: 1;
+  min-width: 0;
+}
+
+.locationSelect {
+  min-height: 2.5rem;
+  font-size: var(--text-body-sm);
+}
+
+.topActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 2.75rem;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-decoration: none;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.back:hover {
+  color: var(--color-text);
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-4);
+}
+
+.main:focus {
+  outline: none;
+}
+
+/* Phones: the cinema switcher gets its own full-width row under the menu and actions. */
+@media (width < 640px) {
+  .location {
+    order: 3;
+    flex-basis: 100%;
+    max-width: none;
+  }
+
+  /* Icon only; the text stays the link's accessible name. */
+  .backText {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+@media (width >= 1024px) {
+  .shell {
+    grid-template-columns: 16rem minmax(0, 1fr);
+  }
+
+  .sidebar {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    padding: var(--space-4) var(--space-3);
+    border-right: 1px solid var(--color-border);
+    background: var(--color-surface);
+    overflow-y: auto;
+  }
+
+  .navButton {
+    display: none;
+  }
+
+  .main {
+    padding: var(--space-6);
+  }
+}

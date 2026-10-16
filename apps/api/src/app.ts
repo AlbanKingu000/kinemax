@@ -16,6 +16,8 @@ import { createCheckoutRouter, type CheckoutRateLimits } from './routes/checkout
 import { createHealthRouter } from './routes/health.js';
 import { createMenuRouter } from './routes/menu.js';
 import { createMyBookingsRouter, type CancelRateLimits } from './routes/my-bookings.js';
+import { ADMIN_RATE_LIMITS, type AdminRateLimits } from './routes/admin/common.js';
+import { createAdminRouter } from './routes/admin/index.js';
 import { createProtectedExamplesRouter } from './routes/protected-examples.js';
 import { createSeatMapRouter } from './routes/seatmap.js';
 import { createShowtimesRouter } from './routes/showtimes.js';
@@ -50,6 +52,8 @@ export interface AppDeps {
   checkoutRateLimits?: CheckoutRateLimits;
   /** Cancellation rate limits (default CANCEL_RATE_LIMITS). */
   cancelRateLimits?: CancelRateLimits;
+  /** Admin write rate limits (default ADMIN_RATE_LIMITS). */
+  adminRateLimits?: AdminRateLimits;
 }
 
 export function createApp({
@@ -62,6 +66,7 @@ export function createApp({
   bookingRateLimits,
   checkoutRateLimits,
   cancelRateLimits,
+  adminRateLimits = ADMIN_RATE_LIMITS,
 }: AppDeps): Express {
   const app = express();
   const cookies = cookieSettings(auth.cookieSecure);
@@ -134,6 +139,7 @@ export function createApp({
       ...(cancelRateLimits ? { rateLimits: cancelRateLimits } : {}),
     }),
   );
+  app.use('/api/admin', createAdminRouter({ prisma, logger, now, rateLimits: adminRateLimits }));
   app.use('/api', createProtectedExamplesRouter(prisma));
 
   app.use(notFoundHandler);

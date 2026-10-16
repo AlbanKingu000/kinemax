@@ -9,6 +9,7 @@ import type { AuthRateLimits } from '../../src/auth/rate-limit.js';
 import type { BookingRateLimits } from '../../src/routes/bookings.js';
 import type { CheckoutRateLimits } from '../../src/routes/checkout.js';
 import type { CancelRateLimits } from '../../src/routes/my-bookings.js';
+import type { AdminRateLimits } from '../../src/routes/admin/common.js';
 import { createSessionService } from '../../src/auth/sessions.js';
 import { createPrismaClient } from '../../src/db/prisma.js';
 import type { Logger } from '../../src/logger.js';
@@ -44,6 +45,7 @@ export function makeTestApp(
     bookingRateLimits?: BookingRateLimits;
     checkoutRateLimits?: CheckoutRateLimits;
     cancelRateLimits?: CancelRateLimits;
+    adminRateLimits?: AdminRateLimits;
     now?: () => Date;
   } = {},
 ) {
@@ -66,6 +68,7 @@ export function makeTestApp(
     ...(options.bookingRateLimits ? { bookingRateLimits: options.bookingRateLimits } : {}),
     ...(options.checkoutRateLimits ? { checkoutRateLimits: options.checkoutRateLimits } : {}),
     ...(options.cancelRateLimits ? { cancelRateLimits: options.cancelRateLimits } : {}),
+    ...(options.adminRateLimits ? { adminRateLimits: options.adminRateLimits } : {}),
   };
   return { app: createApp(deps), logger, prisma };
 }

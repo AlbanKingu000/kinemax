@@ -7,19 +7,54 @@ tick items (with the file-editing tool) as they are finished.
 
 (Taken without asking, with the safest reasonable option. Newest last.)
 
+1. **A1, answers outside the scope.** Every `/api/admin/*` path (also unknown ones) is 401 for
+   visitors and 403 for customers. A location id outside a manager's cinemas is 403; a resource
+   found by id (hall, showtime) of another cinema is 404, so ids reveal nothing (docs/auth.md).
+2. **A1, the web gate.** `/admin` is a lazy chunk loaded for staff only. Everybody else, signed
+   out too, gets the ordinary site 404 (no login redirect, which would hint at the panel); staff
+   sign in on /login and open "Paneli admin" from the account menu or the mobile drawer.
+3. **A2, the frame.** Managers have no "Të gjitha": the switcher lists only their cinemas (first
+   one preselected); the choice is remembered per browser (localStorage, safe if blocked).
+   "Filmat" is hidden for managers (movies are global, part C). Later sections (Çmimet, Ushqimi,
+   Skano, Përdoruesit) are listed as "Së shpejti", not links. The site's account menu is reused as
+   the user menu, plus the SQ/EN switch. New icons: chart, cup, scan, edit, upload.
+4. **A3, e2e staff.** The e2e database gets a super admin and the manager of **Ferizaj** (a cinema
+   the customer journeys never book in, so admin specs may change its data). A setup project
+   signs both in once per run through the API (the run stays under the login limit of 20 per IP
+   per 15 minutes, decision 14 of task 8).
+5. **Chrome check sign-in.** The dev API had been stopped earlier for low memory; it was started
+   again for the Chrome check (3.8 GB free; the web dev server was still running). Staff sign in
+   to the real Chrome through a session created by a local script that reads the seed password
+   from .env, so no password is ever typed into a tool call or printed.
+6. **Styleguide.** Part A has only the frame; the admin components (KPI tile, charts, dense table,
+   fill bar, confirmation dialog) get their own /styleguide section from part B on.
+
 ## Progress (keep up to date)
 
 - Started 16 Oct 2026.
+- Part A: done. API: `/api/admin` router behind the staff roles, `GET /api/admin/locations`,
+  `canAccessLocation` extracted from `requireLocationAccess`, admin helpers (scope, audit, rate
+  limits). Tests: API 6 (`test/admin/access.db.test.ts` + the harness `test/support/admin.ts`),
+  web 9 (`AdminShell.test.tsx`), e2e 3 × 2 projects (`admin.spec.ts`, setup project).
+  `npm run verify` green (shared 26, api 313, web 389, scripts 10; coverage api 95.19% / 85.61%,
+  web 92.07% / 82.77%; e2e 75 passed; audit passed). Chrome check (Claude in Chrome, dev server):
+  as the seed customer /admin is the site 404; as the Prizren manager the panel shows only
+  Kinemax Prizren, no "Filmat", navigation and SQ/EN work, console clean. That window ignores
+  resizing, so 390 px comes from the Playwright script in installed Chrome (console clean, no
+  overflow): `admin-shell-super-admin-{desktop,mobile-390}.png`,
+  `admin-shell-manager-{desktop,mobile-390}.png`, `admin-shell-nav-drawer-mobile-390.png`,
+  `admin-shell-customer-404-{desktop,mobile-390}.png`. Committed as "feat: admin shell and
+  access control" (hash in docs/roadmap.md).
 
 ## Checklist
 
 ### Part A: Admin shell and access
 
-- [ ] A1 /admin routes (SUPER_ADMIN and LOCATION_MANAGER only; others get a 404-style page) + an
+- [x] A1 /admin routes (SUPER_ADMIN and LOCATION_MANAGER only; others get a 404-style page) + an
       "Admin" link in the account menu for those roles
-- [ ] A2 Layout: sidebar, top bar with location switcher, user menu, "Kthehu te site-i"
-- [ ] A3 Shared admin API client + authorization test harness reused by every part
-- [ ] Part A: verify + Chrome check + screenshots + roadmap + commit "feat: admin shell and access
+- [x] A2 Layout: sidebar, top bar with location switcher, user menu, "Kthehu te site-i"
+- [x] A3 Shared admin API client + authorization test harness reused by every part
+- [x] Part A: verify + Chrome check + screenshots + roadmap + commit "feat: admin shell and access
       control"
 
 ### Part B: Dashboard

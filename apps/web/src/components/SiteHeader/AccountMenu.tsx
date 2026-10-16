@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router';
 import { useAuth } from '../../auth/auth-context';
-import { firstName } from '../../auth/helpers';
+import { firstName, isStaff } from '../../auth/helpers';
 import { useSignOut } from '../../auth/use-sign-out';
 import { useMessages } from '../../i18n/use-messages';
 import { Icon } from '../Icon/Icon';
@@ -9,7 +9,7 @@ import styles from './AccountMenu.module.css';
 
 /**
  * Header account menu: "Hyr" when signed out; when signed in a disclosure button with the first
- * name that opens "Llogaria ime" and "Dil". Escape and a click outside close it.
+ * name that opens "Llogaria ime", "Biletat e mia", "Paneli admin" (staff only) and "Dil". Escape and a click outside close it.
  */
 export function AccountMenu({ className }: { className?: string }) {
   const t = useMessages();
@@ -86,6 +86,14 @@ export function AccountMenu({ className }: { className?: string }) {
               {t.account.myTickets}
             </NavLink>
           </li>
+          {isStaff(user) && (
+            <li>
+              <NavLink to="/admin" className={styles.item}>
+                <Icon name="seat" size={18} />
+                {t.account.admin}
+              </NavLink>
+            </li>
+          )}
           <li>
             <button
               type="button"

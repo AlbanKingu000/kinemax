@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { defaultLocale, formatReleaseDate, locales, messages, pickText } from './messages';
+import { adminMessages } from './admin-messages';
 import { styleguideMessages } from './styleguide-messages';
 
 function keyPaths(value: object, prefix = ''): string[] {
@@ -13,6 +14,7 @@ function keyPaths(value: object, prefix = ''): string[] {
 describe.each([
   ['messages', messages],
   ['styleguide messages', styleguideMessages],
+  ['admin messages', adminMessages],
 ] as const)('%s', (_name, catalog) => {
   it('has the same keys and no empty strings in every locale', () => {
     const reference = keyPaths(catalog.sq).sort();

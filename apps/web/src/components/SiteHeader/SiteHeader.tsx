@@ -8,7 +8,7 @@ import { LocationButton } from '../LocationPicker/LocationButton';
 import { Logo } from '../Logo/Logo';
 import { Modal } from '../Modal/Modal';
 import { useAuth } from '../../auth/auth-context';
-import { firstName } from '../../auth/helpers';
+import { firstName, isStaff } from '../../auth/helpers';
 import { useSignOut } from '../../auth/use-sign-out';
 import { AccountMenu } from './AccountMenu';
 import { BUY_TICKET_PATH, NAV_ITEMS } from './nav-items';
@@ -130,6 +130,11 @@ function DrawerAccount({ onDone }: { onDone: () => void }) {
       <NavLink to="/account/tickets" className={styles.login} onClick={onDone}>
         {t.account.myTickets}
       </NavLink>
+      {isStaff(user) && (
+        <NavLink to="/admin" className={styles.login} onClick={onDone}>
+          {t.account.admin}
+        </NavLink>
+      )}
       <Button
         variant="ghost"
         size="sm"

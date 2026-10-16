@@ -291,6 +291,7 @@ const sq = {
     logoutAll: 'Dil nga të gjitha pajisjet',
     loggedOutEverywhere: 'Dole nga llogaria në të gjitha pajisjet.',
     myTickets: 'Biletat e mia',
+    admin: 'Paneli admin',
   },
   seats: {
     title: 'Zgjidh ulëset',
@@ -777,6 +778,7 @@ const en: Messages = {
     logoutAll: 'Sign out on all devices',
     loggedOutEverywhere: 'You are signed out on all devices.',
     myTickets: 'My tickets',
+    admin: 'Admin panel',
   },
   seats: {
     title: 'Choose your seats',

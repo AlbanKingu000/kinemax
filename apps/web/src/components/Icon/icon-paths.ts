@@ -33,6 +33,11 @@ export const ICON_PATHS = {
   warning: 'M12 4.25L20.5 19H3.5zM12 10v4M12 16.75h.01',
   success: `${circle}M8.5 12.25l2.5 2.5 4.75-5`,
   error: `${circle}M9.25 9.25l5.5 5.5M14.75 9.25l-5.5 5.5`,
+  chart: 'M4.5 19.5h15M7.5 16.5v-5M12 16.5v-9M16.5 16.5v-7',
+  cup: 'M6.5 9.5h11l-1.5 10h-8zM9 9.5l1-5h4l1 5M10.5 13v3.5M13.5 13v3.5',
+  scan: 'M4.5 9V4.5H9M15 4.5h4.5V9M19.5 15v4.5H15M9 19.5H4.5V15M7.5 12h9',
+  edit: 'M5 19l1-4 9.5-9.5 3 3L9 18zM13.5 7.5l3 3',
+  upload: 'M12 15.5V4.5M7.5 9L12 4.5 16.5 9M4.5 15v4.5h15V15',
 } as const;
 
 export type IconName = keyof typeof ICON_PATHS;

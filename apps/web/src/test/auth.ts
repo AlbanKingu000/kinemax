@@ -39,6 +39,10 @@ export function stubAuth(initial: AuthUser | null = null, catalog: CatalogStub =
       state.requests.push({ method, path: url.pathname, body });
       return respond(catalog.bookings({ method, path: url.pathname, body }));
     }
+    if (url.pathname.startsWith('/api/admin/') && catalog.admin) {
+      state.requests.push({ method, path: url.pathname, body });
+      return respond(catalog.admin({ method, path: url.pathname, url, body }));
+    }
     if (!url.pathname.startsWith('/api/auth/')) {
       return catalogFetch ? catalogFetch(input) : json({}, 404);
     }

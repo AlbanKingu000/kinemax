@@ -178,19 +178,26 @@ export function requireLocationAccess(
       next(unauthorized());
       return;
     }
-    if (auth.user.role === 'SUPER_ADMIN') {
-      next();
-      return;
-    }
-    const locationId = locationIdFrom(req);
-    if (auth.user.role !== 'LOCATION_MANAGER' || !uuid.safeParse(locationId).success) {
-      next(forbidden());
-      return;
-    }
-    const assignment = await prisma.managerLocation.findUnique({
-      where: { userId_locationId: { userId: auth.user.id, locationId: locationId ?? '' } },
-      select: { userId: true },
-    });
-    next(assignment ? undefined : forbidden());
+    const allowed = await canAccessLocation(prisma, auth.user, locationIdFrom(req));
+    next(allowed ? undefined : forbidden());
   };
+}
+
+/**
+ * The rule behind requireLocationAccess, for location ids that are only known inside a handler
+ * (e.g. the hall of a showtime): SUPER_ADMIN every location, a LOCATION_MANAGER the assigned
+ * ones, nobody else (also false for malformed ids).
+ */
+export async function canAccessLocation(
+  prisma: PrismaClient,
+  user: SessionUser,
+  locationId: string | undefined,
+): Promise<boolean> {
+  if (user.role === 'SUPER_ADMIN') return true;
+  if (user.role !== 'LOCATION_MANAGER' || !uuid.safeParse(locationId).success) return false;
+  const assignment = await prisma.managerLocation.findUnique({
+    where: { userId_locationId: { userId: user.id, locationId: locationId ?? '' } },
+    select: { userId: true },
+  });
+  return assignment !== null;
 }
