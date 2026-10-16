@@ -9,9 +9,16 @@ import styles from './SeatMap2D.module.css';
 interface SeatMap2DProps {
   map: SeatMapResponse;
   selected: readonly string[];
-  onToggle: (seat: SeatMapSeat) => void;
+  /** `shiftKey`: the admin seat editor selects a range with Shift. */
+  onToggle: (seat: SeatMapSeat, event: { shiftKey: boolean }) => void;
   /** "Shiko pamjen" for the focused seat (opens the view from that seat in 3D). */
   onView?: ((seat: SeatMapSeat) => void) | undefined;
+  /** Seat editor: the spoken label of a seat (default: row, number, type, status, price). */
+  describe?: (seat: SeatMapSeat) => string;
+  /** Seat editor: TAKEN (greyed, inactive) seats can be selected too. */
+  selectTaken?: boolean;
+  /** Seat editor: the pointer moved onto a seat with the button pressed (drag to select). */
+  onSweep?: (seat: SeatMapSeat) => void;
 }
 
 const UNIT = 0.62; // meters of hall per seat unit, for the layout scale
@@ -21,7 +28,15 @@ const UNIT = 0.62; // meters of hall per seat unit, for the layout scale
  * a full spoken label; one tab stop for the whole map (roving tabindex), arrows move along and
  * between rows, Home/End jump within a row, Enter/Space select.
  */
-export function SeatMap2D({ map, selected, onToggle, onView }: SeatMap2DProps) {
+export function SeatMap2D({
+  map,
+  selected,
+  onToggle,
+  onView,
+  describe,
+  selectTaken = false,
+  onSweep,
+}: SeatMap2DProps) {
   const t = useMessages();
   const { locale } = useLocale();
   const rows = useMemo(() => rowsOf(map.seats), [map.seats]);
@@ -46,7 +61,7 @@ export function SeatMap2D({ map, selected, onToggle, onView }: SeatMap2DProps) {
   const width = bounds.maxX - bounds.minX || 1;
   const depth = bounds.maxY - bounds.minY || 1;
 
-  const label = (seat: SeatMapSeat) => {
+  const defaultLabel = (seat: SeatMapSeat) => {
     const price = map.prices[seat.type];
     return [
       t.seats.rowSeat(seat.row, seat.number),
@@ -61,6 +76,8 @@ export function SeatMap2D({ map, selected, onToggle, onView }: SeatMap2DProps) {
       .filter(Boolean)
       .join(', ');
   };
+
+  const label = describe ?? defaultLabel;
 
   function onKeyDown(event: KeyboardEvent, seat: SeatMapSeat) {
     const keys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'] as const;
@@ -110,7 +127,9 @@ export function SeatMap2D({ map, selected, onToggle, onView }: SeatMap2DProps) {
               data-type={seat.type}
               data-status={isSelected ? 'SELECTED' : seat.status}
               aria-pressed={isSelected}
-              aria-disabled={seat.status === 'TAKEN' && !isSelected ? true : undefined}
+              aria-disabled={
+                seat.status === 'TAKEN' && !isSelected && !selectTaken ? true : undefined
+              }
               aria-label={label(seat)}
               tabIndex={seat.id === focusId ? 0 : -1}
               style={{
@@ -124,9 +143,12 @@ export function SeatMap2D({ map, selected, onToggle, onView }: SeatMap2DProps) {
               onKeyDown={(event) => {
                 onKeyDown(event, seat);
               }}
-              onClick={() => {
-                if (seat.status === 'TAKEN' && !isSelected) return;
-                onToggle(seat);
+              onClick={(event) => {
+                if (seat.status === 'TAKEN' && !isSelected && !selectTaken) return;
+                onToggle(seat, { shiftKey: event.shiftKey });
+              }}
+              onPointerEnter={(event) => {
+                if (onSweep && event.buttons === 1) onSweep(seat);
               }}
             >
               <span aria-hidden="true">

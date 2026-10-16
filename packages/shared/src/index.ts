@@ -6,3 +6,4 @@ export * from './food.js';
 export * from './booking.js';
 export * from './checkout.js';
 export * from './admin.js';
+export * from './seat-layout.js';

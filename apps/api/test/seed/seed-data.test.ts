@@ -185,3 +185,17 @@ describe('placeholder artwork', () => {
     expect(backdropSvg({ slug: 'a-b' })).toMatch(/^<\?xml[\s\S]*<\/svg>\n$/);
   });
 });
+
+describe('hall spacing', () => {
+  it('lays out every seeded hall with the spacing rules of its hall type', async () => {
+    const { HALL_TYPE_SPACING } = await import('@kinemax/shared');
+    for (const location of LOCATIONS) {
+      for (const hall of location.halls) {
+        expect(hall.layout, `${location.slug}/${hall.name}`).toEqual({
+          rows: hall.layout.rows,
+          ...HALL_TYPE_SPACING[hall.type],
+        });
+      }
+    }
+  });
+});

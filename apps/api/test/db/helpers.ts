@@ -244,3 +244,9 @@ export function ticket(
     priceBreakdown: { totalCents: 450 },
   };
 }
+
+/** The value, or a failed test when it is missing (instead of a non-null assertion). */
+export function must<T>(value: T | undefined | null): T {
+  if (value === undefined || value === null) throw new Error('expected a value');
+  return value;
+}

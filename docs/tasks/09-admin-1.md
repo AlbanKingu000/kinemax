@@ -90,6 +90,29 @@ tick items (with the file-editing tool) as they are finished.
     show row `FOR SHARE` before touching bookings, so a hold cannot slip in during a
     deactivation (and the two never deadlock). An inactive future show can be put back on sale
     ("Aktivizo", 409 if the hall was taken meanwhile).
+17. **E1, one generator.** `generateSeats` and the spacing per hall type
+    (`HALL_TYPE_SPACING`, the seed's values; unknown types use STANDARD) moved to
+    `@kinemax/shared`, so the editor previews exactly the coordinates the server saves; the seed
+    templates use the same table (a test checks every seeded hall). The seed and e2e scripts now
+    run tsx with the `kinemax-source` condition, so they need no build of the shared package.
+18. **E1, the editing model.** A hall is rows of blocks (an aisle between blocks), each seat a
+    cell. Numbers are always 1..n left to right and positions are recomputed on every change, so
+    "renumber" is automatic; a row can be renamed. Tools: select (click, Shift + click range in a
+    row, drag), change type, remove/deactivate, activate, add a seat to the right, add a row
+    (the last row's block sizes, standard seats), undo all, save. The 3D preview is behind
+    "Shfaq pamjen 3D" (WebGL only on demand) and redraws with every change. Extra gaps in front
+    of a row (cross aisles) and tier heights are not editable: they come from the hall type.
+    `SeatMap2D` got optional editor hooks (spoken label, selectable greyed seats, Shift, drag).
+19. **E2, safety rules on the server (one transaction, `hall.layout` audit row).** A seat with
+    booking history is never deleted: leaving it out is 409 `has_history`; the editor keeps it
+    greyed as "joaktive" in its place (it keeps its row and number on old tickets). A seat with
+    a booking for a show that has not ended must stay active with the same row, number and
+    ticket count (409 `blocked`; the editor lists the blocking shows) — this also forbids
+    renaming its row or adding seats to its left. A seat with history never changes its ticket
+    count (409 `capacity_history`, also G12/KX006): deactivate it and add a new one. A suite
+    with a whole-hall booking for a show that has not ended cannot change at all
+    (`suite_booked`); `wholeHallOnly` itself is not editable. The save locks the hall and its
+    future shows (`FOR UPDATE`), so a seat hold cannot appear between the checks and the commit.
 
 ## Progress (keep up to date)
 
@@ -153,6 +176,24 @@ tick items (with the file-editing tool) as they are finished.
   `admin-showtime-deactivate-dialog-{desktop,mobile-390}.png`, `admin-showtime-new-desktop.png`,
   `admin-showtime-edit-locked-desktop.png`, `admin-showtime-bulk-desktop.png`. Committed as
   "feat: admin showtime management".
+- Part E: done. Shared: `generateSeats`, `HALL_TYPE_SPACING`, `ticketsPerSeat`, layout schemas.
+  API: `/api/admin/halls` (list), `GET/PUT /api/admin/halls/:id/layout`. Web: halls list, seat
+  editor on the 2D map (click, Shift range, drag), live 3D preview on demand. Tests: API 10
+  (layout with history/blockers, numbers and coordinates equal to the generator, the public
+  seat map reflects the change, delete vs deactivate, every blocked change, capacity with
+  history, booked suite, validation, IDOR) + seed spacing test; shared 5; web 7 model + 6 page
+  (selection, refusals, deactivate, add row/seat, rename, type, save body, server refusal, 3D
+  stand-in shows the edited seats); e2e 1 × 2 (add a row → save → remove it → save). `npm run
+verify` green (shared 35 at 100% branches, api 362, web 435, scripts 10; coverage api 95.30% /
+  85.24%, web 90.52% / 80.77%; e2e 81 passed; audit passed). Chrome check (dev server, seed super
+  admin, Prizren): VIP 3 → add row E → saved → Shift-selected E1–E8 → 3D preview highlighted
+  them → removed → saved (back to 4 rows, 32 seats); Salla 1: the seat booked by the demo
+  booking is refused with its show listed. Twice the extension's screenshot capture of that
+  window timed out while the page itself kept working (checked with scripts and headless runs:
+  no hang in the app). Screenshots (console clean, no overflow):
+  `admin-halls-list-{desktop,mobile-390}.png`, `admin-seat-editor-{desktop,mobile-390}.png`,
+  `admin-seat-editor-3d-desktop.png` (the preview's screen now uses a raster image: an SVG
+  without a size gave WebGL warnings). Committed as "feat: admin hall and seat editor".
 
 ## Checklist
 
@@ -196,12 +237,12 @@ tick items (with the file-editing tool) as they are finished.
 
 ### Part E: Hall and seat editor (managers for their locations)
 
-- [ ] E1 Visual 2D editor (select, add seats/rows, remove, seat type, renumber; coordinates from
+- [x] E1 Visual 2D editor (select, add seats/rows, remove, seat type, renumber; coordinates from
       the grid; live 3D preview)
-- [ ] E2 Safety rules (history → deactivate only, G12 blockers shown, one validated batch in one
+- [x] E2 Safety rules (history → deactivate only, G12 blockers shown, one validated batch in one
       transaction with audit, suites keep whole-hall rules)
-- [ ] E3 Tests (batch validation, blocked changes, deactivate vs delete, coordinates, 3D, scope)
-- [ ] Part E: verify + Chrome check + screenshots + roadmap + commit "feat: admin hall and seat
+- [x] E3 Tests (batch validation, blocked changes, deactivate vs delete, coordinates, 3D, scope)
+- [x] Part E: verify + Chrome check + screenshots + roadmap + commit "feat: admin hall and seat
       editor"
 
 ### Final

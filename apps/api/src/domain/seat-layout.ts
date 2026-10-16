@@ -1,108 +1,18 @@
-// Seat-layout generator: turns a compact hall description into seats with 3D coordinates for the
-// future interactive seat map and "view from this seat" camera.
-//
-// Coordinate system (meters): x = left/right of the hall center line (negative = left, seen from
-// the audience), y = distance from the screen wall, z = elevation above the front floor.
-// rotationDeg is the seat's yaw so it faces the center of the screen (0 = straight ahead).
+// Hall templates of the seed. The generator itself (generateSeats, the spacing per hall type)
+// lives in @kinemax/shared, so the admin seat editor previews exactly what is saved.
+import {
+  generateSeats,
+  HALL_TYPE_SPACING,
+  type GeneratedSeat,
+  type HallLayoutSpec,
+  type HallSpacing,
+  type RowSpec,
+  type SeatSpec,
+  type SeatTypeCode,
+} from '@kinemax/shared';
 
-export type SeatTypeCode = 'STANDARD' | 'VIP' | 'COUPLE' | 'WHEELCHAIR' | 'COMPANION';
-
-export interface SeatSpec {
-  type: SeatTypeCode;
-  /** Width in seat units; defaults to 2 for COUPLE and 1 otherwise. */
-  widthUnits?: number;
-}
-
-export interface RowSpec {
-  label: string;
-  /** Seat blocks from left to right, separated by aisles. */
-  blocks: SeatSpec[][];
-  /** Extra gap in front of this row (cross aisle, wheelchair turning space). */
-  extraGapM?: number;
-}
-
-export interface HallLayoutSpec {
-  rows: RowSpec[];
-  /** Physical width of one seat unit. */
-  seatWidthM: number;
-  rowSpacingM: number;
-  aisleWidthM: number;
-  /** Distance from the screen wall to the first row. */
-  firstRowDistanceM: number;
-  /** Rows before this index are flat; each later row is raised by tierRiseM. */
-  tierStartRow: number;
-  tierRiseM: number;
-}
-
-export interface GeneratedSeat {
-  rowLabel: string;
-  number: number;
-  seatType: SeatTypeCode;
-  x: number;
-  y: number;
-  z: number;
-  rotationDeg: number;
-  widthUnits: number;
-}
-
-const round = (value: number, decimals: number) => {
-  const f = 10 ** decimals;
-  return Math.round(value * f) / f || 0;
-};
-
-function widthOf(seat: SeatSpec): number {
-  return seat.widthUnits ?? (seat.type === 'COUPLE' ? 2 : 1);
-}
-
-/** Generates all seats of a hall. Seats are numbered 1..n from left to right in every row. */
-export function generateSeats(spec: HallLayoutSpec): GeneratedSeat[] {
-  const seen = new Set<string>();
-  const seats: GeneratedSeat[] = [];
-  let y = spec.firstRowDistanceM;
-
-  spec.rows.forEach((row, rowIndex) => {
-    if (seen.has(row.label)) throw new Error(`Duplicate row label ${row.label}`);
-    seen.add(row.label);
-    const blocks = row.blocks.filter((block) => block.length > 0);
-    if (blocks.length === 0) throw new Error(`Row ${row.label} has no seats`);
-
-    if (rowIndex > 0) y += spec.rowSpacingM;
-    y += row.extraGapM ?? 0;
-    const z =
-      rowIndex >= spec.tierStartRow ? (rowIndex - spec.tierStartRow + 1) * spec.tierRiseM : 0;
-
-    const blockWidths = blocks.map((block) =>
-      block.reduce((sum, seat) => sum + widthOf(seat) * spec.seatWidthM, 0),
-    );
-    const totalWidth =
-      blockWidths.reduce((sum, w) => sum + w, 0) + (blocks.length - 1) * spec.aisleWidthM;
-
-    let cursor = -totalWidth / 2;
-    let number = 1;
-    blocks.forEach((block, blockIndex) => {
-      if (blockIndex > 0) cursor += spec.aisleWidthM;
-      for (const seat of block) {
-        const widthUnits = widthOf(seat);
-        const width = widthUnits * spec.seatWidthM;
-        const x = cursor + width / 2;
-        cursor += width;
-        seats.push({
-          rowLabel: row.label,
-          number: number++,
-          seatType: seat.type,
-          x: round(x, 3),
-          y: round(y, 3),
-          z: round(z, 3),
-          rotationDeg: round((-Math.atan2(x, y) * 180) / Math.PI, 1),
-          widthUnits,
-        });
-      }
-    });
-  });
-
-  return seats;
-}
-
+export { generateSeats, HALL_TYPE_SPACING };
+export type { GeneratedSeat, HallLayoutSpec, HallSpacing, RowSpec, SeatSpec, SeatTypeCode };
 // ---------------------------------------------------------------------------------------------
 // Hall templates used by the seed. Each returns a HallLayoutSpec for generateSeats.
 // ---------------------------------------------------------------------------------------------
@@ -164,14 +74,13 @@ export function stadiumHallSpec(options: {
       blocks: blockSizes.map((size) => repeat(vip.has(index) ? 'VIP' : 'STANDARD', size)),
     };
   });
+  const spacing = HALL_TYPE_SPACING.STANDARD as HallSpacing;
   return {
     rows: specs,
-    seatWidthM: 0.55,
-    rowSpacingM: 0.95,
-    aisleWidthM: 1.2,
-    firstRowDistanceM: options.firstRowDistanceM ?? 4.5,
-    tierStartRow: options.tierStartRow ?? 3,
-    tierRiseM: options.tierRiseM ?? 0.35,
+    ...spacing,
+    firstRowDistanceM: options.firstRowDistanceM ?? spacing.firstRowDistanceM,
+    tierStartRow: options.tierStartRow ?? spacing.tierStartRow,
+    tierRiseM: options.tierRiseM ?? spacing.tierRiseM,
   };
 }
 
@@ -184,15 +93,7 @@ export function reclinerHallSpec(options: { rows: number; blockSizes: number[] }
         ? accessibleBlocks(options.blockSizes, 'VIP')
         : options.blockSizes.map((size) => repeat('VIP', size)),
   }));
-  return {
-    rows: specs,
-    seatWidthM: 0.95,
-    rowSpacingM: 1.7,
-    aisleWidthM: 1.4,
-    firstRowDistanceM: 5,
-    tierStartRow: 1,
-    tierRiseM: 0.45,
-  };
+  return { rows: specs, ...(HALL_TYPE_SPACING.VIP_RECLINER as HallSpacing) };
 }
 
 /** Private suite: two rows of recliners booked as a whole. */
@@ -202,11 +103,6 @@ export function suiteHallSpec(options: { seatsPerRow: number }): HallLayoutSpec 
       { label: 'A', blocks: [repeat('VIP', options.seatsPerRow)] },
       { label: 'B', blocks: [repeat('VIP', options.seatsPerRow)] },
     ],
-    seatWidthM: 0.95,
-    rowSpacingM: 1.9,
-    aisleWidthM: 1.2,
-    firstRowDistanceM: 3.5,
-    tierStartRow: 1,
-    tierRiseM: 0.5,
+    ...(HALL_TYPE_SPACING.PRIVATE_SUITE as HallSpacing),
   };
 }

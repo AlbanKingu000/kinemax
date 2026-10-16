@@ -66,7 +66,9 @@ describe('the admin shell', () => {
       'href',
       '#admin-main',
     );
-    expect(document.title).toBe('Paneli i administrimit · Kinemax');
+    await vi.waitFor(() => {
+      expect(document.title).toBe('Paneli i administrimit · Kinemax');
+    });
   });
 
   it('remembers the chosen cinema', async () => {

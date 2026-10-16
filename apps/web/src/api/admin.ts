@@ -1,6 +1,7 @@
 // The admin panel's API client: every call goes through the one fetch wrapper (CSRF, errors) and
 // validates the answer with the shared schemas. The server re-checks role and cinema every time.
 import {
+  adminHallsResponseSchema,
   adminLocationsResponseSchema,
   adminMovieResponseSchema,
   adminMoviesResponseSchema,
@@ -9,13 +10,17 @@ import {
   bulkCreateResponseSchema,
   bulkPreviewResponseSchema,
   deactivateResponseSchema,
+  hallLayoutResponseSchema,
   statsResponseSchema,
   type AdminShowtime,
   type AdminShowtimesResponse,
   type BulkPreviewResponse,
   type BulkShowtimesInput,
   type DeactivateResponse,
+  type HallLayoutInput,
+  type HallLayoutResponse,
   type ShowtimeInput,
+  type AdminHallsResponse,
   type AdminLocation,
   type AdminMovie,
   type MovieImageKind,
@@ -171,4 +176,32 @@ export async function activateShowtime(id: string): Promise<AdminShowtime> {
       schema: adminShowtimeResponseSchema,
     })
   ).showtime;
+}
+
+export async function fetchAdminHalls(
+  location: string,
+  signal?: AbortSignal,
+): Promise<AdminHallsResponse['halls']> {
+  return (
+    await apiRequest(`/api/admin/halls${adminQuery({ location })}`, {
+      schema: adminHallsResponseSchema,
+      ...opts(signal),
+    })
+  ).halls;
+}
+
+export function fetchHallLayout(id: string, signal?: AbortSignal): Promise<HallLayoutResponse> {
+  return apiRequest(`/api/admin/halls/${encodeURIComponent(id)}/layout`, {
+    schema: hallLayoutResponseSchema,
+    ...opts(signal),
+  });
+}
+
+/** Saves the whole layout as one batch; the answer is the layout as stored. */
+export function saveHallLayout(id: string, input: HallLayoutInput): Promise<HallLayoutResponse> {
+  return apiRequest(`/api/admin/halls/${encodeURIComponent(id)}/layout`, {
+    method: 'PUT',
+    body: input,
+    schema: hallLayoutResponseSchema,
+  });
 }

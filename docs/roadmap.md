@@ -27,14 +27,14 @@ task is finished, move it to DONE with its commit hash.
 | Admin shell + access control (task 9 part A)                         | `df5c1de`            |
 | Admin dashboard: sales and occupancy stats (task 9 part B)           | `004687b`            |
 | Admin movies + secure poster/backdrop upload (task 9 part C)         | `9ac116d`            |
-| Admin showtimes; deactivation cancels + refunds (task 9 part D)      | this commit          |
+| Admin showtimes; deactivation cancels + refunds (task 9 part D)      | `506531d`            |
+| Admin hall and seat editor with 3D preview (task 9 part E)           | this commit          |
 
 ## Next (in this order)
 
-1. Admin panel: super admin (prices, settings, users, all locations) + location managers (movies,
-   showtimes, halls, bookings); deactivating a showtime must cancel/refund its bookings
+1. Admin panel part 2: prices & settings, food management, QR check-in ("Skano"), users & audit
+   log (the sidebar already lists them as "Së shpejti")
 2. Security review + full e2e pass
-3. Push to a private GitHub repo (AlbanKingu000/kinemax)
 
 Out of scope for now (task 8): sending emails (confirmations, tickets), real payment providers
 (payments stay DEMO), and QR scanning by staff at the entrance.
@@ -49,5 +49,9 @@ Out of scope for now (task 8): sending emails (confirmations, tickets), real pay
   processes, the in-memory hold rate limits are not (production needs a shared store).
 - The featured movie is a fixed rule (most showtimes in the next 7 days); an admin choice comes with the admin panel (task 5).
 - Seed movies have no trailer ids, so the trailer modal is only covered by unit tests.
+- Uploaded posters are validated and stripped of metadata but not re-encoded: re-encoding needs
+  `sharp` (an install-script package), task 9 decision 10, to confirm.
+- Customers are not told when a show they booked is deactivated (refunded automatically; emails
+  are out of scope).
 - Rate limits need a shared store with multiple API instances (production).
 - Email verification, password reset and 2FA are later work.

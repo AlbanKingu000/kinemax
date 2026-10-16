@@ -126,6 +126,47 @@ test.describe('a cinema manager planning shows', () => {
   });
 });
 
+test.describe('a cinema manager editing seats', () => {
+  test.use({ storageState: STAFF_STATE.manager });
+
+  test('adds a row, saves it and takes it out again', async ({ page, isMobile }) => {
+    const problems = watchConsole(page);
+    // Each project edits its own hall (they run in parallel).
+    const hall = isMobile ? 'Salla 3' : 'Salla 2';
+    await page.goto('/admin/halls');
+    await page.getByRole('link', { name: `Ndrysho ulëset e sallës ${hall}` }).click();
+    await expect(page.getByRole('heading', { level: 1, name: `Ulëset: ${hall}` })).toBeVisible();
+    const summary = page.getByText(/\d+ rreshta · \d+ ulëse aktive/);
+    const before = (await summary.textContent()) ?? '';
+    const rows = Number(/(\d+) rreshta/.exec(before)?.[1]);
+    await expectNoAxe(page);
+
+    await page.getByRole('button', { name: 'Shto rresht' }).click();
+    await expect(page.getByText('Ka ndryshime të paruajtura.')).toBeVisible();
+    await page.getByRole('button', { name: 'Ruaj paraqitjen' }).click();
+    await expect(page.getByText('Paraqitja u ruajt.')).toBeVisible();
+    await expect(summary).toContainText(`${String(rows + 1)} rreshta`);
+
+    // Select the new last row with click + Shift + click, then remove it again.
+    const map = page.getByRole('group', { name: `Ulëset në ${hall}` });
+    const newRow = map.getByRole('button', { name: /^Rreshti [A-Z]+, ulësja \d+, Standard$/ });
+    await expect(newRow.first()).toBeVisible();
+    const label =
+      /^Rreshti ([A-Z]+)/.exec((await newRow.last().getAttribute('aria-label')) ?? '')?.[1] ?? '';
+    const seatsOfRow = map.getByRole('button', { name: new RegExp(`^Rreshti ${label}, `) });
+    await seatsOfRow.first().click();
+    await seatsOfRow.last().click({ modifiers: ['Shift'] });
+    await page.getByRole('button', { name: 'Hiq / çaktivizo' }).click();
+    await page.getByRole('button', { name: 'Ruaj paraqitjen' }).click();
+    await expect(page.getByText('Paraqitja u ruajt.').first()).toBeVisible();
+    await expect(summary).toHaveText(before);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      page.viewportSize()?.width ?? 0,
+    );
+    expect(problems).toEqual([]);
+  });
+});
+
 test.describe('the super admin', () => {
   test.use({ storageState: STAFF_STATE.superAdmin });
 

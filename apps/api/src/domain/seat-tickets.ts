@@ -1,11 +1,9 @@
 // How many tickets a seat sells. Mirrors the database rule G12 (kinemax_seat_ticket_capacity).
 
-import type { SeatTypeCode } from './seat-layout.js';
+import { ticketsPerSeat, type SeatTypeCode } from '@kinemax/shared';
 
 /** A COUPLE sofa is one seat (one lock) for two people, so it sells 2 tickets; every other seat 1. */
-export function ticketsPerSeat(seatType: SeatTypeCode): number {
-  return seatType === 'COUPLE' ? 2 : 1;
-}
+export { ticketsPerSeat };
 
 export class SeatTicketCountError extends Error {
   override name = 'SeatTicketCountError';

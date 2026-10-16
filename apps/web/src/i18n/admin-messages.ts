@@ -275,6 +275,73 @@ const sq = {
       activated: 'Shfaqja është sërish në shitje.',
     },
   },
+  halls: {
+    title: 'Sallat',
+    loadError: 'Sallat nuk u ngarkuan.',
+    columns: { name: 'Salla', type: 'Lloji', seats: 'Ulëset', status: 'Statusi' },
+    seats: (active: number, inactive: number) =>
+      inactive > 0 ? `${String(active)} aktive · ${String(inactive)} joaktive` : String(active),
+    suite: 'Shitet e plotë',
+    active: 'Aktive',
+    inactive: 'Joaktive',
+    edit: 'Ndrysho ulëset',
+    editLabel: (hall: string) => `Ndrysho ulëset e sallës ${hall}`,
+  },
+  editor: {
+    back: 'Te sallat',
+    title: (hall: string) => `Ulëset: ${hall}`,
+    loadError: 'Paraqitja e sallës nuk u ngarkua.',
+    intro:
+      'Kliko ulëset për t’i zgjedhur; Shift + klik zgjedh një varg në rresht; tërhiq miun për të zgjedhur disa. Numrat dhe pozicionet llogariten vetë sipas llojit të sallës.',
+    suiteNote:
+      'Suita shitet vetëm e plotë: sa kohë ka një rezervim për një shfaqje që s’ka mbaruar, nuk ndryshohet.',
+    summary: (active: number, inactive: number, rows: number) =>
+      `${String(rows)} rreshta · ${String(active)} ulëse aktive${inactive > 0 ? ` · ${String(inactive)} joaktive` : ''}`,
+    selected: (n: number) => (n === 1 ? '1 ulëse e zgjedhur' : `${String(n)} ulëse të zgjedhura`),
+    noneSelected: 'Asnjë ulëse e zgjedhur.',
+    clear: 'Hiq zgjedhjen',
+    tools: 'Veprimet me ulëset',
+    type: 'Lloji i ulëses',
+    applyType: 'Ndrysho llojin',
+    remove: 'Hiq / çaktivizo',
+    activate: 'Aktivizo',
+    addSeat: 'Shto ulëse djathtas',
+    addRow: 'Shto rresht',
+    rowLabel: 'Emri i rreshtit',
+    rename: 'Riemërto',
+    reset: 'Rikthe si ishte',
+    save: 'Ruaj paraqitjen',
+    saved: 'Paraqitja u ruajt.',
+    unsaved: 'Ka ndryshime të paruajtura.',
+    show3d: 'Shfaq pamjen 3D',
+    hide3d: 'Fshih pamjen 3D',
+    preview3d: (hall: string) => `Pamja 3D e sallës ${hall}`,
+    blockedTitle: 'Ulëse me rezervime për shfaqje që s’kanë mbaruar',
+    blockedNone: 'Asnjë ulëse e zgjedhur nuk ka rezervime të ardhshme.',
+    states: {
+      inactive: 'joaktive',
+      blocked: (n: number) =>
+        n === 1 ? 'e rezervuar për 1 shfaqje' : `e rezervuar për ${String(n)} shfaqje`,
+      history: 'e rezervuar më parë',
+    },
+    refused: {
+      blocked: (seats: string) =>
+        `Këto ulëse kanë rezervime për shfaqje që s’kanë mbaruar dhe nuk ndryshohen: ${seats}.`,
+      capacity_history: (seats: string) =>
+        `Këto ulëse janë rezervuar më parë, prandaj numri i biletave të tyre nuk ndryshon. Çaktivizoji dhe shto ulëse të reja: ${seats}.`,
+    },
+    renameProblems: {
+      pattern: 'Shkruaj 1–2 shkronja të mëdha, p.sh. K.',
+      duplicate: 'Ky rresht ekziston tashmë.',
+      blocked: 'Rreshti ka ulëse me rezervime të ardhshme.',
+    },
+    errors: {
+      has_history: 'Ulëset e rezervuara më parë nuk fshihen: ato çaktivizohen.',
+      suite_booked: 'Suita ka një rezervim për një shfaqje që s’ka mbaruar: nuk ndryshohet.',
+      duplicate: 'Emrat e rreshtave duhet të jenë të ndryshëm.',
+      generic: 'Ruajtja nuk u krye. Provo përsëri.',
+    },
+  },
   placeholder: {
     title: (section: string) => `${section}: në ndërtim`,
     body: 'Kjo pjesë e panelit vjen së shpejti.',
@@ -559,6 +626,72 @@ const en: AdminMessages = {
       done: (refunded: number, cancelled: number) =>
         `The show was deactivated. Refunds: ${String(refunded)}, cancelled bookings: ${String(cancelled)}.`,
       activated: 'The show is on sale again.',
+    },
+  },
+  halls: {
+    title: 'Halls',
+    loadError: 'The halls could not be loaded.',
+    columns: { name: 'Hall', type: 'Type', seats: 'Seats', status: 'Status' },
+    seats: (active: number, inactive: number) =>
+      inactive > 0 ? `${String(active)} active · ${String(inactive)} inactive` : String(active),
+    suite: 'Sold whole',
+    active: 'Active',
+    inactive: 'Inactive',
+    edit: 'Edit seats',
+    editLabel: (hall: string) => `Edit the seats of ${hall}`,
+  },
+  editor: {
+    back: 'To the halls',
+    title: (hall: string) => `Seats: ${hall}`,
+    loadError: 'The hall layout could not be loaded.',
+    intro:
+      'Click seats to select them; Shift + click selects a range in a row; drag to select several. Numbers and positions are computed from the hall type.',
+    suiteNote:
+      'A suite is only sold whole: while it is booked for a show that has not ended, it cannot change.',
+    summary: (active: number, inactive: number, rows: number) =>
+      `${String(rows)} rows · ${String(active)} active seats${inactive > 0 ? ` · ${String(inactive)} inactive` : ''}`,
+    selected: (n: number) => (n === 1 ? '1 seat selected' : `${String(n)} seats selected`),
+    noneSelected: 'No seat selected.',
+    clear: 'Clear the selection',
+    tools: 'Seat actions',
+    type: 'Seat type',
+    applyType: 'Change the type',
+    remove: 'Remove / deactivate',
+    activate: 'Activate',
+    addSeat: 'Add a seat to the right',
+    addRow: 'Add a row',
+    rowLabel: 'Row name',
+    rename: 'Rename',
+    reset: 'Undo all changes',
+    save: 'Save the layout',
+    saved: 'The layout was saved.',
+    unsaved: 'There are unsaved changes.',
+    show3d: 'Show the 3D view',
+    hide3d: 'Hide the 3D view',
+    preview3d: (hall: string) => `3D view of ${hall}`,
+    blockedTitle: 'Seats booked for shows that have not ended',
+    blockedNone: 'No selected seat is booked for an upcoming show.',
+    states: {
+      inactive: 'inactive',
+      blocked: (n: number) => (n === 1 ? 'booked for 1 show' : `booked for ${String(n)} shows`),
+      history: 'booked before',
+    },
+    refused: {
+      blocked: (seats: string) =>
+        `These seats are booked for shows that have not ended and cannot change: ${seats}.`,
+      capacity_history: (seats: string) =>
+        `These seats were booked before, so their ticket count cannot change. Deactivate them and add new seats: ${seats}.`,
+    },
+    renameProblems: {
+      pattern: 'Use 1–2 capital letters, e.g. K.',
+      duplicate: 'This row already exists.',
+      blocked: 'The row has seats booked for upcoming shows.',
+    },
+    errors: {
+      has_history: 'Seats that were booked before are not deleted: they are deactivated.',
+      suite_booked: 'The suite is booked for a show that has not ended: it cannot change.',
+      duplicate: 'Row names must be different.',
+      generic: 'Saving failed. Please try again.',
     },
   },
   placeholder: {

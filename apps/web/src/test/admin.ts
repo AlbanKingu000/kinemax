@@ -124,3 +124,9 @@ export function adminMovie(overrides: Partial<AdminMovie> = {}): AdminMovie {
     ...overrides,
   };
 }
+
+/** The value, or a failed test when it is missing (instead of a non-null assertion). */
+export function must<T>(value: T | undefined | null): T {
+  if (value === undefined || value === null) throw new Error('expected a value');
+  return value;
+}

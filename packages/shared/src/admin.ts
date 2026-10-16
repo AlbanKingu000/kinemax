@@ -4,6 +4,7 @@ import {
   genreSchema,
   languageVersionSchema,
   movieFormatSchema,
+  seatTypeSchema,
   slugSchema,
 } from './catalog.js';
 
@@ -324,3 +325,102 @@ export const deactivateResponseSchema = z.object({
   refundedCents: z.int().min(0),
 });
 export type DeactivateResponse = z.infer<typeof deactivateResponseSchema>;
+
+// ---------------------------------------------------------------------------------------------
+// Halls and the seat editor (managers for their cinemas)
+// ---------------------------------------------------------------------------------------------
+
+export const adminHallsQuerySchema = z.object({ location: z.uuid() }).strict();
+
+export const adminHallsResponseSchema = z.object({
+  halls: z.array(
+    z.object({
+      id: z.uuid(),
+      name: z.string(),
+      hallTypeCode: z.string(),
+      hallTypeNameSq: z.string(),
+      hallTypeNameEn: z.string().nullable(),
+      wholeHallOnly: z.boolean(),
+      isActive: z.boolean(),
+      activeSeats: z.int().min(0),
+      inactiveSeats: z.int().min(0),
+    }),
+  ),
+});
+export type AdminHallsResponse = z.infer<typeof adminHallsResponseSchema>;
+
+/** Row labels: one or two capital letters (A, B, … AA). */
+export const ROW_LABEL_PATTERN = /^[A-Z]{1,2}$/;
+export const LAYOUT_LIMITS = { rows: 30, blocksPerRow: 6, seatsPerBlock: 40 } as const;
+
+/** A seat of the edited layout: an existing one (id) or a new one. Numbers and positions are
+ * always computed by the server from the order (left to right) and the hall type. */
+export const layoutSeatInputSchema = z
+  .object({ id: z.uuid().optional(), type: seatTypeSchema, isActive: z.boolean() })
+  .strict();
+
+export const hallLayoutInputSchema = z
+  .object({
+    rows: z
+      .array(
+        z
+          .object({
+            label: z.string().regex(ROW_LABEL_PATTERN),
+            blocks: z
+              .array(z.array(layoutSeatInputSchema).min(1).max(LAYOUT_LIMITS.seatsPerBlock))
+              .min(1)
+              .max(LAYOUT_LIMITS.blocksPerRow),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(LAYOUT_LIMITS.rows),
+  })
+  .strict();
+export type HallLayoutInput = z.infer<typeof hallLayoutInputSchema>;
+
+export const layoutBlockerSchema = z.object({
+  showtimeId: z.uuid(),
+  startsAt: z.iso.datetime({ offset: true }),
+  movieTitleSq: z.string(),
+  movieTitleEn: z.string().nullable(),
+});
+export type LayoutBlocker = z.infer<typeof layoutBlockerSchema>;
+
+export const layoutSeatSchema = z.object({
+  id: z.uuid(),
+  type: seatTypeSchema,
+  isActive: z.boolean(),
+  /** Ever booked: never deleted, only deactivated; its ticket count cannot change. */
+  hasHistory: z.boolean(),
+  /** Shows that have not ended with a booking on this seat: it must stay as it is. */
+  blockedBy: z.array(layoutBlockerSchema),
+});
+export type LayoutSeat = z.infer<typeof layoutSeatSchema>;
+
+export const hallLayoutResponseSchema = z.object({
+  hall: z.object({
+    id: z.uuid(),
+    name: z.string(),
+    locationId: z.uuid(),
+    wholeHallOnly: z.boolean(),
+    hallType: z.object({ code: z.string(), nameSq: z.string(), nameEn: z.string().nullable() }),
+    screen: z.object({
+      widthM: z.number(),
+      heightM: z.number(),
+      x: z.number(),
+      y: z.number(),
+      z: z.number(),
+    }),
+  }),
+  spacing: z.object({
+    seatWidthM: z.number(),
+    rowSpacingM: z.number(),
+    aisleWidthM: z.number(),
+    firstRowDistanceM: z.number(),
+    tierStartRow: z.int(),
+    tierRiseM: z.number(),
+  }),
+  rows: z.array(z.object({ label: z.string(), blocks: z.array(z.array(layoutSeatSchema)) })),
+});
+export type HallLayoutResponse = z.infer<typeof hallLayoutResponseSchema>;
