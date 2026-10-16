@@ -19,8 +19,7 @@
     "db:reset": "tsx --conditions=kinemax-source scripts/db-reset.ts",
     "db:seed": "prisma db seed",
     "e2e:catalog": "tsx --conditions=kinemax-source scripts/e2e-catalog.ts",
-    "e2e:hold-minutes": "tsx --conditions=kinemax-source scripts/e2e-hold-minutes.ts",
-    "media:reencode": "tsx --conditions=kinemax-source scripts/reencode-uploads.ts"
+    "e2e:hold-minutes": "tsx --conditions=kinemax-source scripts/e2e-hold-minutes.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.0",

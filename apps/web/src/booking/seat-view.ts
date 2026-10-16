@@ -193,9 +193,6 @@ export function easeInOut(t: number): number {
   return k < 0.5 ? 4 * k ** 3 : 1 - (-2 * k + 2) ** 3 / 2;
 }
 
-/** Slow at the end only, for the opening settle. */
-export const easeOut = (t: number) => 1 - (1 - Math.min(1, Math.max(0, t))) ** 3;
-
 type Look = { yaw: number; pitch: number };
 
 export interface Flight {

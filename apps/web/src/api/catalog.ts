@@ -3,14 +3,12 @@ import {
   locationsResponseSchema,
   movieDetailResponseSchema,
   moviesResponseSchema,
-  showtimeDetailResponseSchema,
   showtimesResponseSchema,
   type FeaturedMovie,
   type LocationSummary,
   type MovieDetail,
   type MovieListStatus,
   type MovieSummary,
-  type ShowtimeDetailResponse,
   type ShowtimesResponse,
 } from '@kinemax/shared';
 import type { ZodType } from 'zod';
@@ -77,13 +75,4 @@ export async function fetchShowtimes(
   signal?: AbortSignal,
 ): Promise<ShowtimesResponse> {
   return getJson(`/api/showtimes?${showtimesQuery(filter)}`, showtimesResponseSchema, signal);
-}
-
-export async function fetchShowtime(
-  id: string,
-  signal?: AbortSignal,
-): Promise<ShowtimeDetailResponse['showtime']> {
-  return (
-    await getJson(`/api/showtimes/${encodeURIComponent(id)}`, showtimeDetailResponseSchema, signal)
-  ).showtime;
 }
