@@ -68,6 +68,18 @@ The living styleguide is at http://localhost:5180/styleguide (dev server only; 4
    check the console for errors and warnings, at desktop width and at ~390px mobile width.
 4. End with a short summary: files changed, how it was tested, open risks.
 
+## Speed mode (from task 10 on)
+
+- Per part: run only the related unit/integration tests and the affected e2e specs. Run the full
+  `npm run verify` ONCE at the end of the task.
+- Chrome check and screenshots ONCE at the end: one desktop screenshot per part, a phone
+  screenshot only where the task asks for one.
+- Read only the files you need; don't re-read whole docs.
+- Security and IDOR tests stay mandatory. For simple CRUD forms, one happy-path test and one error
+  test are enough.
+- Don't ask: take the safest option and list the decisions at the end. Reports: at most 15 lines.
+- Commit each part; push to origin once at the end, after verify passes.
+
 ## Design (be careful)
 
 - Premium, luxury dark theme in **black + red**. The mood is inspired by noircinema.sa, but never copy
