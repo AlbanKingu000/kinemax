@@ -26,7 +26,8 @@ task is finished, move it to DONE with its commit hash.
 | My tickets with QR codes + cancellation with refund (task 8 part C)  | `1b1f76e`            |
 | Admin shell + access control (task 9 part A)                         | `df5c1de`            |
 | Admin dashboard: sales and occupancy stats (task 9 part B)           | `004687b`            |
-| Admin movies + secure poster/backdrop upload (task 9 part C)         | this commit          |
+| Admin movies + secure poster/backdrop upload (task 9 part C)         | `9ac116d`            |
+| Admin showtimes; deactivation cancels + refunds (task 9 part D)      | this commit          |
 
 ## Next (in this order)
 
@@ -46,7 +47,6 @@ Out of scope for now (task 8): sending emails (confirmations, tickets), real pay
 
 - Seat holds and their rate limits live in one API process: the cleanup job is safe with several
   processes, the in-memory hold rate limits are not (production needs a shared store).
-- Showtime deactivation with sold tickets (task 5).
 - The featured movie is a fixed rule (most showtimes in the next 7 days); an admin choice comes with the admin panel (task 5).
 - Seed movies have no trailer ids, so the trailer modal is only covered by unit tests.
 - Rate limits need a shared store with multiple API instances (production).

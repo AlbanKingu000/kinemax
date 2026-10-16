@@ -217,3 +217,14 @@
 .danger {
   border-color: rgb(var(--rgb-crimson) / 45%);
 }
+
+.dateInput {
+  width: auto;
+  min-width: 10rem;
+}
+
+/* Buttons inside a table row stay on one line (the table scrolls instead). */
+.rowActions {
+  display: flex;
+  gap: var(--space-1);
+}

@@ -214,6 +214,11 @@ export function createBookingsRouter({
       bookingId = await prisma.$transaction(async (tx) => {
         // One hold at a time per user: concurrent holds of the same user wait here.
         await tx.$queryRaw`SELECT 1 FROM "User" WHERE "id" = ${owner}::uuid FOR UPDATE`;
+        // Waits for an admin deactivating this show (it locks the row FOR UPDATE) and sees the
+        // result; locked before any booking row, so the two never deadlock.
+        const active = await tx.$queryRaw<{ id: string }[]>`
+          SELECT "id" FROM "Showtime" WHERE "id" = ${show.id}::uuid AND "isActive" FOR SHARE`;
+        if (active.length === 0) throw notFound();
         await expireStaleHolds(tx, at, { showtimeId: show.id });
         await tx.booking.updateMany({
           where: { userId: owner, status: 'HELD' },

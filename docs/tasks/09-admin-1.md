@@ -71,6 +71,25 @@ tick items (with the file-editing tool) as they are finished.
     `scrollWidth <= innerWidth` never fails there. The admin e2e and the screenshot script now
     compare with the configured width; that found a visually hidden table header escaping its
     scroll frame (fixed in `DataTable`).
+14. **D1, planning.** Times are entered in the cinema's local time; the server turns them into
+    instants and computes the end (movie + 20 min cleaning, `CLEANING_BUFFER_MINUTES`, now in
+    the domain and used by the seed too). The page is a day plan per hall; a super admin first
+    picks one cinema ("Të gjitha" shows a hint). Bulk = one movie in one hall, a date range of
+    at most 14 days × a list of times (at most 60 shows); the preview marks each slot ready,
+    overlapping (with the show it hits), in the past or repeated, and saving is all or nothing
+    (409 if anything changed meanwhile). Overlaps on single creates/edits come from the
+    database rule (23P01 → 409) and are shown as "Salla është e zënë…".
+15. **D2, what may change.** As soon as a show has any HELD or CONFIRMED booking, only the
+    format and the language version can change (movie, hall, date and time answer 409
+    `tickets_sold`). A show that started is read-only (no edit, no (de)activation).
+16. **D2, deactivation.** One transaction: the show row is locked, set inactive, every HELD
+    booking is CANCELLED (its PENDING payment FAILED) and every CONFIRMED one REFUNDED with its
+    payment (demo); the trigger frees the seats. Audit: `showtime.deactivate` (ids and refunded
+    total) plus one `booking.refund` per refund (actor = the staff member). Repeating it changes
+    nothing. Customers are not notified (emails are out of scope). The seat hold now locks the
+    show row `FOR SHARE` before touching bookings, so a hold cannot slip in during a
+    deactivation (and the two never deadlock). An inactive future show can be put back on sale
+    ("Aktivizo", 409 if the hall was taken meanwhile).
 
 ## Progress (keep up to date)
 
@@ -115,6 +134,25 @@ tick items (with the file-editing tool) as they are finished.
   `admin-movie-edit-{desktop,mobile-390}.png`, `admin-movie-delete-dialog-desktop.png`,
   `admin-movie-form-errors-desktop.png`; the 390 px shots of parts A/B were retaken with the
   strict check. Committed as "feat: admin movies with secure poster upload".
+- Part D: done. API: `/api/admin/showtimes` (day list, detail, create, bulk preview + create,
+  edit, deactivate, activate), the hold's show lock, `CLEANING_BUFFER_MINUTES` in the domain.
+  Tests: API 15 (local time → instant, server end, 409 overlap from the database, past and
+  archived refused, bulk statuses and all-or-nothing, moving a show, only format/language after
+  sales, started shows read-only, deactivation: holds cancelled + payments failed, paid
+  bookings refunded, seats free, audit, idempotent, no new holds; reactivation 409 when taken;
+  IDOR for list/create/bulk/edit/deactivate); web 8 (cinema choice, day per hall, day
+  navigation, create with end hint and overlap message, locked edit, deactivation dialog with
+  the refund sentence, bulk preview → only free slots) + 2 helper tests; e2e 1 × 2 (create →
+  overlap → deactivate → bulk 4, after the seeded days). `npm run verify` green (shared 30, api
+  351, web 422, scripts 10; coverage api 95.20% / 85.03%, web 90.50% / 81.15%; e2e 79 passed;
+  audit passed). Chrome check (dev server, seed super admin, Prizren): with a paid demo
+  booking made by a local script (seed customer, 2 tickets, 7,20 €), the dialog said "2 bileta
+  do të anulohen dhe rimbursohen (7,20 €, demo)"; confirmed → refunded, 0 tickets,
+  "Joaktive"; "Aktivizo" put it back; console clean. Screenshots (console clean, no overflow):
+  `admin-showtimes-day-{desktop,mobile-390}.png`,
+  `admin-showtime-deactivate-dialog-{desktop,mobile-390}.png`, `admin-showtime-new-desktop.png`,
+  `admin-showtime-edit-locked-desktop.png`, `admin-showtime-bulk-desktop.png`. Committed as
+  "feat: admin showtime management".
 
 ## Checklist
 
@@ -148,12 +186,12 @@ tick items (with the file-editing tool) as they are finished.
 
 ### Part D: Showtimes (managers for their locations)
 
-- [ ] D1 Calendar/list per location and day; create (server-computed end time); bulk create with
+- [x] D1 Calendar/list per location and day; create (server-computed end time); bulk create with
       a conflict preview; overlaps 409 with a clear message
-- [ ] D2 Edit (safe fields only once tickets are sold); deactivate with cancel + refund of every
+- [x] D2 Edit (safe fields only once tickets are sold); deactivate with cancel + refund of every
       active booking in one transaction, audit log
-- [ ] D3 Tests (conflicts, bulk, deactivation with bookings, manager scope, past read-only)
-- [ ] Part D: verify + Chrome check + screenshots + roadmap + commit "feat: admin showtime
+- [x] D3 Tests (conflicts, bulk, deactivation with bookings, manager scope, past read-only)
+- [x] Part D: verify + Chrome check + screenshots + roadmap + commit "feat: admin showtime
       management"
 
 ### Part E: Hall and seat editor (managers for their locations)

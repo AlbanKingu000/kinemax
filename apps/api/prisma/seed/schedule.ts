@@ -1,9 +1,11 @@
 // Deterministic demo schedule. A given (hall, date) always gets the same showtimes, no matter on
 // which day the seed runs, so re-running the seed is idempotent.
 
+import { CLEANING_BUFFER_MINUTES } from '../../src/domain/showtime-times.js';
 import type { HallTypeCode, MovieSeed } from './data.js';
 
-export const CLEANING_BUFFER_MINUTES = 20;
+// The buffer lives in the domain (the admin panel computes end times the same way).
+export { CLEANING_BUFFER_MINUTES };
 const LAST_START_MINUTE = 23 * 60 + 15;
 
 export interface ScheduleHall {

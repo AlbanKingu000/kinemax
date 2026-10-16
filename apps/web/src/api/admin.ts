@@ -4,7 +4,18 @@ import {
   adminLocationsResponseSchema,
   adminMovieResponseSchema,
   adminMoviesResponseSchema,
+  adminShowtimeResponseSchema,
+  adminShowtimesResponseSchema,
+  bulkCreateResponseSchema,
+  bulkPreviewResponseSchema,
+  deactivateResponseSchema,
   statsResponseSchema,
+  type AdminShowtime,
+  type AdminShowtimesResponse,
+  type BulkPreviewResponse,
+  type BulkShowtimesInput,
+  type DeactivateResponse,
+  type ShowtimeInput,
   type AdminLocation,
   type AdminMovie,
   type MovieImageKind,
@@ -103,4 +114,61 @@ export async function uploadMovieImage(
     schema: adminMovieResponseSchema,
   });
   return res.movie;
+}
+
+export function fetchAdminShowtimes(
+  location: string,
+  date: string,
+  signal?: AbortSignal,
+): Promise<AdminShowtimesResponse> {
+  return apiRequest(`/api/admin/showtimes${adminQuery({ location, date })}`, {
+    schema: adminShowtimesResponseSchema,
+    ...opts(signal),
+  });
+}
+
+/** Creates a show (id null) or changes one; the server computes the end. */
+export async function saveShowtime(
+  id: string | null,
+  input: Partial<ShowtimeInput>,
+): Promise<AdminShowtime> {
+  const res = await apiRequest(
+    id ? `/api/admin/showtimes/${encodeURIComponent(id)}` : '/api/admin/showtimes',
+    { method: id ? 'PATCH' : 'POST', body: input, schema: adminShowtimeResponseSchema },
+  );
+  return res.showtime;
+}
+
+export function previewBulkShowtimes(input: BulkShowtimesInput): Promise<BulkPreviewResponse> {
+  return apiRequest('/api/admin/showtimes/bulk/preview', {
+    method: 'POST',
+    body: input,
+    schema: bulkPreviewResponseSchema,
+  });
+}
+
+export async function createBulkShowtimes(input: BulkShowtimesInput): Promise<number> {
+  return (
+    await apiRequest('/api/admin/showtimes/bulk', {
+      method: 'POST',
+      body: input,
+      schema: bulkCreateResponseSchema,
+    })
+  ).created;
+}
+
+export function deactivateShowtime(id: string): Promise<DeactivateResponse> {
+  return apiRequest(`/api/admin/showtimes/${encodeURIComponent(id)}/deactivate`, {
+    method: 'POST',
+    schema: deactivateResponseSchema,
+  });
+}
+
+export async function activateShowtime(id: string): Promise<AdminShowtime> {
+  return (
+    await apiRequest(`/api/admin/showtimes/${encodeURIComponent(id)}/activate`, {
+      method: 'POST',
+      schema: adminShowtimeResponseSchema,
+    })
+  ).showtime;
 }

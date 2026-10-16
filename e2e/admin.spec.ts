@@ -63,6 +63,69 @@ test.describe('a cinema manager', () => {
   });
 });
 
+test.describe('a cinema manager planning shows', () => {
+  test.use({ storageState: STAFF_STATE.manager });
+
+  test('creates a show, sees an overlap, deactivates it and adds a bulk plan', async ({
+    page,
+    isMobile,
+  }) => {
+    const problems = watchConsole(page);
+    // Days after the seeded 14-day schedule, different per project (they run in parallel).
+    const offset = isMobile ? 22 : 16;
+    const date = (days: number) => {
+      const d = new Date(Date.now() + days * 86_400_000);
+      return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Belgrade' }).format(d);
+    };
+    await page.goto(`/admin/showtimes?date=${date(offset)}`);
+    const first = page
+      .getByRole('region')
+      .filter({ has: page.getByRole('heading', { level: 2 }) })
+      .first();
+    await expect(first.getByText('Asnjë shfaqje këtë ditë.')).toBeVisible();
+
+    const create = async (time: string) => {
+      await page.getByRole('button', { name: 'Shfaqje e re' }).click();
+      const dialog = page.getByRole('dialog', { name: 'Shfaqje e re' });
+      await dialog.getByLabel(/^Filmi/).selectOption({ index: 1 });
+      await dialog.getByLabel(/^Ora e fillimit/).fill(time);
+      await expect(dialog.getByText(/^Mbaron në/)).toBeVisible();
+      await dialog.getByRole('button', { name: 'Krijo shfaqjen' }).click();
+      return dialog;
+    };
+    await create('18:00');
+    await expect(page.getByText('Shfaqja u krijua.')).toBeVisible();
+    await expect(first.getByRole('row')).toHaveCount(2);
+    const overlap = await create('18:30');
+    await expect(overlap.getByRole('alert')).toContainText('Salla është e zënë');
+    await overlap.getByRole('button', { name: 'Anulo' }).click();
+
+    await first.getByRole('button', { name: /^Çaktivizo shfaqjen/ }).click();
+    const confirm = page.getByRole('dialog', { name: 'Të çaktivizohet shfaqja?' });
+    await expect(confirm.getByText('Nuk ka bileta të shitura.')).toBeVisible();
+    await expectNoAxe(page);
+    await confirm.getByRole('button', { name: 'Po, çaktivizoje' }).click();
+    await expect(first.getByText('Joaktive')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Shto në grup' }).click();
+    const bulk = page.getByRole('dialog', { name: 'Shto shfaqje në grup' });
+    await bulk.getByLabel(/^Filmi/).selectOption({ index: 1 });
+    await bulk.getByLabel(/^Nga data/).fill(date(offset + 1));
+    await bulk.getByLabel(/^Deri më/).fill(date(offset + 2));
+    await bulk.getByLabel(/^Oraret/).fill('12:00, 16:00');
+    await bulk.getByRole('button', { name: 'Shiko paraprakisht' }).click();
+    await expect(bulk.getByRole('table').getByText('Gati')).toHaveCount(4);
+    await bulk.getByRole('button', { name: 'Krijo 4 shfaqje' }).click();
+    await expect(page.getByText('U krijuan 4 shfaqje.')).toBeVisible();
+    await page.getByRole('button', { name: 'Dita tjetër' }).click();
+    await expect(first.getByRole('row')).toHaveCount(3);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+      page.viewportSize()?.width ?? 0,
+    );
+    expect(problems.filter((p) => !p.includes('409'))).toEqual([]);
+  });
+});
+
 test.describe('the super admin', () => {
   test.use({ storageState: STAFF_STATE.superAdmin });
 

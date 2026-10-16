@@ -6,6 +6,7 @@ import { Router } from 'express';
 import { requireRole } from '../../http/auth-middleware.js';
 import { type AdminDeps, createAdminLimiters, locationScope, staffUser } from './common.js';
 import { createMoviesRouter } from './movies.js';
+import { createShowtimesRouter } from './showtimes.js';
 import { createStatsHandler } from './stats.js';
 
 export function createAdminRouter(deps: AdminDeps): Router {
@@ -27,6 +28,7 @@ export function createAdminRouter(deps: AdminDeps): Router {
 
   router.get('/stats', createStatsHandler(prisma, now));
   router.use(createMoviesRouter({ ...deps, limit }));
+  router.use(createShowtimesRouter({ ...deps, limit }));
 
   return router;
 }
