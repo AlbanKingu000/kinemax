@@ -5,10 +5,15 @@ import {
   CSRF_HEADER,
   meResponseSchema,
 } from '@kinemax/shared';
+import { randomUUID } from 'node:crypto';
+import express from 'express';
 import request from 'supertest';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { hashPassword } from '../../src/auth/password.js';
+import type { AuthContext, SessionUser } from '../../src/auth/sessions.js';
 import { hashToken } from '../../src/auth/tokens.js';
+import { requireLocationAccess, requireRole } from '../../src/http/auth-middleware.js';
+import { createErrorHandler } from '../../src/http/errors.js';
 import { resetDatabase } from '../db/helpers.js';
 import {
   APP_ORIGIN,
@@ -16,6 +21,7 @@ import {
   cookieValue,
   makeTestApp,
   setCookie,
+  testLogger,
   testPrisma,
 } from '../support/app.js';
 
@@ -604,41 +610,53 @@ describe('rate limiting', () => {
 });
 
 describe('authorization middleware', () => {
-  async function as(role: 'CUSTOMER' | 'LOCATION_MANAGER' | 'SUPER_ADMIN') {
-    const email = `${role.toLowerCase()}@kinemax.test`;
-    const user = await createUser({ email, role });
-    const { app } = makeTestApp();
-    const client = await browserClient(app);
-    expect((await login(client, email)).status).toBe(200);
-    return { app, client, user };
+  // The real middleware and error handler on a tiny app (requireLocationAccess has no production
+  // route of its own; the admin API calls canAccessLocation inside its handlers).
+  function guarded(user?: { id: string; role: SessionUser['role'] }) {
+    const app = express();
+    app.use((req, _res, next) => {
+      if (user) req.auth = { user } as AuthContext;
+      next();
+    });
+    app.get('/admin', requireRole('SUPER_ADMIN'), (_req, res) => {
+      res.json({ ok: true });
+    });
+    app.get(
+      '/locations/:id',
+      requireLocationAccess(prisma, (req) => String(req.params.id)),
+      (_req, res) => {
+        res.json({ ok: true });
+      },
+    );
+    app.use(createErrorHandler(testLogger()));
+    return request(app);
   }
 
-  it('GET /api/admin/ping: 401 anonymous, 403 customer and manager, 200 super admin', async () => {
-    const { app } = makeTestApp();
-    await request(app).get('/api/admin/ping').expect(401);
-    await (await as('CUSTOMER')).client.get('/api/admin/ping').expect(403);
-    await (await as('LOCATION_MANAGER')).client.get('/api/admin/ping').expect(403);
-    const res = await (await as('SUPER_ADMIN')).client.get('/api/admin/ping').expect(200);
-    expect(res.body).toEqual({ ok: true, scope: 'admin' });
+  it('requireRole: 401 anonymous, 403 customer and manager, 200 super admin', async () => {
+    await guarded().get('/admin').expect(401);
+    await guarded({ id: randomUUID(), role: 'CUSTOMER' }).get('/admin').expect(403);
+    await guarded({ id: randomUUID(), role: 'LOCATION_MANAGER' }).get('/admin').expect(403);
+    await guarded({ id: randomUUID(), role: 'SUPER_ADMIN' }).get('/admin').expect(200);
   });
 
-  it('location routes: managers only for their own locations, admins everywhere', async () => {
+  it('requireLocationAccess: managers only for their own locations, admins everywhere', async () => {
     const [own, other] = [await createLocation('own'), await createLocation('other')];
-    const manager = await as('LOCATION_MANAGER');
-    await prisma.managerLocation.create({ data: { userId: manager.user.id, locationId: own.id } });
-    const ping = (client: Client, id: string) => client.get(`/api/manage/locations/${id}/ping`);
+    const manager = await createUser({ email: 'manager@kinemax.test', role: 'LOCATION_MANAGER' });
+    await prisma.managerLocation.create({ data: { userId: manager.id, locationId: own.id } });
+    const asManager = guarded(manager);
 
-    await ping(manager.client, own.id).expect(200);
-    const denied = await ping(manager.client, other.id).expect(403);
+    await asManager.get(`/locations/${own.id}`).expect(200);
+    const denied = await asManager.get(`/locations/${other.id}`).expect(403);
     expect(denied.body).toEqual({
       error: { code: 'forbidden', message: 'You are not allowed to do this.' },
     });
-    await ping(manager.client, 'not-a-uuid').expect(403);
+    await asManager.get('/locations/not-a-uuid').expect(403);
 
-    const admin = await as('SUPER_ADMIN');
-    await ping(admin.client, other.id).expect(200);
-    await ping((await as('CUSTOMER')).client, own.id).expect(403);
-    await request(manager.app).get(`/api/manage/locations/${own.id}/ping`).expect(401);
+    await guarded({ id: randomUUID(), role: 'SUPER_ADMIN' })
+      .get(`/locations/${other.id}`)
+      .expect(200);
+    await guarded({ id: randomUUID(), role: 'CUSTOMER' }).get(`/locations/${own.id}`).expect(403);
+    await guarded().get(`/locations/${own.id}`).expect(401);
   });
 });
 
@@ -654,7 +672,7 @@ describe('responses never contain secrets', () => {
     const token = cookieValue(setCookie(loginRes, SESSION_COOKIE)) ?? '';
     record(await client.get('/api/auth/me'));
     record(await client.patch('/api/auth/me', { name: 'Admin' }));
-    record(await client.get('/api/admin/ping'));
+    record(await client.get('/api/admin/users'));
     const changed = await client.post('/api/auth/change-password', {
       currentPassword: PASSWORD,
       newPassword: 'brand-new-passphrase',

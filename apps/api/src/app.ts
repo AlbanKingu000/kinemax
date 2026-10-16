@@ -1,3 +1,4 @@
+import { join } from 'node:path';
 import cors from 'cors';
 import express, { type Express } from 'express';
 import helmet from 'helmet';
@@ -19,7 +20,6 @@ import { createMenuRouter } from './routes/menu.js';
 import { createMyBookingsRouter, type CancelRateLimits } from './routes/my-bookings.js';
 import { ADMIN_RATE_LIMITS, type AdminRateLimits } from './routes/admin/common.js';
 import { createAdminRouter } from './routes/admin/index.js';
-import { createProtectedExamplesRouter } from './routes/protected-examples.js';
 import { createSeatMapRouter } from './routes/seatmap.js';
 import { createShowtimesRouter } from './routes/showtimes.js';
 
@@ -57,6 +57,41 @@ export interface AppDeps {
   uploadsDir: string;
   /** Admin write rate limits (default ADMIN_RATE_LIMITS). */
   adminRateLimits?: AdminRateLimits;
+  /** The built web app (apps/web/dist) to serve next to the API; unset: API only. */
+  webDistDir?: string;
+}
+
+/**
+ * Security headers for the API and the web app. Scripts, styles and fonts are self-hosted (Vite
+ * bundles three.js and the fonts; React sets inline styles through the CSSOM, which CSP allows),
+ * so no 'unsafe-inline' or 'unsafe-eval'. Only trailer iframes from youtube-nocookie.com may load.
+ * HSTS and upgrade-insecure-requests only over HTTPS (secure cookies = production).
+ */
+export function securityHeaders(https: boolean) {
+  return helmet({
+    contentSecurityPolicy: {
+      useDefaults: false,
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'"],
+        fontSrc: ["'self'"],
+        imgSrc: ["'self'", 'data:', 'blob:'],
+        connectSrc: ["'self'"],
+        mediaSrc: ["'self'", 'blob:'],
+        frameSrc: ['https://www.youtube-nocookie.com'],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+        frameAncestors: ["'none'"],
+        ...(https ? { upgradeInsecureRequests: [] } : {}),
+      },
+    },
+    // YouTube embeds refuse to play without a Referer; the origin alone leaks no path or query.
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    strictTransportSecurity: https ? { maxAge: 31_536_000, includeSubDomains: true } : false,
+    xFrameOptions: { action: 'deny' },
+  });
 }
 
 export function createApp({
@@ -71,6 +106,7 @@ export function createApp({
   cancelRateLimits,
   adminRateLimits = ADMIN_RATE_LIMITS,
   uploadsDir,
+  webDistDir,
 }: AppDeps): Express {
   const app = express();
   const cookies = cookieSettings(auth.cookieSecure);
@@ -78,7 +114,7 @@ export function createApp({
 
   app.disable('x-powered-by');
   app.set('trust proxy', auth.trustProxy === 0 ? false : auth.trustProxy);
-  app.use(helmet());
+  app.use(securityHeaders(auth.cookieSecure));
   // The web app talks to the API through the Vite proxy (same origin), so no CORS headers are sent
   // unless an exact origin is allowlisted. Never a wildcard.
   app.use(cors({ origin: [...corsAllowedOrigins], credentials: true }));
@@ -148,7 +184,26 @@ export function createApp({
     '/api/admin',
     createAdminRouter({ prisma, logger, now, rateLimits: adminRateLimits, uploadsDir }),
   );
-  app.use('/api', createProtectedExamplesRouter(prisma));
+
+  if (webDistDir !== undefined) {
+    // Hashed assets never change; index.html must always be fresh (it names the current assets).
+    app.use(
+      express.static(webDistDir, {
+        index: false,
+        setHeaders: (res, path) => {
+          res.set(
+            'Cache-Control',
+            /[\\/]assets[\\/]/.test(path) ? 'public, max-age=31536000, immutable' : 'no-cache',
+          );
+        },
+      }),
+    );
+    // Client-side routes: every other GET outside /api gets the app shell.
+    app.get(/^(?!\/api(\/|$))/, (_req, res) => {
+      res.set('Cache-Control', 'no-cache');
+      res.sendFile(join(webDistDir, 'index.html'));
+    });
+  }
 
   app.use(notFoundHandler);
   app.use(createErrorHandler(logger));

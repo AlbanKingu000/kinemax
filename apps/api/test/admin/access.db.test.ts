@@ -56,9 +56,4 @@ describe('the /api/admin scope', () => {
       .send({});
     expect(res.status).toBe(403);
   });
-
-  it('keeps the super-admin-only example route closed to managers', async () => {
-    await clients.manager.get('/api/admin/ping').expect(403);
-    await clients.superAdmin.get('/api/admin/ping').expect(200);
-  });
 });

@@ -317,6 +317,7 @@ export function createShowtimesRouter({
   }
 
   router.post('/showtimes/bulk/preview', async (req, res) => {
+    limit(req, 'write', 'admin_showtime_bulk_preview');
     const { slots } = await previewSlots(req);
     const body: BulkPreviewResponse = { slots };
     res.json(body);

@@ -24,7 +24,7 @@ import {
 
 const MINUTE = 60_000;
 
-/** Simulated payments per signed-in user and per IP (in memory, like the other limits). */
+/** Checkouts and simulated payments (each counted apart) per signed-in user and per IP (in memory, like the other limits). */
 export const CHECKOUT_RATE_LIMITS = {
   paymentPerUser: { windowMs: 10 * MINUTE, max: 30 },
   paymentPerIp: { windowMs: 10 * MINUTE, max: 120 },
@@ -60,6 +60,9 @@ export function createCheckoutRouter({
   const limiters = {
     perUser: createRateLimiter(rateLimits.paymentPerUser),
     perIp: createRateLimiter(rateLimits.paymentPerIp),
+    // Starting a checkout gets its own budget with the same rules, so it never eats the payments'.
+    checkoutPerUser: createRateLimiter(rateLimits.paymentPerUser),
+    checkoutPerIp: createRateLimiter(rateLimits.paymentPerIp),
   };
   const enforce = (limiter: RateLimiter, key: string, event: string) => {
     const result = limiter.hit(key);
@@ -72,6 +75,8 @@ export function createCheckoutRouter({
 
   router.post('/bookings/:id/checkout', requireAuth, async (req, res) => {
     const owner = userId(req);
+    enforce(limiters.checkoutPerIp, req.ip ?? 'unknown', 'checkout_ip');
+    enforce(limiters.checkoutPerUser, owner, 'checkout_user');
     const { id } = parseInput(idParams, req.params);
     const at = now();
     const payment = await prisma.$transaction(async (tx) => {

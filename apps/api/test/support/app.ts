@@ -50,6 +50,7 @@ export function makeTestApp(
     cancelRateLimits?: CancelRateLimits;
     adminRateLimits?: AdminRateLimits;
     now?: () => Date;
+    webDistDir?: string;
   } = {},
 ) {
   const prisma = testPrisma();
@@ -70,6 +71,7 @@ export function makeTestApp(
       ...(options.rateLimits ? { rateLimits: options.rateLimits } : {}),
     },
     ...(options.now ? { now: options.now } : {}),
+    ...(options.webDistDir ? { webDistDir: options.webDistDir } : {}),
     ...(options.bookingRateLimits ? { bookingRateLimits: options.bookingRateLimits } : {}),
     ...(options.checkoutRateLimits ? { checkoutRateLimits: options.checkoutRateLimits } : {}),
     ...(options.cancelRateLimits ? { cancelRateLimits: options.cancelRateLimits } : {}),

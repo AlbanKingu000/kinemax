@@ -21,8 +21,8 @@ request/response schemas in `packages/shared/src/auth.ts`.
 
 Register, login and change-password return `{ user, csrfToken }`: the token for the new session.
 
-Example protected routes: `GET /api/admin/ping` (SUPER_ADMIN) and
-`GET /api/manage/locations/:locationId/ping` (managers of that location, SUPER_ADMIN).
+Every registered `/api` route is checked by `apps/api/test/route-inventory.db.test.ts` (sign-in,
+admin roles, CSRF, input validation, rate limits); see `docs/security.md`.
 
 ## Sessions
 
