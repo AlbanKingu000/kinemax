@@ -29,7 +29,7 @@ const ADMIN_NAV: readonly NavItem[] = [
   { key: 'movies', icon: 'film', to: '/admin/movies', superAdminOnly: true },
   { key: 'showtimes', icon: 'calendar', to: '/admin/showtimes' },
   { key: 'halls', icon: 'seat', to: '/admin/halls' },
-  { key: 'prices', icon: 'ticket' },
+  { key: 'prices', icon: 'ticket', to: '/admin/prices', superAdminOnly: true },
   { key: 'food', icon: 'cup' },
   { key: 'scan', icon: 'scan' },
   { key: 'users', icon: 'user' },

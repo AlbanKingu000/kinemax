@@ -5,6 +5,8 @@ import {
   adminLocationsResponseSchema,
   adminMovieResponseSchema,
   adminMoviesResponseSchema,
+  adminPricesResponseSchema,
+  appSettingsSchema,
   adminShowtimeResponseSchema,
   adminShowtimesResponseSchema,
   bulkCreateResponseSchema,
@@ -23,6 +25,9 @@ import {
   type AdminHallsResponse,
   type AdminLocation,
   type AdminMovie,
+  type AdminPricesResponse,
+  type AppSettingsInput,
+  type PriceKind,
   type MovieImageKind,
   type MovieInput,
   type MovieStatus,
@@ -203,5 +208,36 @@ export function saveHallLayout(id: string, input: HallLayoutInput): Promise<Hall
     method: 'PUT',
     body: input,
     schema: hallLayoutResponseSchema,
+  });
+}
+
+export function fetchAdminPrices(signal?: AbortSignal): Promise<AdminPricesResponse> {
+  return apiRequest('/api/admin/prices', { schema: adminPricesResponseSchema, ...opts(signal) });
+}
+
+/** Sets a rule (a new version from now); for "adjustment" with an id it replaces that rule. */
+export function savePriceRule(kind: PriceKind, body: object, id?: string): Promise<undefined> {
+  return apiRequest(
+    id ? `/api/admin/prices/${kind}/${encodeURIComponent(id)}` : `/api/admin/prices/${kind}`,
+    {
+      method: id ? 'PUT' : 'POST',
+      body,
+    },
+  );
+}
+
+export function endPriceRule(kind: PriceKind, id: string): Promise<undefined> {
+  return apiRequest(`/api/admin/prices/${kind}/${encodeURIComponent(id)}/end`, { method: 'POST' });
+}
+
+export function fetchSettings(signal?: AbortSignal): Promise<AppSettingsInput> {
+  return apiRequest('/api/admin/settings', { schema: appSettingsSchema, ...opts(signal) });
+}
+
+export function saveSettings(input: AppSettingsInput): Promise<AppSettingsInput> {
+  return apiRequest('/api/admin/settings', {
+    method: 'PUT',
+    body: input,
+    schema: appSettingsSchema,
   });
 }

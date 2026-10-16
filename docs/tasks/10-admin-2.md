@@ -8,9 +8,9 @@ in docs/roadmap.md.
 - [x] 0 sold showtimes fully locked (deactivate + create new)
 - [x] 0 occupancy with one decimal ("<0,1%")
 - [x] 0 commit "fix: lock sold showtimes, re-encode uploads, occupancy precision"
-- [ ] A pricing rules with versioning (base, surcharges, time adjustments, discounts, suites)
-- [ ] A app settings (hold minutes, cancellation cutoff)
-- [ ] A commit "feat: admin prices and settings"
+- [x] A pricing rules with versioning (base, surcharges, time adjustments, discounts, suites)
+- [x] A app settings (hold minutes, cancellation cutoff)
+- [x] A commit "feat: admin prices and settings"
 - [ ] B menu items CRUD + image upload (super admin)
 - [ ] B per-location availability and price (manager)
 - [ ] B seat-delivery list with "Dorëzuar" (migration)

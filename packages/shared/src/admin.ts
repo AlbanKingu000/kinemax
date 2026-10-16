@@ -424,3 +424,108 @@ export const hallLayoutResponseSchema = z.object({
   rows: z.array(z.object({ label: z.string(), blocks: z.array(z.array(layoutSeatSchema)) })),
 });
 export type HallLayoutResponse = z.infer<typeof hallLayoutResponseSchema>;
+
+// ---------------------------------------------------------------------------------------------
+// Prices and settings (SUPER_ADMIN). A change never rewrites a rule: the current version is closed
+// (validTo = now) and a new one starts now.
+// ---------------------------------------------------------------------------------------------
+
+export const priceKindSchema = z.enum(['base', 'surcharge', 'adjustment', 'discount', 'suite']);
+export type PriceKind = z.infer<typeof priceKindSchema>;
+export const adjustmentKindSchema = z.enum(['PERCENT', 'FIXED_CENTS']);
+
+const priceCents = z.int().min(0).max(1_000_000);
+
+export const basePriceInputSchema = z
+  .object({ hallTypeId: z.uuid(), locationId: z.uuid().nullable(), priceCents })
+  .strict();
+export const surchargeInputSchema = z
+  .object({ seatType: seatTypeSchema, amountCents: priceCents })
+  .strict();
+export const discountInputSchema = z
+  .object({ ticketCategoryId: z.uuid(), kind: adjustmentKindSchema, value: z.int().min(0) })
+  .strict()
+  .refine((d) => d.kind !== 'PERCENT' || d.value <= 100, { path: ['value'], message: 'percent' });
+export const suitePriceInputSchema = z.object({ hallId: z.uuid(), priceCents }).strict();
+export const adjustmentInputSchema = z
+  .object({
+    locationId: z.uuid().nullable(),
+    nameSq: z.string().trim().min(1).max(100),
+    nameEn: z
+      .string()
+      .trim()
+      .max(100)
+      .nullable()
+      .transform((v) => (v === '' ? null : v)),
+    daysOfWeek: z
+      .array(z.int().min(1).max(7))
+      .min(1)
+      .max(7)
+      .refine((d) => new Set(d).size === d.length, { message: 'duplicate' }),
+    startMinute: z.int().min(0).max(1439),
+    endMinute: z.int().min(1).max(1440),
+    kind: adjustmentKindSchema,
+    value: z.int().min(-1_000_000).max(1_000_000),
+    priority: z.int().min(-100).max(100),
+  })
+  .strict()
+  .refine((a) => a.startMinute < a.endMinute, { path: ['endMinute'], message: 'window' })
+  .refine((a) => a.kind !== 'PERCENT' || Math.abs(a.value) <= 100, {
+    path: ['value'],
+    message: 'percent',
+  });
+
+const version = { id: z.uuid(), validFrom: z.iso.datetime({ offset: true }) };
+
+export const adminPricesResponseSchema = z.object({
+  hallTypes: z.array(
+    z.object({ id: z.uuid(), code: z.string(), nameSq: z.string(), nameEn: z.string().nullable() }),
+  ),
+  locations: z.array(z.object({ id: z.uuid(), name: z.string() })),
+  categories: z.array(
+    z.object({ id: z.uuid(), code: z.string(), nameSq: z.string(), nameEn: z.string().nullable() }),
+  ),
+  suites: z.array(z.object({ id: z.uuid(), name: z.string(), locationName: z.string() })),
+  /** The versions in effect now (validFrom ≤ now < validTo). */
+  base: z.array(
+    z.object({
+      ...version,
+      hallTypeId: z.uuid(),
+      locationId: z.uuid().nullable(),
+      priceCents: z.int(),
+    }),
+  ),
+  surcharge: z.array(z.object({ ...version, seatType: seatTypeSchema, amountCents: z.int() })),
+  discount: z.array(
+    z.object({
+      ...version,
+      ticketCategoryId: z.uuid(),
+      kind: adjustmentKindSchema,
+      value: z.int(),
+    }),
+  ),
+  suite: z.array(z.object({ ...version, hallId: z.uuid(), priceCents: z.int() })),
+  adjustment: z.array(
+    z.object({
+      ...version,
+      locationId: z.uuid().nullable(),
+      nameSq: z.string(),
+      nameEn: z.string().nullable(),
+      daysOfWeek: z.array(z.int()),
+      startMinute: z.int(),
+      endMinute: z.int(),
+      kind: adjustmentKindSchema,
+      value: z.int(),
+      priority: z.int(),
+    }),
+  ),
+});
+export type AdminPricesResponse = z.infer<typeof adminPricesResponseSchema>;
+
+export const appSettingsSchema = z
+  .object({
+    seatHoldMinutes: z.int().min(1).max(60),
+    cancellationCutoffMinutes: z.int().min(0).max(10_080),
+  })
+  .strict();
+export type AppSettingsInput = z.infer<typeof appSettingsSchema>;

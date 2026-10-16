@@ -269,3 +269,13 @@
     grid-template-columns: minmax(0, 3fr) minmax(16rem, 1fr);
   }
 }
+
+.amountInput {
+  width: 6.5rem;
+  min-height: 2.5rem;
+}
+
+.compactSelect {
+  min-height: 2.5rem;
+  font-size: var(--text-body-sm);
+}

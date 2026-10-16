@@ -7,6 +7,7 @@ import { requireRole } from '../../http/auth-middleware.js';
 import { type AdminDeps, createAdminLimiters, locationScope, staffUser } from './common.js';
 import { createHallsRouter } from './halls.js';
 import { createMoviesRouter } from './movies.js';
+import { createPricesRouter } from './prices.js';
 import { createShowtimesRouter } from './showtimes.js';
 import { createStatsHandler } from './stats.js';
 
@@ -31,6 +32,7 @@ export function createAdminRouter(deps: AdminDeps): Router {
   router.use(createMoviesRouter({ ...deps, limit }));
   router.use(createShowtimesRouter({ ...deps, limit }));
   router.use(createHallsRouter({ ...deps, limit }));
+  router.use(createPricesRouter({ ...deps, limit }));
 
   return router;
 }

@@ -24,3 +24,14 @@ export function percent(locale: Locale, part: number, whole: number): string {
   if (value > 0 && value < 0.1) return `<${comma('0.1')}%`;
   return `${comma(value.toFixed(1))}%`;
 }
+
+/** "4,50" / "4.50" / "4" → 450 cents; null when it is not an amount. */
+export function parseEuros(text: string): number | null {
+  const match = /^(\d{1,6})(?:[.,](\d{1,2}))?$/.exec(text.trim());
+  if (!match) return null;
+  return Number(match[1]) * 100 + Number((match[2] ?? '0').padEnd(2, '0'));
+}
+
+/** Minutes since midnight → "HH:MM". */
+export const clock = (minutes: number) =>
+  `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
