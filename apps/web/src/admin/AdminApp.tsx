@@ -14,6 +14,7 @@ import {
   storeAdminLocation,
 } from './admin-location';
 import { AdminLayout } from './AdminLayout';
+import { AuditPage } from './AuditPage';
 import { DashboardPage } from './DashboardPage';
 import { FoodPage } from './FoodPage';
 import { HallEditorPage } from './HallEditorPage';
@@ -22,6 +23,7 @@ import { MovieEditPage } from './MovieEditPage';
 import { MoviesPage } from './MoviesPage';
 import { PricesPage } from './PricesPage';
 import { ScanPage } from './ScanPage';
+import { UsersPage } from './UsersPage';
 import { ShowtimesPage } from './ShowtimesPage';
 
 /** Loads the cinemas the user may manage and keeps the switcher's choice. */
@@ -97,6 +99,8 @@ export default function AdminApp() {
               <Route path="movies/new" element={<MovieEditPage />} />
               <Route path="movies/:id" element={<MovieEditPage />} />
               <Route path="prices" element={<PricesPage />} />
+              <Route path="users" element={<UsersPage />} />
+              <Route path="audit" element={<AuditPage />} />
             </>
           )}
           <Route path="showtimes" element={<ShowtimesPage />} />

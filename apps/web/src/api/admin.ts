@@ -42,6 +42,15 @@ import {
   type MovieStatus,
   type StatsRange,
   type StatsResponse,
+  adminUserResponseSchema,
+  adminUsersResponseSchema,
+  auditResponseSchema,
+  type AdminUser,
+  type AdminUserUpdate,
+  type AdminUsersQuery,
+  type AdminUsersResponse,
+  type AuditQuery,
+  type AuditResponse,
 } from '@kinemax/shared';
 import { apiRequest } from './http';
 
@@ -329,5 +338,32 @@ export function checkIn(code: string, locationId: string): Promise<CheckinRespon
     method: 'POST',
     body: { code, locationId },
     schema: checkinResponseSchema,
+  });
+}
+
+export function fetchAdminUsers(
+  query: AdminUsersQuery,
+  signal?: AbortSignal,
+): Promise<AdminUsersResponse> {
+  return apiRequest(`/api/admin/users${adminQuery(query)}`, {
+    schema: adminUsersResponseSchema,
+    ...opts(signal),
+  });
+}
+
+export async function updateAdminUser(id: string, update: AdminUserUpdate): Promise<AdminUser> {
+  return (
+    await apiRequest(`/api/admin/users/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: update,
+      schema: adminUserResponseSchema,
+    })
+  ).user;
+}
+
+export function fetchAudit(query: AuditQuery, signal?: AbortSignal): Promise<AuditResponse> {
+  return apiRequest(`/api/admin/audit${adminQuery(query)}`, {
+    schema: auditResponseSchema,
+    ...opts(signal),
   });
 }

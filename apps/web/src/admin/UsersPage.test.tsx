@@ -1,0 +1,129 @@
+import type { AdminUser, AuditResponse } from '@kinemax/shared';
+import { fireEvent, screen, within } from '@testing-library/react';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { ADMIN_LOCATIONS, stubAdmin, superAdminUser } from '../test/admin';
+import { renderApp } from '../test/catalog';
+
+beforeAll(async () => {
+  await import('./AdminApp');
+});
+
+const me = superAdminUser();
+const id = (n: string) => `0190f0a0-0000-7000-8000-0000000000${n}`;
+const user = (n: string, name: string, extra: Partial<AdminUser> = {}): AdminUser => ({
+  id: id(n),
+  email: `${name.toLowerCase().replace(' ', '.')}@kinemax.test`,
+  name,
+  role: 'CUSTOMER',
+  isActive: true,
+  createdAt: '2026-01-01T10:00:00.000Z',
+  locationIds: [],
+  ...extra,
+});
+const users = [
+  { ...user('a1', me.name, { role: 'SUPER_ADMIN' }), id: me.id },
+  user('a2', 'Ana Krasniqi'),
+  user('a3', 'Admin Dy', { role: 'SUPER_ADMIN' }),
+];
+
+function stubUsers(onPatch: (body: unknown, path: string) => unknown) {
+  const requests: { method: string; path: string; body: unknown }[] = [];
+  stubAdmin(me, (req) => {
+    requests.push(req);
+    if (req.path === '/api/admin/users') return { users, total: users.length };
+    if (req.method === 'PATCH') return onPatch(req.body, req.path);
+    return undefined;
+  });
+  return requests;
+}
+
+describe('the users page', () => {
+  it('makes a customer a cinema manager and deactivates an account after confirming', async () => {
+    const requests = stubUsers((body) => ({ user: { ...users[1], ...(body as object) } }));
+    renderApp('/admin/users');
+    const self = await screen.findByRole('row', { name: new RegExp(me.name) });
+    expect(within(self).getByText('Ti')).toBeInTheDocument();
+    expect(within(self).queryByRole('button')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ndrysho: Ana Krasniqi' }));
+    const dialog = screen.getByRole('dialog', { name: 'Ndrysho rolin: Ana Krasniqi' });
+    fireEvent.change(within(dialog).getByLabelText('Roli'), {
+      target: { value: 'LOCATION_MANAGER' },
+    });
+    expect(within(dialog).getByText(/nxjerr përdoruesin nga llogaria/)).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByLabelText(ADMIN_LOCATIONS[1]?.name ?? ''));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Ruaj' }));
+    await vi.waitFor(() => {
+      expect(requests.find((r) => r.method === 'PATCH')).toMatchObject({
+        path: `/api/admin/users/${id('a2')}`,
+        body: { role: 'LOCATION_MANAGER', locationIds: [ADMIN_LOCATIONS[1]?.id] },
+      });
+    });
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Çaktivizo: Ana Krasniqi' }));
+    const confirm = screen.getByRole('dialog', { name: 'Çaktivizo llogarinë?' });
+    expect(confirm).toHaveTextContent('del menjëherë nga të gjitha pajisjet');
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Çaktivizo' }));
+    await vi.waitFor(() => {
+      expect(requests.filter((r) => r.method === 'PATCH').at(-1)?.body).toEqual({
+        isActive: false,
+      });
+    });
+  });
+
+  it('explains when the last super admin cannot be demoted', async () => {
+    stubUsers(() => ({
+      status: 409,
+      body: {
+        error: {
+          code: 'conflict',
+          message: 'x',
+          fields: [{ path: 'role', code: 'last_super_admin' }],
+        },
+      },
+    }));
+    renderApp('/admin/users');
+    fireEvent.click(await screen.findByRole('button', { name: 'Ndrysho: Admin Dy' }));
+    const dialog = screen.getByRole('dialog', { name: 'Ndrysho rolin: Admin Dy' });
+    fireEvent.change(within(dialog).getByLabelText('Roli'), { target: { value: 'CUSTOMER' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Ruaj' }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'super administratori i fundit aktiv',
+    );
+  });
+});
+
+describe('the audit log page', () => {
+  it('lists changes and filters by type', async () => {
+    const audit: AuditResponse = {
+      total: 1,
+      entityTypes: ['HallTypePrice', 'User'],
+      entries: [
+        {
+          id: id('c1'),
+          createdAt: '2026-10-16T08:05:00.000Z',
+          actor: { id: me.id, name: me.name, email: me.email },
+          action: 'user.update',
+          entityType: 'User',
+          entityId: id('a2'),
+          before: { role: 'CUSTOMER' },
+          after: { role: 'LOCATION_MANAGER' },
+        },
+      ],
+    };
+    const requests: string[] = [];
+    stubAdmin(me, (req) => {
+      if (req.path !== '/api/admin/audit') return undefined;
+      requests.push(req.url.search);
+      return audit;
+    });
+    renderApp('/admin/audit');
+    const row = await screen.findByRole('row', { name: /user\.update/ });
+    expect(row).toHaveTextContent('10:05');
+    expect(row).toHaveTextContent('"role": "LOCATION_MANAGER"');
+    fireEvent.change(screen.getByLabelText('Lloji'), { target: { value: 'User' } });
+    await vi.waitFor(() => {
+      expect(requests.at(-1)).toContain('entityType=User');
+    });
+  });
+});

@@ -50,13 +50,10 @@ describe('the admin shell', () => {
       'Çmimet',
       'Ushqimi',
       'Skano',
+      'Përdoruesit',
+      'Regjistri',
     ]) {
       expect(within(nav).getByRole('link', { name })).toBeInTheDocument();
-    }
-    // Later parts are listed, but not links yet.
-    for (const name of ['Përdoruesit']) {
-      expect(within(nav).queryByRole('link', { name: new RegExp(name) })).toBeNull();
-      expect(within(nav).getByText(name)).toBeInTheDocument();
     }
     expect(within(nav).getByRole('link', { name: 'Dashboard' })).toHaveAttribute(
       'aria-current',
@@ -95,7 +92,9 @@ describe('the admin shell', () => {
     renderApp('/admin/movies');
     expect(await screen.findByRole('heading', { name: 'Faqja nuk u gjet' })).toBeInTheDocument();
     const nav = screen.getByRole('navigation', { name: 'Navigimi i administrimit' });
-    expect(within(nav).queryByRole('link', { name: 'Filmat' })).toBeNull();
+    for (const name of ['Filmat', 'Përdoruesit', 'Regjistri']) {
+      expect(within(nav).queryByRole('link', { name })).toBeNull();
+    }
     const select = screen.getByRole('combobox', { name: 'Kinemaja' });
     expect(
       within(select)

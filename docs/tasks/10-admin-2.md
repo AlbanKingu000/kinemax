@@ -17,7 +17,7 @@ in docs/roadmap.md.
 - [x] B commit "feat: admin food management and delivery list"
 - [x] C check-in API (migration) + /admin/scan with camera and manual entry
 - [x] C commit "feat: QR ticket check-in"
-- [ ] D users (search, role, locations, deactivate) with safeguards
-- [ ] D audit log table
-- [ ] D commit "feat: admin users and audit log"
+- [x] D users (search, role, locations, deactivate) with safeguards
+- [x] D audit log table
+- [x] D commit "feat: admin users and audit log"
 - [ ] End: verify, Chrome check + screenshots, roadmap, push, report

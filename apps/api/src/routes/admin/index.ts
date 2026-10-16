@@ -12,6 +12,7 @@ import { createMoviesRouter } from './movies.js';
 import { createPricesRouter } from './prices.js';
 import { createShowtimesRouter } from './showtimes.js';
 import { createStatsHandler } from './stats.js';
+import { createUsersRouter } from './users.js';
 
 export function createAdminRouter(deps: AdminDeps): Router {
   const { prisma, now } = deps;
@@ -37,6 +38,7 @@ export function createAdminRouter(deps: AdminDeps): Router {
   router.use(createPricesRouter({ ...deps, limit }));
   router.use(createFoodRouter({ ...deps, limit }));
   router.use(createCheckinRouter({ ...deps, limit }));
+  router.use(createUsersRouter({ ...deps, limit }));
 
   return router;
 }

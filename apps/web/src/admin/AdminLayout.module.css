@@ -49,8 +49,7 @@
   list-style: none;
 }
 
-.navLink,
-.navLater {
+.navLink {
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -77,20 +76,6 @@
 
 .navLink svg {
   color: var(--color-crimson-text);
-}
-
-.navLater {
-  color: var(--color-text-muted);
-  cursor: default;
-}
-
-.laterTag {
-  margin-left: auto;
-  white-space: nowrap;
-  color: var(--color-text-muted);
-  font-size: var(--text-overline);
-  letter-spacing: var(--tracking-wide);
-  text-transform: uppercase;
 }
 
 .role {

@@ -7,6 +7,7 @@ import {
   seatTypeSchema,
   slugSchema,
 } from './catalog.js';
+import { userRoleSchema } from './auth.js';
 import { menuCategorySchema, serveTimingSchema } from './food.js';
 
 // Admin panel (/api/admin/*): staff only (SUPER_ADMIN everywhere, LOCATION_MANAGER for their
@@ -689,3 +690,83 @@ export const checkinResponseSchema = z.discriminatedUnion('result', [
   }),
 ]);
 export type CheckinResponse = z.infer<typeof checkinResponseSchema>;
+
+// --- Users and audit log (SUPER_ADMIN) ---
+
+export const ADMIN_PAGE_SIZE = 50;
+const pageSchema = z.coerce.number().int().min(1).max(10_000).default(1);
+
+export const adminUsersQuerySchema = z
+  .object({
+    /** Part of the name or email. */
+    q: z.string().trim().max(100).optional(),
+    role: userRoleSchema.optional(),
+    page: pageSchema,
+  })
+  .strict();
+export type AdminUsersQuery = Partial<z.infer<typeof adminUsersQuerySchema>>;
+
+export const adminUserSchema = z.object({
+  id: z.uuid(),
+  email: z.string(),
+  name: z.string(),
+  role: userRoleSchema,
+  isActive: z.boolean(),
+  createdAt: z.iso.datetime({ offset: true }),
+  /** Managed cinemas (LOCATION_MANAGER only). */
+  locationIds: z.array(z.uuid()),
+});
+export type AdminUser = z.infer<typeof adminUserSchema>;
+
+export const adminUsersResponseSchema = z.object({
+  users: z.array(adminUserSchema),
+  total: z.int(),
+});
+export type AdminUsersResponse = z.infer<typeof adminUsersResponseSchema>;
+
+/** Any of: a new role, the managed cinemas (managers only), active or not. */
+export const adminUserUpdateSchema = z
+  .object({
+    role: userRoleSchema.optional(),
+    locationIds: z.array(z.uuid()).max(50).optional(),
+    isActive: z.boolean().optional(),
+  })
+  .strict()
+  .refine((v) => v.role !== undefined || v.locationIds !== undefined || v.isActive !== undefined);
+export type AdminUserUpdate = z.infer<typeof adminUserUpdateSchema>;
+
+export const adminUserResponseSchema = z.object({ user: adminUserSchema });
+
+export const auditQuerySchema = z
+  .object({
+    /** Part of the actor's name or email. */
+    actor: z.string().trim().max(100).optional(),
+    entityType: z.string().max(64).optional(),
+    /** Days in the cinemas' time zone, inclusive. */
+    from: z.iso.date().optional(),
+    to: z.iso.date().optional(),
+    page: pageSchema,
+  })
+  .strict();
+export type AuditQuery = Partial<z.infer<typeof auditQuerySchema>>;
+
+export const auditEntrySchema = z.object({
+  id: z.uuid(),
+  createdAt: z.iso.datetime({ offset: true }),
+  /** Null = a system action, or the actor's account no longer exists. */
+  actor: z.object({ id: z.uuid(), name: z.string(), email: z.string() }).nullable(),
+  action: z.string(),
+  entityType: z.string(),
+  entityId: z.string(),
+  before: z.unknown(),
+  after: z.unknown(),
+});
+export type AuditEntry = z.infer<typeof auditEntrySchema>;
+
+export const auditResponseSchema = z.object({
+  entries: z.array(auditEntrySchema),
+  total: z.int(),
+  /** Every entity type in the log, for the filter. */
+  entityTypes: z.array(z.string()),
+});
+export type AuditResponse = z.infer<typeof auditResponseSchema>;

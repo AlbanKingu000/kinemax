@@ -19,8 +19,7 @@ type NavKey = keyof AdminMessages['nav'];
 interface NavItem {
   key: NavKey;
   icon: IconName;
-  /** Missing: a later part of the panel, shown as "coming soon". */
-  to?: string;
+  to: string;
   superAdminOnly?: boolean;
 }
 
@@ -32,7 +31,8 @@ const ADMIN_NAV: readonly NavItem[] = [
   { key: 'prices', icon: 'ticket', to: '/admin/prices', superAdminOnly: true },
   { key: 'food', icon: 'cup', to: '/admin/food' },
   { key: 'scan', icon: 'scan', to: '/admin/scan' },
-  { key: 'users', icon: 'user' },
+  { key: 'users', icon: 'user', to: '/admin/users', superAdminOnly: true },
+  { key: 'audit', icon: 'clock', to: '/admin/audit', superAdminOnly: true },
 ];
 
 function AdminNav({ onNavigate }: { onNavigate?: () => void }) {
@@ -41,29 +41,19 @@ function AdminNav({ onNavigate }: { onNavigate?: () => void }) {
   const items = ADMIN_NAV.filter((item) => !item.superAdminOnly || user?.role === 'SUPER_ADMIN');
   return (
     <ul className={styles.navList}>
-      {items.map((item) =>
-        item.to ? (
-          <li key={item.key}>
-            <NavLink
-              to={item.to}
-              end={item.to === '/admin'}
-              className={styles.navLink}
-              onClick={onNavigate}
-            >
-              <Icon name={item.icon} size={18} />
-              {a.nav[item.key]}
-            </NavLink>
-          </li>
-        ) : (
-          <li key={item.key}>
-            <span className={styles.navLater} aria-disabled="true">
-              <Icon name={item.icon} size={18} />
-              {a.nav[item.key]}
-              <span className={styles.laterTag}>{a.shell.later}</span>
-            </span>
-          </li>
-        ),
-      )}
+      {items.map((item) => (
+        <li key={item.key}>
+          <NavLink
+            to={item.to}
+            end={item.to === '/admin'}
+            className={styles.navLink}
+            onClick={onNavigate}
+          >
+            <Icon name={item.icon} size={18} />
+            {a.nav[item.key]}
+          </NavLink>
+        </li>
+      ))}
     </ul>
   );
 }
