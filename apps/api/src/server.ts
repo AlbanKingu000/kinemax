@@ -43,6 +43,7 @@ const app = createApp({
   logger,
   corsAllowedOrigins: env.CORS_ALLOWED_ORIGINS,
   uploadsDir,
+  ...(env.WEB_DIST_DIR ? { webDistDir: resolve(env.WEB_DIST_DIR) } : {}),
   auth: {
     sessions,
     cookieSecure: env.COOKIE_SECURE,

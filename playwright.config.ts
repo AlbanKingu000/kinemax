@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 import { loadDotEnv, rootEnvPath } from './apps/api/src/config/load-dotenv.ts';
 import { assertTestDatabaseUrl } from './apps/api/src/db/database-url.ts';
-import { API_PORT, DEV_WEB_PORT, DEV_WEB_URL, WEB_PORT } from './e2e/ports.ts';
+import { API_PORT, DEV_WEB_PORT, DEV_WEB_URL, WEB_URL } from './e2e/ports.ts';
 
 // e2e runs the production builds against kinemax_test ONLY; refuse anything else.
 loadDotEnv(rootEnvPath);
@@ -30,7 +30,7 @@ export default defineConfig({
   retries: isCI ? 2 : 0,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
-    baseURL: `http://localhost:${String(WEB_PORT)}`,
+    baseURL: WEB_URL,
     trace: 'on-first-retry',
   },
   projects: [
@@ -70,17 +70,19 @@ export default defineConfig({
   ],
   webServer: [
     {
-      // Migrations, then a fresh demo catalog in kinemax_test (scripts/e2e-catalog.ts).
+      // Migrations, then a fresh demo catalog in kinemax_test (scripts/e2e-catalog.ts). The API
+      // serves the production web build itself, like production (docs/deployment.md), so every
+      // spec runs under the real security headers (CSP).
       command:
         'npm run db:deploy -w @kinemax/api && npm run e2e:catalog -w @kinemax/api && node apps/api/dist/server.js',
-      url: `http://127.0.0.1:${String(API_PORT)}/api/health`,
+      url: `${WEB_URL}/api/health`,
       env: {
         NODE_ENV: 'test',
         DATABASE_URL: testDatabaseUrl,
-        HOST: '127.0.0.1',
+        HOST: 'localhost',
         PORT: String(API_PORT),
-        // State-changing requests must come from the web origin (the preview server).
-        APP_ORIGIN: `http://localhost:${String(WEB_PORT)}`,
+        APP_ORIGIN: WEB_URL,
+        WEB_DIST_DIR: 'apps/web/dist',
         // Uploads of the admin specs stay in the run's output, never in the dev uploads folder.
         UPLOADS_DIR: 'test-results/e2e-uploads',
       },
@@ -88,17 +90,10 @@ export default defineConfig({
       timeout: 120_000,
     },
     {
-      command: `npm run preview -w @kinemax/web -- --port ${String(WEB_PORT)} --strictPort`,
-      url: `http://localhost:${String(WEB_PORT)}`,
-      env: { API_PROXY_TARGET: `http://127.0.0.1:${String(API_PORT)}` },
-      reuseExistingServer: false,
-      timeout: 120_000,
-    },
-    {
       // Vite dev server, only for development-only pages (/styleguide).
       command: `npm run dev -w @kinemax/web -- --port ${String(DEV_WEB_PORT)} --strictPort`,
       url: DEV_WEB_URL,
-      env: { API_PROXY_TARGET: `http://127.0.0.1:${String(API_PORT)}` },
+      env: { API_PROXY_TARGET: WEB_URL },
       reuseExistingServer: false,
       timeout: 120_000,
     },

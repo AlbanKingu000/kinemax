@@ -52,6 +52,8 @@ const envSchema = z
     TRUST_PROXY: z.coerce.number().int().min(0).max(10).default(0),
     /** Directory for uploaded movie images; default: uploads/ in the repository (git-ignored). */
     UPLOADS_DIR: z.string().trim().min(1).optional(),
+    /** The built web app (apps/web/dist) to serve from the API; unset: API only (reverse proxy). */
+    WEB_DIST_DIR: z.string().trim().min(1).optional(),
   })
   .superRefine((env, ctx) => {
     const name = databaseNameFromUrl(env.DATABASE_URL);
@@ -82,6 +84,13 @@ const envSchema = z
           code: 'custom',
           path: ['CSRF_SECRET'],
           message: 'is required in production',
+        });
+      }
+      if (env.UPLOADS_DIR === undefined) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['UPLOADS_DIR'],
+          message: 'is required in production (persistent storage outside the app)',
         });
       }
     }

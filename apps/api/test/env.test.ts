@@ -38,6 +38,8 @@ describe('readEnv', () => {
       APP_ORIGIN: 'https://kinemax.example',
       CSRF_SECRET: 'c'.repeat(32),
       TRUST_PROXY: '1',
+      UPLOADS_DIR: '/srv/kinemax/uploads',
+      WEB_DIST_DIR: 'apps/web/dist',
     });
     expect(env.PORT).toBe(8080);
     expect(env.CORS_ALLOWED_ORIGINS).toEqual(['https://kinemax.example', 'http://localhost:5173']);
@@ -46,10 +48,12 @@ describe('readEnv', () => {
       COOKIE_SECURE: true,
       CSRF_SECRET: 'c'.repeat(32),
       TRUST_PROXY: 1,
+      UPLOADS_DIR: '/srv/kinemax/uploads',
+      WEB_DIST_DIR: 'apps/web/dist',
     });
   });
 
-  it('requires https APP_ORIGIN, CSRF_SECRET and secure cookies in production', () => {
+  it('requires https APP_ORIGIN, CSRF_SECRET, UPLOADS_DIR and secure cookies in production', () => {
     const error = errorOf(() =>
       readEnv({
         NODE_ENV: 'production',
@@ -61,6 +65,7 @@ describe('readEnv', () => {
     expect(error.message).toContain('APP_ORIGIN: is required and must use https in production');
     expect(error.message).toContain('COOKIE_SECURE: cannot be false in production');
     expect(error.message).toContain('CSRF_SECRET: is required in production');
+    expect(error.message).toContain('UPLOADS_DIR: is required in production');
     expect(
       errorOf(() => readEnv({ NODE_ENV: 'production', DATABASE_URL: DEV_URL })).message,
     ).toContain('APP_ORIGIN');
